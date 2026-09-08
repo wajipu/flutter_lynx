@@ -25,3 +25,13 @@ export "src/view/lynx_mini_program_page.dart";
 
 // Utils
 export "src/utils/lynx_logger.dart";
+
+// Platform Interface
+import "flutter_lynx_platform_interface.dart";
+export "flutter_lynx_platform_interface.dart";
+
+class FlutterLynx {
+  Future<String?> getPlatformVersion() {
+    return FlutterLynxPlatform.instance.getPlatformVersion();
+  }
+}

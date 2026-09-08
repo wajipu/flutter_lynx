@@ -5,7 +5,8 @@
   "description": "Dynamic Mini Program template for KManager powered by Lynx (https://lynxjs.org/)",
   "scripts": {
     "dev": "rspeedy dev",
-    "build": "rspeedy build"
+    "build": "rspeedy build",
+    "build:bundle": "node scripts/build-bundle.js"
   },
   "dependencies": {
     "@lynx-js/react": "^0.126.0"

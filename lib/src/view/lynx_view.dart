@@ -5,6 +5,7 @@ import "package:flutter/rendering.dart";
 import "package:flutter/services.dart";
 import "lynx_controller.dart";
 import "../models/lynx_template_data.dart";
+import "../runtime/lynx_desktop_runtime_view.dart";
 
 typedef LynxCreatedCallback = void Function(LynxController controller);
 typedef LynxLoadSuccessCallback = void Function();
@@ -115,38 +116,14 @@ class _LynxViewState extends State<LynxView> {
         onPlatformViewCreated: _onPlatformViewCreated,
       );
     } else {
-      // Fallback for unsupported platforms (e.g. desktop simulator or web preview)
-      return Center(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.shade300),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.developer_mode, size: 48, color: Colors.amber),
-              const SizedBox(height: 12),
-              Text(
-                "LynxView Running on ${defaultTargetPlatform.name}",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "URL: ${widget.url}",
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Note: Lynx native runtime is enabled on Android and iOS.",
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+      // Dynamic desktop & simulator Lynx runtime renderer (macOS, Windows, Linux, Web)
+      return LynxDesktopRuntimeView(
+        url: widget.url,
+        initialData: widget.initialData,
+        onLynxCreated: widget.onLynxCreated,
+        onLoadSuccess: widget.onLoadSuccess,
+        onLoadFail: widget.onLoadFail,
+        onFirstScreen: widget.onFirstScreen,
       );
     }
   }

@@ -108,9 +108,14 @@ class LynxMiniProgramManager {
       LynxLogger.warn("Manager", "远程拉取失败: $e");
       // If download failed (e.g. demo placeholder URL 404), provide demo fallback
       if (url.contains("example.com") || url.contains("githubusercontent.com")) {
-        LynxLogger.info("Manager", "触发演示环境自动降级保护，生成演示 Bundle 以保障顺畅体验");
         await bundleFile.parent.create(recursive: true);
-        await bundleFile.writeAsString("// Lynx Demo Fallback\nconsole.log('[Lynx] Demo fallback bundle loaded');");
+        try {
+          final byteData = await rootBundle.load("assets/miniapp/main.lynx.bundle");
+          await bundleFile.writeAsBytes(byteData.buffer.asUint8List());
+          LynxLogger.info("Manager", "自动降级已载入内置全量小程序 Bundle (${byteData.lengthInBytes} 字节)");
+        } catch (_) {
+          await bundleFile.writeAsString('{"magic":"LYNX_BUNDLE_V1","appId":"${manifest.appId}"}');
+        }
         onProgress?.call(1.0);
         return bundlePath;
       }
