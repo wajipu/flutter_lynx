@@ -64,12 +64,14 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
     LynxLogger.info("MiniApp:${widget.manifest.appId}", msg);
 
     if (mounted) {
-      setState(() {
-        _logs.add(logEntry);
-      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_logScrollController.hasClients) {
-          _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+        if (mounted) {
+          setState(() {
+            _logs.add(logEntry);
+          });
+          if (_logScrollController.hasClients) {
+            _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+          }
         }
       });
     }
@@ -463,9 +465,13 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
           onLoadFail: (err) {
             _addLog("Lynx 渲染错误: $err");
             if (mounted) {
-              setState(() {
-                _status = LynxLoadStatus.failed;
-                _errorMessage = err;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _status = LynxLoadStatus.failed;
+                    _errorMessage = err;
+                  });
+                }
               });
             }
           },

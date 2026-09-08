@@ -109,11 +109,13 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView> {
       _runtimeData = Map.from(widget.initialData!.toMap());
     }
 
-    // Attach controller to host
-    widget.onLynxCreated?.call(_controller);
-
-    // Read and verify bundle file asynchronously
-    _initializeBundle();
+    // Attach controller to host and fire lifecycle callbacks after build completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onLynxCreated?.call(_controller);
+        _initializeBundle();
+      }
+    });
   }
 
   Future<void> _initializeBundle() async {
