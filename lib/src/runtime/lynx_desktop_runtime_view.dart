@@ -167,26 +167,31 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView> {
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFFF4F6F9),
-      child: Column(
-        children: [
-          // Top MiniApp Header
-          _buildMiniAppHeader(),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 880),
+          child: Column(
+            children: [
+              // Top MiniApp Header
+              _buildMiniAppHeader(),
 
-          // MiniApp Tabs Bar
-          _buildTabsBar(),
+              // MiniApp Tabs Bar
+              _buildTabsBar(),
 
-          // Active Tab Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: _buildActiveTabContent(),
-            ),
+              // Active Tab Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: _buildActiveTabContent(),
+                ),
+              ),
+
+              // Bottom Cart Sticky Bar (only visible when in ordering tab and cart has items)
+              if (_activeTab == 2 && _cart.values.fold(0, (a, b) => a + b) > 0)
+                _buildCartStickyBar(),
+            ],
           ),
-
-          // Bottom Cart Sticky Bar (only visible when in ordering tab and cart has items)
-          if (_activeTab == 2 && _cart.values.fold(0, (a, b) => a + b) > 0)
-            _buildCartStickyBar(),
-        ],
+        ),
       ),
     );
   }
@@ -391,62 +396,124 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView> {
               ),
               const SizedBox(height: 16),
 
-              // Bar Visualization
+              // Professional Chart Area with Y-Axis, Horizontal Grid, and Bars
               SizedBox(
-                height: 140,
+                height: 175,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(_hourlyData.length, (idx) {
-                    final item = _hourlyData[idx];
-                    final isCur = _selectedHourIdx == idx;
-                    final hFactor = item["height"] as double;
-
-                    return Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          setState(() => _selectedHourIdx = idx);
-                          LynxLogger.info("MiniApp", "选择分时时段: ${item['hour']}");
-                        },
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              "¥${((item['amount'] as double) / 1000).toStringAsFixed(1)}k",
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
-                                color: isCur ? const Color(0xFF1677FF) : Colors.grey.shade500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              height: 90 * hFactor,
-                              width: 22,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: isCur
-                                      ? [const Color(0xFF1677FF), const Color(0xFF69C0FF)]
-                                      : [const Color(0xFFB5D7FE), const Color(0xFFE6F4FF)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item["hour"] as String,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
-                                color: isCur ? const Color(0xFF1677FF) : Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Y-Axis Labels
+                    const SizedBox(
+                      width: 38,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text("¥8.0k", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                          Text("¥6.0k", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                          Text("¥4.0k", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                          Text("¥2.0k", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                          Text("¥0.0", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                          SizedBox(height: 18), // X-axis label baseline gap
+                        ],
                       ),
-                    );
-                  }),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Grid & Bars
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          // Horizontal Gridlines
+                          Positioned.fill(
+                            bottom: 22,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(
+                                5,
+                                (_) => Container(
+                                  height: 1,
+                                  color: const Color(0xFFF0F2F5),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Bars Columns Layer
+                          Positioned.fill(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: List.generate(_hourlyData.length, (idx) {
+                                final item = _hourlyData[idx];
+                                final isCur = _selectedHourIdx == idx;
+                                final hFactor = item["height"] as double;
+
+                                return Expanded(
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() => _selectedHourIdx = idx);
+                                      LynxLogger.info("MiniApp", "选择分时时段: ${item['hour']}");
+                                    },
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        // Value tip above bar
+                                        Text(
+                                          "¥${((item['amount'] as double) / 1000).toStringAsFixed(1)}k",
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
+                                            color: isCur ? const Color(0xFF1677FF) : Colors.grey.shade500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+
+                                        // Bar Pillar
+                                        Container(
+                                          height: 110 * hFactor,
+                                          width: 26,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: isCur
+                                                  ? [const Color(0xFF1677FF), const Color(0xFF69C0FF)]
+                                                  : [const Color(0xFF91CAFF), const Color(0xFFE6F4FF)],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                                            boxShadow: isCur
+                                                ? [
+                                                    BoxShadow(
+                                                      color: const Color(0xFF1677FF).withValues(alpha: 0.35),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 3),
+                                                    )
+                                                  ]
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+
+                                        // X-Axis Label
+                                        Text(
+                                          item["hour"] as String,
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
+                                            color: isCur ? const Color(0xFF1677FF) : Colors.grey.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

@@ -5,6 +5,9 @@
   padding: 14px;
   background-color: #f5f6f8;
   min-height: 100vh;
+  max-width: 860px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .header-card {
@@ -607,3 +610,445 @@
   font-size: 9px;
   color: #059669;
 }
+
+/* ============================================================
+   Lynx UI Component Library Styles (Ant Design / Semi Inspired)
+   ============================================================ */
+
+/* UI Buttons */
+.ui-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+}
+
+.ui-btn-primary {
+  background-color: #1677ff;
+  border: 1px solid #1677ff;
+}
+
+.ui-btn-default {
+  background-color: #ffffff;
+  border: 1px solid #d9d9d9;
+}
+
+.ui-btn-success {
+  background-color: #52c41a;
+  border: 1px solid #52c41a;
+}
+
+.ui-btn-warning {
+  background-color: #faad14;
+  border: 1px solid #faad14;
+}
+
+.ui-btn-danger {
+  background-color: #ff4d4f;
+  border: 1px solid #ff4d4f;
+}
+
+.ui-btn-ghost {
+  background-color: transparent;
+  border: 1px solid #ffffff;
+}
+
+.ui-btn-small {
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.ui-btn-large {
+  padding: 12px 24px;
+  border-radius: 10px;
+}
+
+.ui-btn-block {
+  width: 100%;
+}
+
+.ui-btn-disabled {
+  opacity: 0.5;
+}
+
+.ui-btn-text-primary, .ui-btn-text-success, .ui-btn-text-warning, .ui-btn-text-danger, .ui-btn-text-ghost {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ui-btn-text-default {
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* UI Card */
+.ui-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.ui-card-bordered {
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ui-card-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ui-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ui-card-subtitle {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.ui-card-body {
+  padding: 14px 16px;
+}
+
+/* UI Statistic */
+.ui-statistic {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-statistic-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ui-statistic-title {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.ui-statistic-value-box {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  margin: 6px 0 2px;
+}
+
+.ui-statistic-prefix {
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 2px;
+  color: #111827;
+}
+
+.ui-statistic-value {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.ui-statistic-suffix {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 2px;
+}
+
+.ui-statistic-trend-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.ui-statistic-trend-up {
+  color: #15803d;
+  background-color: #dcfce7;
+}
+
+.ui-statistic-trend-down {
+  color: #b91c1c;
+  background-color: #fee2e2;
+}
+
+.ui-statistic-trend-neutral {
+  color: #4b5563;
+  background-color: #f3f4f6;
+}
+
+/* UI Professional Chart System */
+.ui-chart-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ui-chart-canvas {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ui-chart-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.ui-chart-grid-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+}
+
+.ui-chart-y-label {
+  font-size: 9.5px;
+  color: #9ca3af;
+  width: 38px;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.ui-chart-grid-line {
+  flex: 1;
+  height: 1px;
+  background-color: #f3f4f6;
+}
+
+.ui-chart-bars-layer {
+  position: relative;
+  margin-left: 42px;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding-bottom: 22px;
+}
+
+.ui-chart-col {
+  flex: 1;
+  max-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  cursor: pointer;
+}
+
+.ui-chart-bar-value-wrapper {
+  margin-bottom: 4px;
+}
+
+.ui-chart-bar-value {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.ui-chart-bar-value-active {
+  color: #1677ff;
+  font-weight: bold;
+}
+
+.ui-chart-bar-track {
+  width: 24px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background-color: #f3f4f6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ui-chart-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #93c5fd 0%, #bfdbfe 100%);
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease;
+}
+
+.ui-chart-bar-fill-selected {
+  background: linear-gradient(180deg, #1677ff 0%, #60a5fa 100%);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.4);
+}
+
+.ui-chart-x-wrapper {
+  position: absolute;
+  bottom: 0;
+}
+
+.ui-chart-x-label {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.ui-chart-x-label-active {
+  color: #1677ff;
+  font-weight: bold;
+}
+
+.ui-chart-detail-pill {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background-color: #eff6ff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+}
+
+.ui-chart-detail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #1677ff;
+  margin-right: 8px;
+}
+
+.ui-chart-detail-text {
+  font-size: 12px;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+/* UI Composition Bar */
+.ui-composition-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ui-composition-track {
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+}
+
+.ui-composition-segment {
+  height: 100%;
+}
+
+.ui-composition-legends {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ui-composition-legend-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.ui-composition-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+.ui-composition-legend-name {
+  font-size: 11px;
+  color: #4b5563;
+  margin-right: 4px;
+}
+
+.ui-composition-legend-percent {
+  font-size: 11px;
+  font-weight: bold;
+  color: #111827;
+}
+
+/* UI Tags */
+.ui-tag {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 4px;
+  align-items: center;
+}
+
+.ui-tag-blue { background-color: #eff6ff; border-color: #bfdbfe; }
+.ui-tag-text-blue { color: #1d4ed8; font-size: 10px; }
+
+.ui-tag-green { background-color: #f0fdf4; border-color: #bbf7d0; }
+.ui-tag-text-green { color: #15803d; font-size: 10px; }
+
+.ui-tag-gold { background-color: #fffbeb; border-color: #fde68a; }
+.ui-tag-text-gold { color: #b45309; font-size: 10px; }
+
+.ui-tag-red { background-color: #fef2f2; border-color: #fecaca; }
+.ui-tag-text-red { color: #b91c1c; font-size: 10px; }
+
+/* UI Stepper */
+.ui-stepper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.ui-stepper-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: #1677ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-stepper-btn-minus {
+  background-color: #f3f4f6;
+}
+
+.ui-stepper-btn-icon {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.ui-stepper-btn-minus .ui-stepper-btn-icon {
+  color: #1f2937;
+}
+
+.ui-stepper-val-box {
+  padding: 0 8px;
+}
+
+.ui-stepper-val-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
