@@ -8,11 +8,11 @@
     "build": "rspeedy build"
   },
   "dependencies": {
-    "@lynx-js/react": "^0.10.0"
+    "@lynx-js/react": "^0.126.0"
   },
   "devDependencies": {
-    "@lynx-js/rspeedy": "^0.10.0",
-    "@lynx-js/types": "^0.10.0",
+    "@lynx-js/rspeedy": "^0.17.1",
+    "@lynx-js/types": "^4.2.1",
     "@types/react": "^18.3.0",
     "typescript": "^5.4.0"
   }

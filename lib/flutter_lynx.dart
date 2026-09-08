@@ -22,3 +22,6 @@ export "src/manager/lynx_mini_program_manager.dart";
 export "src/view/lynx_view.dart";
 export "src/view/lynx_controller.dart";
 export "src/view/lynx_mini_program_page.dart";
+
+// Utils
+export "src/utils/lynx_logger.dart";

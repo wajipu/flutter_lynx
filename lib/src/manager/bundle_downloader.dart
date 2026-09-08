@@ -4,12 +4,21 @@ import "package:archive/archive.dart";
 import "package:crypto/crypto.dart";
 import "package:dio/dio.dart";
 import "package:path/path.dart" as p;
+import "../utils/lynx_logger.dart";
 
 /// Downloader and integrity verifier for dynamic mini-program bundles.
 class BundleDownloader {
   final Dio _dio;
 
-  BundleDownloader({Dio? dio}) : _dio = dio ?? Dio();
+  BundleDownloader({Dio? dio})
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(milliseconds: 2500),
+                receiveTimeout: const Duration(milliseconds: 3500),
+                sendTimeout: const Duration(milliseconds: 2500),
+              ),
+            );
 
   /// Download bundle or zip archive from URL, verify MD5, and save to target directory.
   /// Returns the absolute path to the ready-to-load `main.lynx.bundle`.
@@ -19,6 +28,8 @@ class BundleDownloader {
     String? expectedMd5,
     void Function(double progress)? onProgress,
   }) async {
+    final startTime = DateTime.now();
+    LynxLogger.info("Downloader", "开始请求 Bundle: $url (超时保护 2.5s)");
     final dir = Directory(targetDirectory);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -35,7 +46,9 @@ class BundleDownloader {
         tempFilePath,
         onReceiveProgress: (received, total) {
           if (total > 0 && onProgress != null) {
-            onProgress(received / total);
+            final progress = received / total;
+            onProgress(progress);
+            LynxLogger.info("Downloader", "下载进度: ${(progress * 100).toStringAsFixed(0)}% ($received / $total 字节)");
           }
         },
       );
@@ -43,6 +56,9 @@ class BundleDownloader {
       if (response.statusCode != 200) {
         throw Exception("Failed to download bundle: HTTP ${response.statusCode}");
       }
+
+      final cost = DateTime.now().difference(startTime).inMilliseconds;
+      LynxLogger.info("Downloader", "Bundle 下载完成，耗时: ${cost}ms");
 
       final downloadedFile = File(tempFilePath);
       final bytes = await downloadedFile.readAsBytes();
@@ -83,6 +99,7 @@ class BundleDownloader {
 
       return targetBundlePath;
     } catch (e) {
+      LynxLogger.error("Downloader", "下载异常: $e");
       // Clean up on failure
       final tempFile = File(tempFilePath);
       if (await tempFile.exists()) {

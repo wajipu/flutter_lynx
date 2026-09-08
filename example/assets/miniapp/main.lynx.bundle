@@ -1,0 +1,3 @@
+// Lynx Mock Bundle v1.0.0
+// App: kmanager_demo_miniapp
+console.log("[Lynx] Mock bundle loaded successfully");

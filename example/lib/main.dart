@@ -4,6 +4,9 @@ import "package:flutter_lynx/flutter_lynx.dart";
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  LynxLogger.onLog = (tag, msg, {error}) {
+    _addLog("[$tag] $msg${error != null ? ' ($error)' : ''}");
+  };
   _initLynxHostCapabilities();
   runApp(const LynxDemoApp());
 }
@@ -103,11 +106,19 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
 
   final List<MiniProgramManifest> _presetMiniPrograms = [
     const MiniProgramManifest(
+      appId: "kmanager_local_demo",
+      name: "📦 本地内置小程序 (离线秒开)",
+      version: "1.0.0",
+      bundleUrl: "assets/miniapp/main.lynx.bundle",
+      description: "内置预打包的 Lynx 示例小程序，免网络直接秒开，支持实时 JSB 交互调试。",
+      initialData: {"theme": "light", "user": "管理员", "role": "admin"},
+    ),
+    const MiniProgramManifest(
       appId: "kmanager_desk_miniapp",
       name: "桌台管理与巡检小程序",
       version: "1.0.2",
       bundleUrl: "https://cdn.example.com/miniapp/desk/1.0.2/main.lynx.bundle",
-      description: "用于现场实时查看桌台占用状态、开台点单与巡检确认。",
+      description: "用于现场实时查看桌台占用状态、开台点单与巡检确认（演示远程 Bundle 回退机制）。",
       initialData: {"theme": "light", "shopId": "SHOP_001"},
     ),
     const MiniProgramManifest(
@@ -308,12 +319,32 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
         TextField(
           controller: _customUrlController,
           decoration: InputDecoration(
-            labelText: "Bundle URL (支持 https://, file://, assets://)",
-            hintText: "https://.../main.lynx.bundle",
+            labelText: "Bundle URL (支持 http://, https://, file://, assets://)",
+            hintText: "http://127.0.0.1:3000/main.lynx.bundle",
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             prefixIcon: const Icon(Icons.link),
           ),
           style: const TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ActionChip(
+              avatar: const Icon(Icons.flash_on, size: 16, color: Colors.amber),
+              label: const Text("本地 DevServer (127.0.0.1:3000)", style: TextStyle(fontSize: 11)),
+              onPressed: () {
+                _customUrlController.text = "http://127.0.0.1:3000/main.lynx.bundle";
+              },
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.folder_zip, size: 16, color: Colors.blue),
+              label: const Text("内置离线 Bundle", style: TextStyle(fontSize: 11)),
+              onPressed: () {
+                _customUrlController.text = "assets/miniapp/main.lynx.bundle";
+              },
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         ElevatedButton.icon(

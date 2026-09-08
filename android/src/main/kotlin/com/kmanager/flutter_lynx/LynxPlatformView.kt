@@ -77,8 +77,10 @@ class LynxPlatformView(
                 loadTemplateMethod.invoke(lynxView, bytes, initialData)
             }
 
-            eventChannel.invokeMethod("onLoadSuccess", null)
-            eventChannel.invokeMethod("onFirstScreen", null)
+            rootLayout.postDelayed({
+                eventChannel.invokeMethod("onLoadSuccess", null)
+                eventChannel.invokeMethod("onFirstScreen", null)
+            }, 50)
         } catch (_: ClassNotFoundException) {
             // Native fallback view when Lynx engine runtime AAR is loaded dynamically or in dev
             val container = FrameLayout(context).apply {
@@ -86,18 +88,22 @@ class LynxPlatformView(
             }
 
             val tv = TextView(context).apply {
-                text = "Lynx View Ready\nID: $viewId\nBundle: $url"
-                setTextColor(Color.parseColor("#212529"))
+                text = "⚡️ Lynx Native View Ready\nEngine: PlatformView (Android)\nID: $viewId\nBundle: ${File(url).name}"
+                setTextColor(Color.parseColor("#1677FF"))
                 textSize = 14f
                 setPadding(32, 32, 32, 32)
             }
             container.addView(tv)
             rootLayout.addView(container)
 
-            eventChannel.invokeMethod("onLoadSuccess", null)
-            eventChannel.invokeMethod("onFirstScreen", null)
+            rootLayout.postDelayed({
+                eventChannel.invokeMethod("onLoadSuccess", null)
+                eventChannel.invokeMethod("onFirstScreen", null)
+            }, 50)
         } catch (e: Exception) {
-            eventChannel.invokeMethod("onLoadFail", e.message ?: "Failed to initialize LynxView")
+            rootLayout.postDelayed({
+                eventChannel.invokeMethod("onLoadFail", e.message ?: "Failed to initialize LynxView")
+            }, 50)
         }
     }
 

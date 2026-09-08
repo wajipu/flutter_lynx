@@ -2,65 +2,261 @@
 .container {
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  background-color: #f7f8fa;
+  padding: 14px;
+  background-color: #f5f6f8;
   min-height: 100vh;
 }
 
 .header-card {
   background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
   border-radius: 12px;
-  padding: 18px;
-  margin-bottom: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
 }
 
 .header-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: #ffffff;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .header-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* Tabs */
+.tabs-bar {
+  display: flex;
+  flex-direction: row;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 12px;
+}
+
+.tab-item {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  border-radius: 6px;
+}
+
+.tab-active {
+  background-color: #e6f4ff;
+}
+
+.tab-text {
+  font-size: 12px;
+  color: #595959;
+}
+
+.tab-text-active {
+  color: #1890ff;
+  font-weight: bold;
 }
 
 .section-card {
   background-color: #ffffff;
   border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 12px;
 }
 
-.user-info-row {
+/* Desk Grid */
+.desk-grid {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.user-info-label {
-  font-size: 13px;
-  color: #6b7280;
+.desk-card {
+  flex: 1 1 calc(50% - 10px);
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
 }
 
-.user-info-value {
+.desk-name {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: bold;
   color: #111827;
 }
 
+.desk-cap {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.desk-amt {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ef4444;
+  margin-top: 6px;
+}
+
+/* Dual Column Menu */
+.menu-container {
+  display: flex;
+  flex-direction: row;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cat-sidebar {
+  width: 80px;
+  background-color: #f3f4f6;
+}
+
+.cat-btn {
+  padding: 12px 6px;
+  text-align: center;
+}
+
+.cat-active {
+  background-color: #ffffff;
+  border-left: 3px solid #1890ff;
+}
+
+.cat-text {
+  font-size: 11px;
+  color: #374151;
+}
+
+.product-list {
+  flex: 1;
+  padding: 0 10px;
+}
+
+.product-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.product-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.product-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.product-price {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+.stepper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  border: 1px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-add {
+  background-color: #1890ff;
+  border: none;
+  color: #ffffff;
+}
+
+.step-count {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* VIP Card */
+.vip-hero-card {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.vip-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.vip-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+.coupon-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background-color: #fff1f0;
+  border: 1px dashed #ffccc7;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.coupon-val {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff4d4f;
+  margin-right: 12px;
+}
+
+.coupon-info {
+  flex: 1;
+}
+
+.coupon-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.coupon-sub {
+  font-size: 10px;
+  color: #8c8c8c;
+}
+
+.coupon-action {
+  background-color: #ff4d4f;
+  padding: 4px 10px;
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+/* Actions Grid */
 .actions-grid {
   display: flex;
   flex-direction: row;
@@ -80,17 +276,13 @@
   justify-content: center;
 }
 
-.action-btn:active {
-  background-color: #f3f4f6;
-}
-
 .action-icon {
-  font-size: 22px;
-  margin-bottom: 6px;
+  font-size: 20px;
+  margin-bottom: 4px;
 }
 
 .action-label {
-  font-size: 13px;
+  font-size: 12px;
   color: #374151;
   font-weight: 500;
 }
@@ -99,18 +291,18 @@
   background-color: #f9fafb;
   border: 1px dashed #d1d5db;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   margin-top: 10px;
 }
 
 .result-title {
-  font-size: 12px;
+  font-size: 11px;
   color: #9ca3af;
   margin-bottom: 4px;
 }
 
 .result-text {
-  font-size: 13px;
+  font-size: 11px;
   color: #1f2937;
   font-family: monospace;
 }
