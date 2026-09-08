@@ -65,7 +65,23 @@ void _initLynxHostCapabilities() {
     };
   }, module: "network");
 
-  // 4. Custom UI Handler
+  // 4. Report Exporter & Analytics
+  bridge.register("exportReport", (params) async {
+    final range = params["range"]?.toString() ?? "today";
+    final format = params["format"]?.toString() ?? "xlsx";
+    _addLog("JSB >> exportReport 导出报表: range=$range, format=$format");
+    await Future.delayed(const Duration(milliseconds: 300));
+    return {
+      "fileName": "KManager_经营日报_${DateTime.now().millisecondsSinceEpoch}.$format",
+      "fileSize": "142.8 KB",
+      "recordsCount": 328,
+      "totalRevenue": 28450.00,
+      "downloadUrl": "https://kmanager.example.com/reports/download/rep_889901.xlsx",
+      "exportedAt": DateTime.now().toIso8601String(),
+    };
+  }, module: "report");
+
+  // 5. Custom UI Handler
   bridge.uiHandler.onShowToast = (title, {icon, durationMs}) {
     _addLog("JSB >> showToast: $title (icon: $icon)");
   };
@@ -105,6 +121,14 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
   int _counter = 0;
 
   final List<MiniProgramManifest> _presetMiniPrograms = [
+    const MiniProgramManifest(
+      appId: "kmanager_report_miniapp",
+      name: "📊 门店经营分析与多维报表",
+      version: "3.0.0",
+      bundleUrl: "https://cdn.example.com/miniapp/report/3.0.0/main.lynx.bundle",
+      description: "实时分时营收柱状趋势图、品类环形占比、Top 热销排行榜与导出 Excel 宿主协同。",
+      initialData: {"storeId": "STORE_001", "period": "today"},
+    ),
     const MiniProgramManifest(
       appId: "kmanager_local_demo",
       name: "📦 本地内置小程序 (离线秒开)",

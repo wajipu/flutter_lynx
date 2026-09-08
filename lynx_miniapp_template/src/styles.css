@@ -306,3 +306,304 @@
   color: #1f2937;
   font-family: monospace;
 }
+
+/* Reports & Analytics Charts Styles */
+.report-header-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.period-selector {
+  display: flex;
+  flex-direction: row;
+  background-color: #f3f4f6;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.period-btn {
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.period-active {
+  background-color: #1890ff;
+}
+
+.period-text {
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.period-active .period-text {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.export-btn {
+  background-color: #107c41;
+  padding: 5px 12px;
+  border-radius: 12px;
+}
+
+.export-text {
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* KPI Matrix */
+.kpi-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.kpi-card {
+  flex: 1 1 calc(50% - 8px);
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.kpi-title {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.kpi-val {
+  font-size: 16px;
+  font-weight: bold;
+  color: #111827;
+  margin-top: 4px;
+}
+
+.kpi-sub {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.kpi-green { color: #10b981; font-weight: bold; }
+.kpi-orange { color: #f59e0b; font-weight: bold; }
+.kpi-purple { color: #8b5cf6; font-weight: bold; }
+
+/* Chart Card */
+.chart-card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.chart-sub {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+/* Bar Chart */
+.bar-chart-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  height: 120px;
+  padding-bottom: 6px;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.bar-tip {
+  font-size: 8px;
+  color: #ffffff;
+  background-color: #1f2937;
+  padding: 1px 3px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.bar-pillar {
+  width: 14px;
+  border-radius: 3px 3px 0 0;
+  background-color: #bae0ff;
+}
+
+.pillar-active {
+  background: linear-gradient(180deg, #1890ff 0%, #0958d9 100%);
+}
+
+.bar-h-20 { height: 20px; }
+.bar-h-25 { height: 25px; }
+.bar-h-28 { height: 28px; }
+.bar-h-35 { height: 35px; }
+.bar-h-52 { height: 52px; }
+.bar-h-85 { height: 85px; }
+.bar-h-90 { height: 90px; }
+.bar-h-100 { height: 100px; }
+
+.bar-label {
+  font-size: 9px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.hour-detail-box {
+  background-color: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 8px;
+}
+
+.hour-detail-text {
+  font-size: 10px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Progress Stack Bar */
+.progress-stack-bar {
+  display: flex;
+  flex-direction: row;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.bar-seg { height: 100%; }
+.seg-blue { flex: 42; background-color: #1890ff; }
+.seg-cyan { flex: 26; background-color: #13c2c2; }
+.seg-orange { flex: 18; background-color: #fa8c16; }
+.seg-purple { flex: 14; background-color: #722ed1; }
+
+.legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+.dot-blue { background-color: #1890ff; }
+.dot-cyan { background-color: #13c2c2; }
+.dot-orange { background-color: #fa8c16; }
+.dot-purple { background-color: #722ed1; }
+
+.legend-name {
+  flex: 1;
+  font-size: 11px;
+  color: #374151;
+}
+
+.legend-amt {
+  font-size: 11px;
+  font-weight: bold;
+  color: #111827;
+  margin-right: 8px;
+}
+
+.legend-pct {
+  font-size: 11px;
+  color: #6b7280;
+  width: 32px;
+  text-align: right;
+}
+
+/* Top Sellers */
+.top-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.top-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background-color: #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.badge-text {
+  font-size: 10px;
+  font-weight: bold;
+  color: #b45309;
+}
+
+.top-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.top-sales {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.top-money {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.top-rev {
+  font-size: 12px;
+  font-weight: bold;
+  color: #ef4444;
+}
+
+.margin-pill {
+  background-color: #ecfdf5;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.margin-text {
+  font-size: 9px;
+  color: #059669;
+}
