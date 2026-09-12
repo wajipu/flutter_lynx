@@ -8,7 +8,8 @@ import "../utils/lynx_logger.dart";
 
 /// Manager responsible for downloading, caching, hot updating and launching Lynx dynamic mini programs.
 class LynxMiniProgramManager {
-  static final LynxMiniProgramManager _instance = LynxMiniProgramManager._internal();
+  static final LynxMiniProgramManager _instance =
+      LynxMiniProgramManager._internal();
   factory LynxMiniProgramManager() => _instance;
   static LynxMiniProgramManager get instance => _instance;
 
@@ -36,17 +37,19 @@ class LynxMiniProgramManager {
 
   /// Prepare the mini program bundle.
   /// If bundle is local asset (starts with assets/ or asset://), it unpacks it to disk for the native engine.
-  /// If already downloaded and verified, returns local bundle path immediately.
+  /// 缓存只负责定位文件，是否可执行由原生引擎加载结果判断。
   /// Otherwise downloads, extracts and returns the local file path.
   Future<String> prepareBundle(
     MiniProgramManifest manifest, {
     void Function(double progress)? onProgress,
   }) async {
     final startTime = DateTime.now();
-    LynxLogger.info("Manager", "[1/4] 开始装载小程序: ${manifest.name} (appId: ${manifest.appId}, v${manifest.version})");
+    LynxLogger.info("Manager",
+        "[1/4] 开始装载小程序: ${manifest.name} (appId: ${manifest.appId}, v${manifest.version})");
 
     final url = manifest.bundleUrl;
-    final targetDir = await getMiniProgramDirectory(manifest.appId, manifest.version);
+    final targetDir =
+        await getMiniProgramDirectory(manifest.appId, manifest.version);
     final bundlePath = p.join(targetDir, "main.lynx.bundle");
     final bundleFile = File(bundlePath);
 
@@ -56,15 +59,13 @@ class LynxMiniProgramManager {
       LynxLogger.info("Manager", "[2/4] 检测到内置 Asset 资源: $cleanAssetPath");
       if (!await bundleFile.exists()) {
         await bundleFile.parent.create(recursive: true);
-        try {
-          final byteData = await rootBundle.load(cleanAssetPath);
-          final bytes = byteData.buffer.asUint8List();
-          await bundleFile.writeAsBytes(bytes);
-          LynxLogger.info("Manager", "已成功从 Flutter Asset 解包至沙盒: $bundlePath (${bytes.length} 字节)");
-        } catch (e) {
-          LynxLogger.warn("Manager", "未能在 assets 找到 $cleanAssetPath，生成默认演示 Bundle: $e");
-          await bundleFile.writeAsString("// Lynx Bundle Fallback\nconsole.log('[Lynx] Default fallback ready');");
-        }
+        // 缺失资源必须报错，禁止创建演示替代包掩盖失败。
+        final byteData = await rootBundle.load(cleanAssetPath);
+        final bytes = byteData.buffer
+            .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+        await bundleFile.writeAsBytes(bytes);
+        LynxLogger.info("Manager",
+            "已成功从 Flutter Asset 解包至沙盒: $bundlePath (${bytes.length} 字节)");
       } else {
         LynxLogger.info("Manager", "内置 Asset 沙盒缓存已存在: $bundlePath");
       }
@@ -75,8 +76,12 @@ class LynxMiniProgramManager {
     }
 
     // 2. Check if it is a direct local file
-    if (url.startsWith("file://") || ((Platform.isMacOS || Platform.isLinux) && url.startsWith("/"))) {
-      final localPath = url.replaceFirst("file://", "");
+    if (url.startsWith("file://") || p.isAbsolute(url)) {
+      final localPath =
+          url.startsWith("file://") ? Uri.parse(url).toFilePath() : url;
+      if (!await File(localPath).exists()) {
+        throw FileSystemException("Lynx bundle does not exist", localPath);
+      }
       LynxLogger.info("Manager", "[2/4] 直接加载本地开发文件 Bundle: $localPath");
       onProgress?.call(1.0);
       return localPath;
@@ -85,7 +90,8 @@ class LynxMiniProgramManager {
     // 3. Remote URL -> Check local cache
     if (await bundleFile.exists()) {
       final size = await bundleFile.length();
-      LynxLogger.info("Manager", "[2/4] 命中小程序本地离线缓存: $bundlePath (文件大小: $size 字节)");
+      LynxLogger.info(
+          "Manager", "[2/4] 命中小程序本地离线缓存: $bundlePath (文件大小: $size 字节)");
       onProgress?.call(1.0);
       final cost = DateTime.now().difference(startTime).inMilliseconds;
       LynxLogger.info("Manager", "[3/4] 本地秒开就绪，总耗时 ${cost}ms");
@@ -102,23 +108,11 @@ class LynxMiniProgramManager {
         onProgress: onProgress,
       );
       final cost = DateTime.now().difference(startTime).inMilliseconds;
-      LynxLogger.info("Manager", "[3/4] 远程 Bundle 下载解包成功: $downloadedPath (耗时: ${cost}ms)");
+      LynxLogger.info(
+          "Manager", "[3/4] 远程 Bundle 下载解包成功: $downloadedPath (耗时: ${cost}ms)");
       return downloadedPath;
     } catch (e) {
       LynxLogger.warn("Manager", "远程拉取失败: $e");
-      // If download failed (e.g. demo placeholder URL 404), provide demo fallback
-      if (url.contains("example.com") || url.contains("githubusercontent.com")) {
-        await bundleFile.parent.create(recursive: true);
-        try {
-          final byteData = await rootBundle.load("assets/miniapp/main.lynx.bundle");
-          await bundleFile.writeAsBytes(byteData.buffer.asUint8List());
-          LynxLogger.info("Manager", "自动降级已载入内置全量小程序 Bundle (${byteData.lengthInBytes} 字节)");
-        } catch (_) {
-          await bundleFile.writeAsString('{"magic":"LYNX_BUNDLE_V1","appId":"${manifest.appId}"}');
-        }
-        onProgress?.call(1.0);
-        return bundlePath;
-      }
       rethrow;
     }
   }

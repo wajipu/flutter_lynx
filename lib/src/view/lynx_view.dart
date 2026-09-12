@@ -14,11 +14,15 @@ typedef LynxFirstScreenCallback = void Function();
 
 /// Flutter widget embedding the native LynxView rendering engine.
 class LynxView extends StatefulWidget {
-  /// The bundle URL (remote https://, local file://, or asset://).
+  /// 已准备的本地包路径或file URI；远端/asset先交给包管理器准备。
   final String url;
 
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
+
+  /// Android JSBridge modules granted to this native view, matched exactly.
+  /// Custom modules must be listed explicitly; changing grants recreates the view.
+  final Set<String> allowedModules;
 
   /// Callback when the LynxController is created and attached.
   final LynxCreatedCallback? onLynxCreated;
@@ -36,6 +40,13 @@ class LynxView extends StatefulWidget {
     super.key,
     required this.url,
     this.initialData,
+    this.allowedModules = const {
+      "system",
+      "ui",
+      "storage",
+      "router",
+      "default"
+    },
     this.onLynxCreated,
     this.onLoadSuccess,
     this.onLoadFail,
@@ -49,22 +60,36 @@ class LynxView extends StatefulWidget {
 class _LynxViewState extends State<LynxView> {
   static const String _viewType = "com.kmanager.flutter_lynx/lynx_view";
   LynxController? _controller;
+  MethodChannel? _eventChannel;
+  late Set<String> _allowedModules;
+  int _platformGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _allowedModules = Set.of(widget.allowedModules);
+  }
 
   Map<String, dynamic> _buildCreationParams() {
     return {
       "url": widget.url,
-      if (widget.initialData != null) "initialData": widget.initialData!.toMap(),
+      "allowedModules": _allowedModules.toList(growable: false),
+      if (widget.initialData != null)
+        "initialData": widget.initialData!.toMap(),
     };
   }
 
-  void _onPlatformViewCreated(int id) {
+  Future<void> _onPlatformViewCreated(int id, int generation) async {
+    if (!mounted || generation != _platformGeneration) return;
     final controller = LynxController(id);
     _controller = controller;
-    widget.onLynxCreated?.call(controller);
 
-    // Register callback channel from native view
-    final eventChannel = MethodChannel("com.kmanager.flutter_lynx/lynx_view_${id}_events");
+    // 先安装监听再通知原生开始加载，避免快速首屏回调丢失。
+    final eventChannel =
+        MethodChannel("com.kmanager.flutter_lynx/lynx_view_${id}_events");
+    _eventChannel = eventChannel;
     eventChannel.setMethodCallHandler((call) async {
+      if (!mounted || !identical(_controller, controller)) return;
       switch (call.method) {
         case "onLoadSuccess":
           widget.onLoadSuccess?.call();
@@ -78,12 +103,49 @@ class _LynxViewState extends State<LynxView> {
           break;
       }
     });
+    widget.onLynxCreated?.call(controller);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _reload(controller);
+    }
+  }
+
+  Future<void> _reload(LynxController controller) async {
+    try {
+      await controller.reload(
+        newUrl: widget.url,
+        newInitialData: widget.initialData?.toMap() ?? {},
+      );
+    } catch (error) {
+      if (mounted && identical(_controller, controller)) {
+        widget.onLoadFail?.call(error.toString());
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant LynxView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Grants belong to a native view's lifetime; never reuse a broader old binding.
+    if (!setEquals(widget.allowedModules, _allowedModules)) {
+      _allowedModules = Set.of(widget.allowedModules);
+      _platformGeneration += 1;
+      _detachController();
+      return;
+    }
+    // initialData只用于首次加载；运行时数据更新由控制器显式执行。
+    if (widget.url != oldWidget.url &&
+        _controller != null &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      _reload(_controller!);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final generation = _platformGeneration;
     if (defaultTargetPlatform == TargetPlatform.android) {
       return PlatformViewLink(
+        key: ValueKey(generation),
         viewType: _viewType,
         surfaceFactory: (context, controller) {
           return AndroidViewSurface(
@@ -104,16 +166,18 @@ class _LynxViewState extends State<LynxView> {
             },
           )
             ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-            ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
+            ..addOnPlatformViewCreatedListener(
+                (id) => _onPlatformViewCreated(id, generation))
             ..create();
         },
       );
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
+        key: ValueKey(generation),
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: _onPlatformViewCreated,
+        onPlatformViewCreated: (id) => _onPlatformViewCreated(id, generation),
       );
     } else {
       // Dynamic desktop & simulator Lynx runtime renderer (macOS, Windows, Linux, Web)
@@ -130,7 +194,14 @@ class _LynxViewState extends State<LynxView> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _detachController();
     super.dispose();
+  }
+
+  void _detachController() {
+    _eventChannel?.setMethodCallHandler(null);
+    _eventChannel = null;
+    _controller?.dispose();
+    _controller = null;
   }
 }

@@ -1,0 +1,14 @@
+{
+  "appCode": "",
+  "platform": null,
+  "bundlePath": "main.lynx.bundle",
+  "lynxSdkVersion": "",
+  "bridgeApiVersion": null,
+  "minHostVersion": "",
+  "translations": [
+    {
+      "locale": "zh_CN",
+      "changelog": ""
+    }
+  ]
+}

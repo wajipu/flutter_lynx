@@ -7,7 +7,8 @@ import "built_in/ui_bridge_handler.dart";
 import "built_in/storage_bridge_handler.dart";
 import "built_in/router_bridge_handler.dart";
 
-typedef LynxBridgeFunction = Future<Map<String, dynamic>?> Function(Map<String, dynamic> params);
+typedef LynxBridgeFunction = Future<Map<String, dynamic>?> Function(
+    Map<String, dynamic> params);
 
 /// Central JSBridge dispatcher that connects Lynx JavaScript and Flutter Host.
 class LynxBridge {
@@ -15,7 +16,8 @@ class LynxBridge {
   factory LynxBridge() => _instance;
   static LynxBridge get instance => _instance;
 
-  final MethodChannel _channel = const MethodChannel("com.kmanager.flutter_lynx/bridge");
+  final MethodChannel _channel =
+      const MethodChannel("com.kmanager.flutter_lynx/bridge");
 
   final List<LynxBridgeHandler> _handlers = [];
   final Map<String, LynxBridgeFunction> _functionHandlers = {};
@@ -46,31 +48,26 @@ class LynxBridge {
   /// Register a direct functional handler for a specific method.
   /// This is how host apps (like kmanager) register custom capabilities:
   /// scanQRCode, getUserInfo, request, etc.
-  void register(String method, LynxBridgeFunction function, {String module = "default"}) {
+  void register(String method, LynxBridgeFunction function,
+      {String module = "default"}) {
     final key = "$module:$method";
     _functionHandlers[key] = function;
-    // Also register under default key for convenience
-    if (module != "default") {
-      _functionHandlers["default:$method"] = function;
-    }
   }
 
   /// Unregister a method.
   void unregister(String method, {String module = "default"}) {
     _functionHandlers.remove("$module:$method");
-    if (module != "default") {
-      _functionHandlers.remove("default:$method");
-    }
   }
 
   /// Dispatch an incoming request from Lynx JS to registered handlers.
-  Future<Map<String, dynamic>> dispatch(Map<dynamic, dynamic> rawRequest) async {
+  Future<Map<String, dynamic>> dispatch(
+      Map<dynamic, dynamic> rawRequest) async {
     final request = LynxBridgeRequest.fromMap(rawRequest);
 
     // 1. Check direct functional registrations
     final directKey = "${request.module}:${request.method}";
-    final defaultKey = "default:${request.method}";
-    final directFunction = _functionHandlers[directKey] ?? _functionHandlers[defaultKey];
+    // Exact routing prevents an allowed module from borrowing default's capabilities.
+    final directFunction = _functionHandlers[directKey];
 
     if (directFunction != null) {
       try {
@@ -122,13 +119,11 @@ class LynxBridge {
     Map<String, dynamic> data, {
     int? viewId,
   }) async {
-    try {
-      await _channel.invokeMethod("sendCustomEvent", {
-        "eventName": eventName,
-        "data": data,
-        if (viewId != null) "viewId": viewId,
-      });
-    } catch (_) {}
+    await _channel.invokeMethod("sendCustomEvent", {
+      "eventName": eventName,
+      "data": data,
+      if (viewId != null) "viewId": viewId,
+    });
   }
 
   Future<dynamic> _onMethodCall(MethodCall call) async {

@@ -2,24 +2,32 @@
 
 基于 [Lynx](https://lynxjs.org/) 引擎构建的 Flutter 动态小程序与页面容器插件。
 
-支持在 Flutter 应用中动态下载、缓存、热更新和秒级加载 Lynx 编译的 `.lynx.bundle` 小程序，并提供双向的高性能 JavaScript Bridge (JSB)，使小程序能够无缝调用 Flutter 宿主应用的业务能力（如扫码、网络请求代理、登录态与权限、本地存储、原生弹窗等）。
+提供 Flutter 容器、包准备和 JavaScript Bridge 入口。当前实现状态以实测为准，不把示例或占位视图当作生产能力。
+
+## 当前状态（2026-09-12）
+
+- Android已接官方Lynx 3.2.0及获批的官方ImageService/Fresco，在Android 15临时模拟器验证了真实A/B bundle切换、JS点击计数、system.getSystemInfo、宿主反向事件和本地PNG加载；切包没有重新编译Flutter。
+- 已修复ImageService初始化缺失及其官方POM缺依赖边导致的D8默认方法问题；标准 `LynxMiniProgramPage` 可以进入真实首屏、撤掉遮罩，正常包未再触发32102或默认方法错误。坏包仍报告真实失败，不屏蔽SDK错误。
+- iOS、桌面和kmanager正式工作台尚未完成真实运行时接入；本轮没有修改商家App或推送。
+- 独立验收入口：在example执行 `flutter run -t lib/runtime_verification.dart -d <Android测试设备>`。安装前核对示例包名 `com.kmanager.flutter_lynx_example`，不要覆盖业务App。
+- A/B源码与构建说明见 [模板README](lynx_miniapp_template/README.md)。原有用户修改的演示源码/dist仍保留，旧JSON打包脚本已经移除。
 
 ---
 
 ## 🌟 特性
 
-- ⚡ **原生级双线程渲染**：基于字节跳动 Lynx 跨端引擎，JS 逻辑与原生渲染分线程运行，帧率稳定流畅。
-- 📦 **动态热更与离线缓存**：内置 `LynxMiniProgramManager`，支持版本比对、MD5 完整性校验、分包解压及离线秒开。
-- 🌉 **全功能 JSBridge 通信系统**：
+- ⚡ **原生渲染**：Android接入官方Lynx；性能、其他平台及完整业务场景仍需专项验收。
+- 📦 **包准备与缓存**：内置 `LynxMiniProgramManager`；现有缓存不等于完整的签名、版本回滚或离线授权机制。
+- 🌉 **JSBridge 通信入口**：
   - 宿主直接注入能力：扫码、Dio 网络代理、登录信息、设备信息、存储。
   - 内置基础能力库：Toast、Modal、Loading、导航栏设置、振动。
   - 宿主与小程序双向事件总线（`EventBus`）。
-- 📱 **开箱即用小程序页面容器**：`LynxMiniProgramPage` 自带小程序胶囊按钮（`···` 与 `✕`）、加载进度条、失败重试及版本说明弹窗。
+- 📱 **小程序页面容器**：`LynxMiniProgramPage` 提供加载/失败状态与胶囊按钮，成功以真实首屏回调为准。
 - 💻 **现代化前端开发体验**：支持使用 React (`ReactLynx`)、TypeScript、CSS，并通过 Rspeedy 一键编译生成 `main.lynx.bundle`。
 
 ---
 
-## 🏗️ 架构设计
+## 🏗️ 目标架构（不是所有部分都已接入）
 
 ```text
 +-------------------------------------------------------------+
@@ -61,6 +69,8 @@ dependencies:
 
 在宿主初始化阶段（如 `main.dart` 或 `di.dart` 中），将宿主能力注入给小程序调用：
 
+以下Host类仅说明宿主适配位置，不是kmanager现有实现。不得向JS返回主App Token；网络能力必须按确认过的接口白名单转发，不能开放携带认证的任意URL代理。
+
 ```dart
 import "package:flutter_lynx/flutter_lynx.dart";
 
@@ -72,7 +82,7 @@ void setupLynxMiniProgramBridge() {
     // 唤起宿主扫码页面并获取结果
     final qrCode = await HostScannerService.scan();
     return {"code": qrCode};
-  });
+  }, module: "scanner");
 
   // 2. 注入当前登录用户信息
   bridge.register("getUserInfo", (params) async {
@@ -81,21 +91,20 @@ void setupLynxMiniProgramBridge() {
       "userId": user.id,
       "userName": user.name,
       "phone": user.phone,
-      "token": user.token,
     };
-  });
+  }, module: "user");
 
-  // 3. 注入网络请求代理 (复用宿主 DioClient 与鉴权 Token)
-  bridge.register("request", (params) async {
-    final url = params["url"] as String;
-    final method = params["method"] as String? ?? "GET";
-    final data = params["data"];
-
-    final response = await HostDioClient.request(url, method: method, data: data);
-    return {"data": response.data, "status": response.statusCode};
-  });
+  // 网络转发需先确认每个接口的参数与权限，本例不提供任意URL代理。
 }
 ```
+
+### Bridge 模块授权与兼容
+
+- `LynxView.allowedModules` 是每个原生 View 创建时的授权集合。为兼容已有内置入口，直接使用 `LynxView` 的默认值为 `{'system','ui','storage','router','default'}`；实际接入应显式收紧，例如 `const {'system'}`。`LynxMiniProgramPage` 默认仅 `system`。
+- 自定义模块允许使用 `[A-Za-z0-9_-]{1,64}` 名称，必须显式列入集合。创建参数传递 1–32 项字符串列表，原生去重；缺失、空列表、超限或非法名称均在加载握手时失败，不会回退成全部允许。
+- Android 在进入 Flutter MethodChannel 之前按模块名精确检查；未授权返回 `{callId,code:403,message:"Bridge module is not allowed"}`。`default` 是独立模块名，不是其他模块的通配符。
+- `register/unregister/dispatch` 现在按模块精确匹配：非 default 注册不再自动创建 default 别名，任何其他模块也不再回退查找 default 函数。旧自定义调用需要同步明确 JS 模块名、宿主注册的 `module` 和 `allowedModules`。内置 handler 保留显式 default 入口的旧行为。
+- 改变 `allowedModules` 会重建原生 View 并销毁旧 Bridge 绑定；普通 `reload` 不改变授权。此边界不替代业务接口权限。当前仅 Android 原生链路强制执行，未完成接入的 iOS/桌面不能作为安全容器使用。
 
 ### 3. 打开动态小程序
 
@@ -120,7 +129,10 @@ void openDemoMiniProgram(BuildContext context) {
 
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => LynxMiniProgramPage(manifest: manifest),
+      builder: (_) => LynxMiniProgramPage(
+        manifest: manifest,
+        allowedModules: const {"system", "scanner", "user"},
+      ),
     ),
   );
 }
@@ -132,7 +144,8 @@ void openDemoMiniProgram(BuildContext context) {
 
 ```dart
 LynxView(
-  url: "file:///path/to/main.lynx.bundle", // 或 assets:// / https://
+  url: "file:///path/to/main.lynx.bundle", // 先通过包管理器准备asset/远端资源
+  allowedModules: const {"system"},
   initialData: LynxTemplateData({"count": 42}),
   onLoadSuccess: () {
     print("Lynx 模版加载成功");

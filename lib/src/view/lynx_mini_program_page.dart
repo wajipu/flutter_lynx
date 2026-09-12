@@ -1,25 +1,23 @@
-import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "lynx_view.dart";
-import "lynx_controller.dart";
 import "../manager/mini_program_manifest.dart";
 import "../manager/lynx_mini_program_manager.dart";
 import "../models/lynx_template_data.dart";
 import "../models/lynx_load_status.dart";
 import "../utils/lynx_logger.dart";
 
-/// Pure, production-grade Dynamic Mini Program Host Container.
-/// Does NOT hardcode any business UI: all business layouts, styles, and logic
-/// are fully decoupled and rendered from the Lynx TSX/CSS bundle via LynxView.
+/// 小程序加载外壳；是否成功必须由原生运行时回调确认。
 class LynxMiniProgramPage extends StatefulWidget {
   final MiniProgramManifest manifest;
   final Map<String, dynamic>? initialData;
+  final Set<String> allowedModules;
 
   const LynxMiniProgramPage({
     super.key,
     required this.manifest,
     this.initialData,
+    this.allowedModules = const {'system'},
   });
 
   @override
@@ -32,13 +30,12 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
   String? _errorMessage;
   String? _bundlePath;
   String _pageTitle = "";
-  LynxController? _controller;
 
   // Real-time lifecycle logging
   final List<String> _logs = [];
   final ScrollController _logScrollController = ScrollController();
   String _currentStep = "初始化运行环境...";
-  Timer? _compilingWatchdog;
+  int _loadGeneration = 0;
   final DateTime _startTime = DateTime.now();
 
   @override
@@ -50,12 +47,12 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
 
   @override
   void dispose() {
-    _compilingWatchdog?.cancel();
     _logScrollController.dispose();
     super.dispose();
   }
 
   void _addLog(String msg) {
+    final generation = _loadGeneration;
     final now = DateTime.now();
     final cost = now.difference(_startTime).inMilliseconds;
     final timestamp = now.toIso8601String().substring(11, 19);
@@ -65,12 +62,13 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
 
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && generation == _loadGeneration) {
           setState(() {
             _logs.add(logEntry);
           });
           if (_logScrollController.hasClients) {
-            _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+            _logScrollController
+                .jumpTo(_logScrollController.position.maxScrollExtent);
           }
         }
       });
@@ -78,10 +76,13 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
   }
 
   Future<void> _loadMiniProgram() async {
+    if (!mounted) return;
+    final generation = ++_loadGeneration;
     setState(() {
       _status = LynxLoadStatus.downloading;
       _downloadProgress = 0.0;
       _errorMessage = null;
+      _bundlePath = null;
       _logs.clear();
       _currentStep = "正在准备小程序依赖资源...";
     });
@@ -97,19 +98,22 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
       final path = await LynxMiniProgramManager.instance.prepareBundle(
         widget.manifest,
         onProgress: (progress) {
+          if (!mounted || generation != _loadGeneration) return;
           if (mounted) {
             setState(() {
               _downloadProgress = progress;
               _currentStep = "下载资源中: ${(progress * 100).toStringAsFixed(0)}%";
             });
-            if (progress >= 1.0 || progress == 0.0 || (progress * 100).toInt() % 25 == 0) {
+            if (progress >= 1.0 ||
+                progress == 0.0 ||
+                (progress * 100).toInt() % 25 == 0) {
               _addLog("Bundle 下载进度: ${(progress * 100).toStringAsFixed(0)}%");
             }
           }
         },
       );
 
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         _addLog("Bundle 准备就绪: $path");
         _addLog("启动原生 Lynx 渲染引擎 (PlatformView)...");
         setState(() {
@@ -117,21 +121,9 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
           _status = LynxLoadStatus.compiling;
           _currentStep = "正在加载 Lynx 原生视图...";
         });
-
-        // Watchdog: auto-promote to success within 300ms
-        _compilingWatchdog?.cancel();
-        _compilingWatchdog = Timer(const Duration(milliseconds: 300), () {
-          if (mounted && _status == LynxLoadStatus.compiling) {
-            _addLog("首屏就绪保底生效 (快速呈现)");
-            setState(() {
-              _status = LynxLoadStatus.success;
-              _currentStep = "运行中";
-            });
-          }
-        });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         _addLog("加载失败: $e");
         setState(() {
           _status = LynxLoadStatus.failed;
@@ -181,7 +173,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                  icon:
+                      const Icon(Icons.close, color: Colors.white70, size: 20),
                   onPressed: () => Navigator.of(ctx).pop(),
                 ),
               ],
@@ -195,11 +188,17 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
               ),
               child: Row(
                 children: [
-                  Text("AppID: ${widget.manifest.appId}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  Text("AppID: ${widget.manifest.appId}",
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11)),
                   const SizedBox(width: 12),
-                  Text("版本: v${widget.manifest.version}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  Text("版本: v${widget.manifest.version}",
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11)),
                   const Spacer(),
-                  Text("状态: ${_status.name}", style: const TextStyle(color: Colors.amberAccent, fontSize: 11)),
+                  Text("状态: ${_status.name}",
+                      style: const TextStyle(
+                          color: Colors.amberAccent, fontSize: 11)),
                 ],
               ),
             ),
@@ -234,7 +233,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                     ),
                     onPressed: () async {
                       Navigator.of(ctx).pop();
-                      await LynxMiniProgramManager.instance.clearCache(appId: widget.manifest.appId);
+                      await LynxMiniProgramManager.instance
+                          .clearCache(appId: widget.manifest.appId);
                       _addLog("已清空本地沙盒缓存");
                       _loadMiniProgram();
                     },
@@ -251,8 +251,7 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                     ),
                     onPressed: () {
                       Navigator.of(ctx).pop();
-                      _controller?.reload();
-                      _addLog("重载原生视图");
+                      _loadMiniProgram();
                     },
                     icon: const Icon(Icons.refresh, size: 16),
                     label: const Text("重载页面"),
@@ -291,7 +290,10 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
             const SizedBox(height: 8),
             const Text(
               "纯 TSX / CSS 动态驱动 • 宿主零侵入",
-              style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             const Text(
@@ -389,11 +391,15 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.terminal, size: 12, color: Color(0xFF1677FF)),
+                  const Icon(Icons.terminal,
+                      size: 12, color: Color(0xFF1677FF)),
                   const SizedBox(width: 3),
                   Text(
                     "日志 (${_logs.length})",
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF1677FF), fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF1677FF),
+                        fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -412,7 +418,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.more_horiz, size: 15, color: Colors.black87),
+                  icon: const Icon(Icons.more_horiz,
+                      size: 15, color: Colors.black87),
                   onPressed: _showInfoDialog,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   constraints: const BoxConstraints(),
@@ -423,7 +430,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                   color: Colors.grey.shade300,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 15, color: Colors.black87),
+                  icon:
+                      const Icon(Icons.close, size: 15, color: Colors.black87),
                   onPressed: () => Navigator.of(context).pop(),
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   constraints: const BoxConstraints(),
@@ -440,9 +448,9 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
     switch (_status) {
       case LynxLoadStatus.initial:
       case LynxLoadStatus.downloading:
-      case LynxLoadStatus.compiling:
         return _buildLoadingScreen();
 
+      case LynxLoadStatus.compiling:
       case LynxLoadStatus.success:
         if (_bundlePath == null) return const SizedBox();
 
@@ -451,31 +459,44 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
           ...?widget.initialData,
         };
 
-        // Pure Lynx PlatformView: all business UI is executed dynamically inside Lynx engine
-        return LynxView(
-          url: _bundlePath!,
-          initialData: LynxTemplateData(combinedInitialData),
-          onLynxCreated: (controller) {
-            _controller = controller;
-            _addLog("原生 LynxView 挂载成功 (viewId: ${controller.viewId})");
-          },
-          onLoadSuccess: () {
-            _addLog("Lynx 动态模板首屏编译渲染完成！");
-          },
-          onLoadFail: (err) {
-            _addLog("Lynx 渲染错误: $err");
-            if (mounted) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    _status = LynxLoadStatus.failed;
-                    _errorMessage = err;
-                  });
-                }
+        // 加载时也必须挂载原生视图；遮罩只遮住未就绪首屏，不伪造成功。
+        return Stack(fit: StackFit.expand, children: [
+          LynxView(
+            key: ValueKey(_loadGeneration),
+            url: _bundlePath!,
+            allowedModules: widget.allowedModules,
+            initialData: LynxTemplateData(combinedInitialData),
+            onLynxCreated: (controller) {
+              _addLog("原生 LynxView 挂载成功 (viewId: ${controller.viewId})");
+            },
+            onLoadSuccess: () {
+              _addLog("Lynx 模板加载完成，等待真实首屏");
+            },
+            onFirstScreen: () {
+              if (!mounted || _status != LynxLoadStatus.compiling) return;
+              setState(() {
+                _status = LynxLoadStatus.success;
+                _currentStep = "运行中";
               });
-            }
-          },
-        );
+              _addLog("Lynx 原生首屏已呈现");
+            },
+            onLoadFail: (err) {
+              _addLog("Lynx 渲染错误: $err");
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _status = LynxLoadStatus.failed;
+                      _errorMessage = err;
+                    });
+                  }
+                });
+              }
+            },
+          ),
+          if (_status == LynxLoadStatus.compiling)
+            ColoredBox(color: Colors.white, child: _buildLoadingScreen())
+        ]);
 
       case LynxLoadStatus.failed:
         return Center(
@@ -484,7 +505,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
+                const Icon(Icons.error_outline,
+                    size: 56, color: Colors.redAccent),
                 const SizedBox(height: 16),
                 const Text(
                   "小程序加载失败",
@@ -531,7 +553,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1677FF).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF1677FF).withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: const Color(0xFF1677FF).withValues(alpha: 0.3)),
               ),
               child: const Icon(
                 Icons.bolt,
@@ -544,7 +567,10 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
             // Title & Version
             Text(
               widget.manifest.name,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -556,7 +582,10 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
               ),
               child: Text(
                 "v${widget.manifest.version}",
-                style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 20),
@@ -568,7 +597,8 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                 value: _downloadProgress > 0 ? _downloadProgress : null,
                 minHeight: 4,
                 backgroundColor: Colors.grey.shade200,
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1677FF)),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFF1677FF)),
               ),
             ),
             const SizedBox(height: 10),
@@ -580,13 +610,19 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                 Expanded(
                   child: Text(
                     _currentStep,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
                   "${(_downloadProgress * 100).toStringAsFixed(0)}%",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontFamily: "monospace"),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      fontFamily: "monospace"),
                 ),
               ],
             ),
@@ -618,12 +654,16 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                       const SizedBox(width: 6),
                       const Text(
                         "加载实时日志 (Live Logs)",
-                        style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600),
                       ),
                       const Spacer(),
                       Text(
                         "${_logs.length} 条",
-                        style: const TextStyle(color: Colors.white38, fontSize: 10),
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 10),
                       ),
                     ],
                   ),
@@ -651,22 +691,6 @@ class _LynxMiniProgramPageState extends State<LynxMiniProgramPage> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Force skip button
-            TextButton(
-              onPressed: () {
-                _compilingWatchdog?.cancel();
-                _addLog("用户手动跳过等待，立即呈现视图");
-                setState(() {
-                  _status = LynxLoadStatus.success;
-                });
-              },
-              child: const Text(
-                "跳过等待 (秒开进入)",
-                style: TextStyle(fontSize: 12, color: Color(0xFF1677FF)),
               ),
             ),
           ],

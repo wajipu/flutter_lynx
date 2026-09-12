@@ -37,7 +37,7 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
                         @Suppress("UNCHECKED_CAST")
                         callback(result as Map<String, Any?>)
                     } else {
-                        callback(mapOf("callId" to callId, "code" to 0, "message" to "ok"))
+                        callback(mapOf("callId" to callId, "code" to 500, "message" to "Invalid Flutter bridge response"))
                     }
                 }
 
@@ -80,9 +80,12 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
             "sendCustomEvent" -> {
                 val eventName = call.argument<String>("eventName") ?: ""
                 val data = call.argument<Map<String, Any?>>("data") ?: emptyMap()
-                // Broadcast to active Lynx Views
-                LynxPlatformViewManager.broadcastEvent(eventName, data)
-                result.success(true)
+                val viewId = call.argument<Number>("viewId")?.toInt()
+                if (LynxPlatformViewManager.sendEvent(eventName, data, viewId)) {
+                    result.success(true)
+                } else {
+                    result.error("lynx_event_not_delivered", "No loaded Lynx view accepted the event", null)
+                }
             }
             else -> result.notImplemented()
         }

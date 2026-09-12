@@ -18,10 +18,11 @@ export "src/manager/mini_program_manifest.dart";
 export "src/manager/bundle_downloader.dart";
 export "src/manager/lynx_mini_program_manager.dart";
 
-// Views
+// Views & Canvas
 export "src/view/lynx_view.dart";
 export "src/view/lynx_controller.dart";
 export "src/view/lynx_mini_program_page.dart";
+export "src/canvas/lynx_dynamic_canvas.dart";
 
 // Utils
 export "src/utils/lynx_logger.dart";

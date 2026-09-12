@@ -168,6 +168,11 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _addLog("Host system initialized. LynxBridge ready.");
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_presetMiniPrograms.isNotEmpty && mounted) {
+        _launchMiniProgram(_presetMiniPrograms.first);
+      }
+    });
   }
 
   void _launchMiniProgram(MiniProgramManifest manifest) {

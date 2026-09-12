@@ -1,3 +1,4 @@
+import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:flutter_lynx/flutter_lynx.dart";
 
@@ -80,6 +81,37 @@ void main() {
       });
       expect(getRes["code"], 0);
       expect(getRes["data"]["data"], "KManager");
+    });
+  });
+
+  group("LynxDynamicCanvas", () {
+    testWidgets("renders dynamic canvas commands without error",
+        (tester) async {
+      final commands = [
+        {"op": "beginPath"},
+        {"op": "moveTo", "x": 10, "y": 10},
+        {"op": "lineTo", "x": 100, "y": 100},
+        {"op": "setStrokeColor", "color": "#1677FF"},
+        {"op": "setLineWidth", "width": 2.5},
+        {"op": "stroke"},
+        {"op": "rect", "x": 20, "y": 20, "w": 50, "h": 50, "isFill": true},
+        {"op": "setFillColor", "color": "#52C41A"},
+        {"op": "drawCircle", "x": 80, "y": 80, "r": 15},
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LynxDynamicCanvas(
+              commands: commands,
+              width: 200,
+              height: 200,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(LynxDynamicCanvas), findsOneWidget);
     });
   });
 }

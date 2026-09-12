@@ -45,10 +45,10 @@ class SystemBridgeHandler implements LynxBridgeHandler {
         );
 
       case "getNetworkType":
-        // Fallback indicator
+        // 没有网络状态依赖时只能返回未知，禁止把未探测的网络伪装成Wi-Fi。
         return LynxBridgeResponse.success(
           callId: request.callId,
-          data: {"networkType": "wifi"},
+          data: {"networkType": "unknown"},
         );
 
       case "vibrateShort":
@@ -63,7 +63,8 @@ class SystemBridgeHandler implements LynxBridgeHandler {
         return LynxBridgeResponse.error(
           callId: request.callId,
           code: 404,
-          message: "Method ${request.method} not supported in SystemBridgeHandler",
+          message:
+              "Method ${request.method} not supported in SystemBridgeHandler",
         );
     }
   }

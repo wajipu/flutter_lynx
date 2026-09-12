@@ -1,0 +1,2 @@
+# 构建依赖由package-lock记录，不把下载的第三方源码放入仓库。
+/node_modules/

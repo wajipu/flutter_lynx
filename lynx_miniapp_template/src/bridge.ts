@@ -2,7 +2,26 @@
  * Type-safe JSBridge client SDK for Lynx Mini Programs communicating with Flutter host (KManager).
  */
 
-declare const lynx: any;
+interface GlobalEventEmitter {
+  addListener(eventName: string, listener: (event: FlutterEvent) => void): void;
+  removeListener(eventName: string, listener: (event: FlutterEvent) => void): void;
+}
+
+interface FlutterEvent {
+  name: string;
+  data: any;
+}
+
+declare const lynx: {
+  getJSModule?: (name: "GlobalEventEmitter") => GlobalEventEmitter;
+};
+
+declare const NativeModules: {
+  LynxBridge?: {
+    call(module: string, method: string, params: Record<string, any>, callId: string,
+      callback: (response: BridgeResponse) => void): void;
+  };
+};
 
 export interface BridgeResponse<T = any> {
   callId: string;
@@ -37,68 +56,36 @@ export interface RequestOptions {
 }
 
 export class LynxBridge {
-  private static callbackMap = new Map<string, (res: BridgeResponse) => void>();
+  private static nextCallId = 0;
   private static eventListeners = new Map<string, Set<(data: any) => void>>();
+  private static globalEmitter: GlobalEventEmitter | undefined;
 
-  static {
-    // Listen for custom events dispatched from Flutter Host
-    if (typeof lynx !== "undefined" && lynx.getJSModule) {
-      try {
-        const globalEmitter = lynx.getJSModule("GlobalEventEmitter");
-        if (globalEmitter && globalEmitter.addListener) {
-          globalEmitter.addListener("onFlutterEvent", (event: { name: string; data: any }) => {
-            const listeners = LynxBridge.eventListeners.get(event.name);
-            if (listeners) {
-              listeners.forEach((cb) => cb(event.data));
-            }
-          });
-        }
-      } catch (_) {}
-    }
+  private static handleFlutterEvent(event: FlutterEvent): void {
+    if (!event || typeof event.name !== "string") return;
+    LynxBridge.eventListeners.get(event.name)?.forEach(callback => callback(event.data));
   }
 
   /**
    * Low-level invoke method
    */
   static invoke<T = any>(method: string, params: Record<string, any> = {}, module = "default"): Promise<T> {
-    const callId = "call_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
-
     return new Promise((resolve, reject) => {
-      LynxBridge.callbackMap.set(callId, (res: BridgeResponse) => {
-        if (res.code === 0) {
-          resolve(res.data as T);
+      const nativeBridge = typeof NativeModules === "undefined" ? undefined : NativeModules.LynxBridge;
+      if (!nativeBridge || typeof nativeBridge.call !== "function") {
+        reject(new Error("NativeModules.LynxBridge is unavailable"));
+        return;
+      }
+      const callId = `call_${Date.now()}_${++LynxBridge.nextCallId}`;
+      // Each invocation owns its native callback; no mock reply or shared pending-response map.
+      nativeBridge.call(module, method, params, callId, response => {
+        if (!response || response.callId !== callId || typeof response.code !== "number") {
+          reject(new Error("Invalid LynxBridge response"));
+        } else if (response.code === 0) {
+          resolve(response.data as T);
         } else {
-          reject(new Error(res.message || "Bridge invocation failed"));
+          reject(new Error(response.message || `Bridge invocation failed: ${response.code}`));
         }
       });
-
-      // Try invoking through Lynx native module if available
-      try {
-        if (typeof lynx !== "undefined" && lynx.getJSModule) {
-          const bridgeModule = lynx.getJSModule("LynxBridge");
-          if (bridgeModule && bridgeModule.call) {
-            bridgeModule.call(module, method, params, callId, (res: BridgeResponse) => {
-              const cb = LynxBridge.callbackMap.get(callId);
-              if (cb) {
-                LynxBridge.callbackMap.delete(callId);
-                cb(res);
-              }
-            });
-            return;
-          }
-        }
-      } catch (_) {}
-
-      // Fallback: mock response for local testing
-      console.warn(`[LynxBridge] Native module not detected. Using local fallback for ${module}.${method}`);
-      setTimeout(() => {
-        const mockData = LynxBridge.getMockResponse(method, params);
-        const cb = LynxBridge.callbackMap.get(callId);
-        if (cb) {
-          LynxBridge.callbackMap.delete(callId);
-          cb({ callId, code: 0, message: "ok", data: mockData });
-        }
-      }, 100);
     });
   }
 
@@ -137,6 +124,18 @@ export class LynxBridge {
   }
 
   static on(eventName: string, callback: (data: any) => void): void {
+    // GlobalEventEmitter exists only on the background thread. Call on() from useEffect or an event handler.
+    if (!LynxBridge.globalEmitter) {
+      if (typeof lynx === "undefined" || typeof lynx.getJSModule !== "function") {
+        throw new Error("Lynx GlobalEventEmitter is unavailable on this thread");
+      }
+      const emitter = lynx.getJSModule("GlobalEventEmitter");
+      if (!emitter || typeof emitter.addListener !== "function" || typeof emitter.removeListener !== "function") {
+        throw new Error("Lynx GlobalEventEmitter is unavailable");
+      }
+      emitter.addListener("onFlutterEvent", LynxBridge.handleFlutterEvent);
+      LynxBridge.globalEmitter = emitter;
+    }
     if (!LynxBridge.eventListeners.has(eventName)) {
       LynxBridge.eventListeners.set(eventName, new Set());
     }
@@ -144,34 +143,12 @@ export class LynxBridge {
   }
 
   static off(eventName: string, callback: (data: any) => void): void {
-    LynxBridge.eventListeners.get(eventName)?.delete(callback);
-  }
-
-  private static getMockResponse(method: string, params: any): any {
-    switch (method) {
-      case "getSystemInfo":
-        return {
-          platform: "iOS",
-          osVersion: "17.4",
-          screenWidth: 390,
-          screenHeight: 844,
-          pixelRatio: 3,
-          language: "zh_CN",
-        };
-      case "getUserInfo":
-        return {
-          userId: "10086",
-          userName: "管理员 (Admin)",
-          phone: "13800138000",
-          token: "mock_jwt_token_kmanager_2026",
-          roles: ["admin", "store_manager"],
-        };
-      case "scanQRCode":
-        return { code: "https://kmanager.example.com/desk/001" };
-      case "request":
-        return { success: true, message: "Mock response for " + params.url };
-      default:
-        return {};
+    const listeners = LynxBridge.eventListeners.get(eventName);
+    listeners?.delete(callback);
+    if (listeners?.size === 0) LynxBridge.eventListeners.delete(eventName);
+    if (LynxBridge.eventListeners.size === 0 && LynxBridge.globalEmitter) {
+      LynxBridge.globalEmitter.removeListener("onFlutterEvent", LynxBridge.handleFlutterEvent);
+      LynxBridge.globalEmitter = undefined;
     }
   }
 }
