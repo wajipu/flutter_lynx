@@ -8,7 +8,7 @@
 
 - Android已接官方Lynx 3.2.0及获批的官方ImageService/Fresco，在Android 15临时模拟器验证了真实A/B bundle切换、JS点击计数、system.getSystemInfo、宿主反向事件和本地PNG加载；切包没有重新编译Flutter。
 - 已修复ImageService初始化缺失及其官方POM缺依赖边导致的D8默认方法问题；标准 `LynxMiniProgramPage` 可以进入真实首屏、撤掉遮罩，正常包未再触发32102或默认方法错误。坏包仍报告真实失败，不屏蔽SDK错误。
-- iOS、桌面和kmanager正式工作台尚未完成真实运行时接入；本轮没有修改商家App或推送。
+- kmanager Android工作台已通过固定Git提交接入，当前只授权`system` Bridge；iOS和桌面仍未完成安全运行时接入。
 - 独立验收入口：在example执行 `flutter run -t lib/runtime_verification.dart -d <Android测试设备>`。安装前核对示例包名 `com.kmanager.flutter_lynx_example`，不要覆盖业务App。
 - A/B源码与构建说明见 [模板README](lynx_miniapp_template/README.md)。原有用户修改的演示源码/dist仍保留，旧JSON打包脚本已经移除。
 
@@ -62,8 +62,12 @@
 ```yaml
 dependencies:
   flutter_lynx:
-    path: ../flutter_lynx
+    git:
+      url: git@codeup2.aliyun.com:68359a6af957ee9df431ecaa/basic_library/flutter-lynx.git
+      ref: 4e24e1a3f988106c1835c00318a1ba1b3d18230e
 ```
+
+私有仓库需要开发机或CI具备对应Codeup读取权限。宿主应固定已验证提交，不依赖相邻本地目录或浮动`main`。
 
 ### 2. 注册宿主能力至 LynxBridge
 
