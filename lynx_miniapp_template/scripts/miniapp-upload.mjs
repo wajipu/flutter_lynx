@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const configKeys = ["appCode", "platform", "bundlePath", "lynxSdkVersion", "bridgeApiVersion", "minHostVersion", "translations"];
+const configKeys = ["appCode", "bundlePath", "lynxSdkVersion", "bridgeApiVersion", "minHostVersion", "translations"];
 const maxBundleBytes = 10 * 1024 * 1024;
 const maxInt = 2147483647;
 let requestStarted = false;
@@ -47,7 +47,6 @@ async function loadConfig() {
   fixedObject(config, configKeys, "miniapp.config.json");
   textField(config.appCode, "appCode", 64);
   check(/^[A-Za-z0-9_-]+$/.test(config.appCode), "appCode 必须复制已有应用编码，不得包含空格或路径字符");
-  check(config.platform === 1 || config.platform === 2, "platform 必须为 1（Android）或 2（iOS）");
   textField(config.bundlePath, "bundlePath", 255);
   check(!path.isAbsolute(config.bundlePath) && !config.bundlePath.includes("\\") && !config.bundlePath.includes(":") && config.bundlePath.split("/").every((part) => part && part !== "." && part !== "..") && config.bundlePath.endsWith(".lynx.bundle"), "bundlePath 必须是本次构建输出目录内的相对 .lynx.bundle 路径，不能指向现有 dist 或上级目录");
   textField(config.lynxSdkVersion, "lynxSdkVersion", 32);

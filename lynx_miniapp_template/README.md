@@ -59,7 +59,6 @@ export MINIAPP_BUILD_OUTPUT_DIR="$(mktemp -d /tmp/lynx-template-build.XXXXXX)"
 | 字段 | 要求 |
 | --- | --- |
 | `appCode` | 已有应用编码，1–64 字符，字母/数字/下划线/连字符 |
-| `platform` | `1` Android、`2` iOS |
 | `bundlePath` | **相对于本次构建输出目录**，通常为 `main.lynx.bundle`；不含 `dist/` 前缀，不允许绝对路径、`..` 或符号链接越界 |
 | `lynxSdkVersion` | 实际兼容的 `x.y.z`，不是 npm 包版本；是否受支持由后端确认 |
 | `bridgeApiVersion` | 已实现的正整数 Bridge 能力版本，不超过 `2147483647` |
@@ -93,7 +92,7 @@ npm run miniapp:upload
 请求固定为 `POST <MINIAPP_API_BASE_URL>/system/mini-app-version/upload`，仅有 multipart 两项：
 
 - `file`：本次生成的单个 `.lynx.bundle` 二进制。
-- `metadata`（`application/json`）：`appCode,platform,versionName,lynxSdkVersion,bridgeApiVersion,minHostVersion,translations,bundleSha256`。
+- `metadata`（`application/json`）：`appCode,versionName,lynxSdkVersion,bridgeApiVersion,minHostVersion,translations,bundleSha256`。bundle 与发布方案全端统一，不选择 Android/iOS 目标平台。
 
 不会发送 tenantId、用户 ID、OSS ID、状态、签名或任意扩展字段。只允许远端 HTTPS，拒绝本机/监听/局域网地址及解析到这些地址的域名；DNS 结果校验后固定用于此次连接，不跟随重定向，避免凭据被转发。
 
