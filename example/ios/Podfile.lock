@@ -2,17 +2,81 @@ PODS:
   - Flutter (1.0.0)
   - flutter_lynx (0.1.0):
     - Flutter
+    - Lynx/Framework (= 3.2.0)
+    - LynxService/Image (= 3.2.0)
+    - PrimJS/napi (= 2.12.0)
+    - PrimJS/quickjs (= 2.12.0)
+    - SDWebImage (= 5.15.5)
+    - SDWebImageWebPCoder (= 0.11.0)
   - integration_test (0.0.1):
     - Flutter
+  - libwebp (1.6.0):
+    - libwebp/demux (= 1.6.0)
+    - libwebp/mux (= 1.6.0)
+    - libwebp/sharpyuv (= 1.6.0)
+    - libwebp/webp (= 1.6.0)
+  - libwebp/demux (1.6.0):
+    - libwebp/webp
+  - libwebp/mux (1.6.0):
+    - libwebp/demux
+  - libwebp/sharpyuv (1.6.0)
+  - libwebp/webp (1.6.0):
+    - libwebp/sharpyuv
+  - Lynx (3.2.0):
+    - Lynx/Framework (= 3.2.0)
+  - Lynx/Framework (3.2.0):
+    - Lynx/ReleaseResource
+    - PrimJS/napi/env
+    - PrimJS/napi/jsc
+    - PrimJS/napi/quickjs
+    - PrimJS/quickjs
+  - Lynx/ReleaseResource (3.2.0)
+  - LynxService/Image (3.2.0):
+    - Lynx (= 3.2.0)
+    - SDWebImage (= 5.15.5)
+    - SDWebImageWebPCoder (= 0.11.0)
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - PrimJS/log (2.12.0)
+  - PrimJS/napi (2.12.0):
+    - PrimJS/napi/core (= 2.12.0)
+    - PrimJS/napi/env (= 2.12.0)
+    - PrimJS/napi/jsc (= 2.12.0)
+    - PrimJS/napi/quickjs (= 2.12.0)
+  - PrimJS/napi/core (2.12.0)
+  - PrimJS/napi/env (2.12.0):
+    - PrimJS/napi/core
+  - PrimJS/napi/jsc (2.12.0):
+    - PrimJS/log
+    - PrimJS/napi/core
+    - PrimJS/quickjs
+  - PrimJS/napi/quickjs (2.12.0):
+    - PrimJS/napi/core
+    - PrimJS/quickjs
+  - PrimJS/quickjs (2.12.0):
+    - PrimJS/log
+  - SDWebImage (5.15.5):
+    - SDWebImage/Core (= 5.15.5)
+  - SDWebImage/Core (5.15.5)
+  - SDWebImageWebPCoder (0.11.0):
+    - libwebp (~> 1.0)
+    - SDWebImage/Core (~> 5.15)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_lynx (from `.symlinks/plugins/flutter_lynx/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+
+SPEC REPOS:
+  trunk:
+    - libwebp
+    - Lynx
+    - LynxService
+    - PrimJS
+    - SDWebImage
+    - SDWebImageWebPCoder
 
 EXTERNAL SOURCES:
   Flutter:
@@ -26,10 +90,16 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_lynx: 04c00e8de1bb19d4d2b1b5bbe3ec1fa8d334317c
+  flutter_lynx: 1be56fca857e16d56dc374aa312a6761d1f774cd
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
+  libwebp: af5937a13536ef73f3784d69cc342b98961acf33
+  Lynx: 1d2177abebf26c57cde7b2e0161b849e7c0a2370
+  LynxService: b68651147f8e01030b8aa9d4e2789a56cb689311
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
+  PrimJS: 58e0e09bdccc1429544c8575f4ddc5e70a9d8f5c
+  SDWebImage: fd7e1a22f00303e058058278639bf6196ee431fe
+  SDWebImageWebPCoder: 295a6573c512f54ad2dd58098e64e17dcf008499
 
-PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
+PODFILE CHECKSUM: b1685fc746764bd6447026a4253115c8878231db
 
 COCOAPODS: 1.16.2

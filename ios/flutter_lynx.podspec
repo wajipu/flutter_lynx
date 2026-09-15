@@ -9,11 +9,19 @@ Lynx dynamic mini-program engine and container for Flutter applications.
   s.license          = { :file => "../LICENSE" }
   s.author           = { "KManager Team" => "dev@kmanager.com" }
   s.source           = { :path => "." }
-  s.source_files = "Classes/**/*"
+  s.source_files = "Classes/**/*.{h,m,mm}"
+  s.public_header_files = "Classes/FlutterLynxPlugin.h"
   s.dependency "Flutter"
   s.platform = :ios, "12.0"
 
+  # Keep the same official 3.2 stack as Android. Image only; no HTTP/DevTool service.
+  s.dependency "Lynx/Framework", "3.2.0"
+  s.dependency "PrimJS/quickjs", "2.12.0"
+  s.dependency "PrimJS/napi", "2.12.0"
+  s.dependency "LynxService/Image", "3.2.0"
+  s.dependency "SDWebImage", "5.15.5"
+  s.dependency "SDWebImageWebPCoder", "0.11.0"
+
   # Flutter.framework does not contain an i386 slice.
   s.pod_target_xcconfig = { "DEFINES_MODULE" => "YES", "EXCLUDED_ARCHS[sdk=iphonesimulator*]" => "i386" }
-  s.swift_version = "5.0"
 end

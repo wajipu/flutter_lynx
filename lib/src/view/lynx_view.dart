@@ -5,7 +5,6 @@ import "package:flutter/rendering.dart";
 import "package:flutter/services.dart";
 import "lynx_controller.dart";
 import "../models/lynx_template_data.dart";
-import "../runtime/lynx_desktop_runtime_view.dart";
 
 typedef LynxCreatedCallback = void Function(LynxController controller);
 typedef LynxLoadSuccessCallback = void Function();
@@ -20,7 +19,7 @@ class LynxView extends StatefulWidget {
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
 
-  /// Android JSBridge modules granted to this native view, matched exactly.
+  /// Android / iOS JSBridge modules granted to this native view, matched exactly.
   /// Custom modules must be listed explicitly; changing grants recreates the view.
   final Set<String> allowedModules;
 
@@ -104,10 +103,14 @@ class _LynxViewState extends State<LynxView> {
       }
     });
     widget.onLynxCreated?.call(controller);
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    if (_hasOfficialLynxEngine) {
       await _reload(controller);
     }
   }
+
+  bool get _hasOfficialLynxEngine =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   Future<void> _reload(LynxController controller) async {
     try {
@@ -135,7 +138,7 @@ class _LynxViewState extends State<LynxView> {
     // initialData只用于首次加载；运行时数据更新由控制器显式执行。
     if (widget.url != oldWidget.url &&
         _controller != null &&
-        defaultTargetPlatform == TargetPlatform.android) {
+        _hasOfficialLynxEngine) {
       _reload(_controller!);
     }
   }
@@ -180,14 +183,8 @@ class _LynxViewState extends State<LynxView> {
         onPlatformViewCreated: (id) => _onPlatformViewCreated(id, generation),
       );
     } else {
-      // Dynamic desktop & simulator Lynx runtime renderer (macOS, Windows, Linux, Web)
-      return LynxDesktopRuntimeView(
-        url: widget.url,
-        initialData: widget.initialData,
-        onLynxCreated: widget.onLynxCreated,
-        onLoadSuccess: widget.onLoadSuccess,
+      return _UnsupportedOfficialLynxRuntime(
         onLoadFail: widget.onLoadFail,
-        onFirstScreen: widget.onFirstScreen,
       );
     }
   }
@@ -203,5 +200,37 @@ class _LynxViewState extends State<LynxView> {
     _eventChannel = null;
     _controller?.dispose();
     _controller = null;
+  }
+}
+
+/// Official Lynx 3.2 only ships Android and iOS engines. Desktop support starts at 3.7.
+class _UnsupportedOfficialLynxRuntime extends StatefulWidget {
+  final LynxLoadFailCallback? onLoadFail;
+
+  const _UnsupportedOfficialLynxRuntime({this.onLoadFail});
+
+  @override
+  State<_UnsupportedOfficialLynxRuntime> createState() =>
+      _UnsupportedOfficialLynxRuntimeState();
+}
+
+class _UnsupportedOfficialLynxRuntimeState
+    extends State<_UnsupportedOfficialLynxRuntime> {
+  static const String _message =
+      "Official Lynx 3.2 has no engine on this platform; desktop support starts at Lynx 3.7";
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onLoadFail?.call(_message);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.expand();
   }
 }

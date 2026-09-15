@@ -22,7 +22,11 @@ public class FlutterLynxPlugin: NSObject, FlutterPlugin {
     case "getPlatformVersion":
       result("macOS " + ProcessInfo.processInfo.operatingSystemVersionString)
     case "sendCustomEvent":
-      result(true)
+      result(FlutterError(
+        code: "lynx_native_unavailable",
+        message: "Official Lynx 3.2 has no macOS engine; desktop support starts at Lynx 3.7",
+        details: nil
+      ))
     default:
       result(FlutterMethodNotImplemented)
     }
