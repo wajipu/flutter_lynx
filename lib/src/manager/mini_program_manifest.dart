@@ -12,6 +12,9 @@ class MiniProgramManifest {
   final Map<String, dynamic>? initialData;
   final Map<String, dynamic>? extra;
 
+  /// 全屏容器是否按安全区给内容留白。默认打开；设为 false 则铺满屏幕。
+  final bool applySafeArea;
+
   const MiniProgramManifest({
     required this.appId,
     required this.name,
@@ -22,6 +25,7 @@ class MiniProgramManifest {
     this.md5,
     this.initialData,
     this.extra,
+    this.applySafeArea = true,
   });
 
   factory MiniProgramManifest.fromMap(Map<String, dynamic> map) {
@@ -39,6 +43,7 @@ class MiniProgramManifest {
       extra: map["extra"] != null
           ? Map<String, dynamic>.from(map["extra"] as Map)
           : null,
+      applySafeArea: map["applySafeArea"] as bool? ?? true,
     );
   }
 
@@ -59,6 +64,7 @@ class MiniProgramManifest {
       if (md5 != null) "md5": md5,
       if (initialData != null) "initialData": initialData,
       if (extra != null) "extra": extra,
+      "applySafeArea": applySafeArea,
     };
   }
 

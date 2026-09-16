@@ -12,7 +12,8 @@ void main() {
 }
 
 final List<String> _bridgeLogs = [];
-final StreamController<List<String>> _logStreamController = StreamController<List<String>>.broadcast();
+final StreamController<List<String>> _logStreamController =
+    StreamController<List<String>>.broadcast();
 
 void _addLog(String msg) {
   final timestamp = DateTime.now().toIso8601String().substring(11, 19);
@@ -57,9 +58,19 @@ void _initLynxHostCapabilities() {
       "statusMessage": "OK",
       "data": {
         "desks": [
-          {"id": "A01", "name": "大厅A01 (4人)", "status": "occupied", "amount": 258.0},
+          {
+            "id": "A01",
+            "name": "大厅A01 (4人)",
+            "status": "occupied",
+            "amount": 258.0
+          },
           {"id": "A02", "name": "大厅A02 (6人)", "status": "idle", "amount": 0.0},
-          {"id": "B01", "name": "包厢B01 (10人)", "status": "reserved", "amount": 888.0},
+          {
+            "id": "B01",
+            "name": "包厢B01 (10人)",
+            "status": "reserved",
+            "amount": 888.0
+          },
         ],
       },
     };
@@ -72,11 +83,13 @@ void _initLynxHostCapabilities() {
     _addLog("JSB >> exportReport 导出报表: range=$range, format=$format");
     await Future.delayed(const Duration(milliseconds: 300));
     return {
-      "fileName": "KManager_经营日报_${DateTime.now().millisecondsSinceEpoch}.$format",
+      "fileName":
+          "KManager_经营日报_${DateTime.now().millisecondsSinceEpoch}.$format",
       "fileSize": "142.8 KB",
       "recordsCount": 328,
       "totalRevenue": 28450.00,
-      "downloadUrl": "https://kmanager.example.com/reports/download/rep_889901.xlsx",
+      "downloadUrl":
+          "https://kmanager.example.com/reports/download/rep_889901.xlsx",
       "exportedAt": DateTime.now().toIso8601String(),
     };
   }, module: "report");
@@ -99,6 +112,14 @@ class LynxDemoApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1677FF)),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1677FF),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
       home: const DemoHomePage(),
     );
   }
@@ -111,10 +132,12 @@ class DemoHomePage extends StatefulWidget {
   State<DemoHomePage> createState() => _DemoHomePageState();
 }
 
-class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderStateMixin {
+class _DemoHomePageState extends State<DemoHomePage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _customUrlController = TextEditingController(
-    text: "https://raw.githubusercontent.com/lynx-family/lynx/main/examples/hello-world/dist/main.lynx.bundle",
+    text:
+        "https://raw.githubusercontent.com/lynx-family/lynx/main/examples/hello-world/dist/main.lynx.bundle",
   );
 
   LynxController? _embeddedLynxController;
@@ -125,7 +148,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
       appId: "kmanager_report_miniapp",
       name: "📊 门店经营分析与多维报表",
       version: "3.0.0",
-      bundleUrl: "https://cdn.example.com/miniapp/report/3.0.0/main.lynx.bundle",
+      bundleUrl:
+          "https://cdn.example.com/miniapp/report/3.0.0/main.lynx.bundle",
       description: "实时分时营收柱状趋势图、品类环形占比、Top 热销排行榜与导出 Excel 宿主协同。",
       initialData: {"storeId": "STORE_001", "period": "today"},
     ),
@@ -157,7 +181,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
       appId: "kmanager_member_miniapp",
       name: "会员卡包与积分商城",
       version: "1.5.0",
-      bundleUrl: "https://cdn.example.com/miniapp/member/1.5.0/main.lynx.bundle",
+      bundleUrl:
+          "https://cdn.example.com/miniapp/member/1.5.0/main.lynx.bundle",
       description: "动态会员权益展示、优惠券核销与积分兑换。",
       initialData: {"memberLevel": "VIP_GOLD"},
     ),
@@ -176,9 +201,11 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
   }
 
   void _launchMiniProgram(MiniProgramManifest manifest) {
-    _addLog("Launching Mini-Program: ${manifest.name} (appId: ${manifest.appId})");
+    _addLog(
+        "Launching Mini-Program: ${manifest.name} (appId: ${manifest.appId})");
     Navigator.of(context).push(
       MaterialPageRoute(
+        fullscreenDialog: true,
         builder: (_) => LynxMiniProgramPage(manifest: manifest),
       ),
     );
@@ -259,7 +286,10 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
             children: [
               Text(
                 "Lynx 跨端动态小程序容器",
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 6),
               Text(
@@ -281,7 +311,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
           return Card(
             elevation: 1,
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
@@ -295,7 +326,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.mobile_friendly, color: Color(0xFF1677FF)),
+                        child: const Icon(Icons.mobile_friendly,
+                            color: Color(0xFF1677FF)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -304,11 +336,13 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                           children: [
                             Text(
                               manifest.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15),
                             ),
                             Text(
                               "AppId: ${manifest.appId} • v${manifest.version}",
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 12),
                             ),
                           ],
                         ),
@@ -318,7 +352,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1677FF),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text("打开"),
                       ),
@@ -328,7 +363,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                     const SizedBox(height: 8),
                     Text(
                       manifest.description!,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                      style:
+                          TextStyle(color: Colors.grey.shade700, fontSize: 12),
                     ),
                   ],
                 ],
@@ -361,13 +397,16 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
           children: [
             ActionChip(
               avatar: const Icon(Icons.flash_on, size: 16, color: Colors.amber),
-              label: const Text("本地 DevServer (127.0.0.1:3000)", style: TextStyle(fontSize: 11)),
+              label: const Text("本地 DevServer (127.0.0.1:3000)",
+                  style: TextStyle(fontSize: 11)),
               onPressed: () {
-                _customUrlController.text = "http://127.0.0.1:3000/main.lynx.bundle";
+                _customUrlController.text =
+                    "http://127.0.0.1:3000/main.lynx.bundle";
               },
             ),
             ActionChip(
-              avatar: const Icon(Icons.folder_zip, size: 16, color: Colors.blue),
+              avatar:
+                  const Icon(Icons.folder_zip, size: 16, color: Colors.blue),
               label: const Text("内置离线 Bundle", style: TextStyle(fontSize: 11)),
               onPressed: () {
                 _customUrlController.text = "assets/miniapp/main.lynx.bundle";
@@ -384,7 +423,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
             minimumSize: const Size.fromHeight(46),
             backgroundColor: Colors.teal,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
       ],
@@ -476,7 +516,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
           },
           icon: const Icon(Icons.refresh),
           label: const Text("重载 LynxView 组件"),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
+          style:
+              OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
         ),
       ],
     );
@@ -501,7 +542,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                   TextButton.icon(
                     onPressed: () {
                       LynxBridge.instance.dispatch({
-                        "callId": "test_${DateTime.now().millisecondsSinceEpoch}",
+                        "callId":
+                            "test_${DateTime.now().millisecondsSinceEpoch}",
                         "module": "scanner",
                         "method": "scanQRCode",
                         "params": {},
@@ -546,7 +588,8 @@ class _DemoHomePageState extends State<DemoHomePage> with SingleTickerProviderSt
                 itemBuilder: (context, index) {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(6),

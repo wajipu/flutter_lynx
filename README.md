@@ -6,12 +6,12 @@
 
 ## 当前状态（2026-09-15）
 
-- Android已接官方Lynx 3.2.0及获批的官方ImageService/Fresco，在Android 15临时模拟器验证了真实A/B bundle切换、JS点击计数、system.getSystemInfo、宿主反向事件和本地PNG加载；切包没有重新编译Flutter。
-- 已修复ImageService初始化缺失及其官方POM缺依赖边导致的D8默认方法问题；标准 `LynxMiniProgramPage` 可以进入真实首屏、撤掉遮罩，正常包未再触发32102或默认方法错误。坏包仍报告真实失败，不屏蔽SDK错误。
-- iOS已按同一套 3.2.0 / PrimJS 2.12.0 / ImageService 接入官方 `LynxView`。2026-09-15 在 iPhone 17 Pro 模拟器上验收了真实 A 包首屏、`system.getSystemInfo`（`platform=ios`）、`allowedModules` 拒绝 storage/default，以及本地 PNG；成功/首屏/失败只走官方 lifecycle，不再使用占位卡片或延时假成功。宿主 `Podfile` 必须 `require` 并调用 `ios/lynx_3_2_xcode16.rb`。
-- 官方 Lynx 3.2 没有 macOS/Windows 引擎；桌面官方支持从 3.7 才开始。当前 `LynxView` 在这些平台明确失败，不再用 Dart 自绘预览冒充已加载。升级整栈到 3.7 需单独确认，不能只升桌面。
+- 整栈锁定官方稳定版 **Lynx 4.1.0 + PrimJS 4.1.1 + ImageService 4.1.0**，依据 [官方集成文档](https://lynxjs.org/guide/start/integrate-with-existing-apps) 与 GitHub `4.1.0` release（2026-09-07）。不要用 Maven metadata 的 `latest`（当前指向 `4.1.0-nightly`）。
+- Android / iOS 仍只接官方 Image 服务与已获批的 Fresco 2.3.0 / SDWebImage 5.15.5；不接 HTTP、Log、DevTool、XElement。
+- iOS 宿主 `Podfile` 必须同时声明 `https://cdn.cocoapods.org/` 和 `https://github.com/lynx-family/Specs.git`。Lynx 4.1.0 不在 CocoaPods CDN。
+- 已删除 Lynx 3.2 / PrimJS 2.12.0 及配套 `ios/lynx_3_2_xcode16.rb`。4.1 编译或 `lynx_core.js` 查找若再出问题，按 4.1 源码另写补丁，不要回退 3.2。
+- macOS / Windows 的官方桌面引擎是 CMake `libLynx`，不是 iOS `LynxView`。当前 Flutter `LynxView` 在这些平台明确失败，不再用 Dart 自绘预览冒充已加载。
 - kmanager 工作台通过固定 Git 提交接入，当前只授权 `system` Bridge。Android / iOS 打开官方引擎闸门；macOS 明确拒绝。
-- example 与常见 Flutter 宿主 Podfile 带 `use_frameworks!`。`pod install` 已能拉到 Lynx 3.2.0。Xcode 16.3+ 编译官方 PrimJS 2.12.0 / Lynx 3.2.0 会触发已知问题（[lynx#892](https://github.com/lynx-family/lynx/issues/892)、[lynx#1398](https://github.com/lynx-family/lynx/issues/1398)、[lynx#952](https://github.com/lynx-family/lynx/issues/952)）。宿主 `post_install` 必须调用插件自带的 `ios/lynx_3_2_xcode16.rb`：改写 PrimJS 函数指针、压掉官方 SDK 在 Apple Clang 17 上的 `-Werror`，并把 `lynx_core.js` 的查找从 `mainBundle` 改到 `Lynx.framework`（动态 framework 下官方 3.2 会找不到该文件，表现为 `loadCard` 未定义）。不要为此升 Lynx 3.7 或改 PrimJS 版本。
 - 独立验收入口：`flutter run -t lib/runtime_verification.dart -d <Android或iOS测试设备>`。安装前核对示例包名 `com.kmanager.flutter_lynx_example`，不要覆盖业务App。
 - A/B源码与构建说明见 [模板README](lynx_miniapp_template/README.md)。原有用户修改的演示源码/dist仍保留，旧JSON打包脚本已经移除。
 
@@ -19,13 +19,13 @@
 
 ## 🌟 特性
 
-- ⚡ **原生渲染**：Android / iOS 接入官方 Lynx 3.2；macOS 官方引擎未随 3.2 提供。性能与完整业务场景仍需专项验收。
+- ⚡ **原生渲染**：Android / iOS 接入官方 Lynx 4.1.0；Flutter 桌面未嵌入官方 CMake SDK。性能与完整业务场景仍需专项验收。
 - 📦 **包准备与缓存**：内置 `LynxMiniProgramManager`；现有缓存不等于完整的签名、版本回滚或离线授权机制。
 - 🌉 **JSBridge 通信入口**：
   - 宿主直接注入能力：扫码、Dio 网络代理、登录信息、设备信息、存储。
   - 内置基础能力库：Toast、Modal、Loading、导航栏设置、振动。
   - 宿主与小程序双向事件总线（`EventBus`）。
-- 📱 **小程序页面容器**：`LynxMiniProgramPage` 提供加载/失败状态与胶囊按钮，成功以真实首屏回调为准。
+- 📱 **小程序页面容器**：`LynxMiniProgramPage` 全屏铺 Lynx。微信式胶囊（状态栏下 4pt、距右 7pt、87×32）由原生画在窗口层（iOS `UIWindow`、Android Activity decor），跟系统亮暗主题走，不进 Flutter 树，也不挂在 Lynx PlatformView 上。`applySafeArea`（默认打开，initData 传 `1`/`0`）只把安全区和 `menuButton` 交给小程序排版。裸 `LynxView` 不画胶囊。
 - 💻 **现代化前端开发体验**：支持使用 React (`ReactLynx`)、TypeScript、CSS，并通过 Rspeedy 一键编译生成 `main.lynx.bundle`。
 
 ---
@@ -41,6 +41,7 @@
 +-------------------------------------------------------------+
 |                     flutter_lynx 插件层                     |
 |  - LynxView (PlatformView: AndroidView / UiKitView)         |
+|  - LynxHostCapsule（原生窗口层胶囊；Dart 只做开关）              |
 |  - LynxMiniProgramManager (包下载 / 校验 / 缓存 / 热更新)      |
 |  - LynxBridge (JSB 统一消息调度分发中心)                       |
 +-------------------------------------------------------------+
@@ -60,6 +61,13 @@
 
 ### 1. 引入插件
 
+iOS 宿主 `Podfile` 顶部必须同时声明两个 source，否则解析不到 Lynx 4.1.0：
+
+```ruby
+source 'https://cdn.cocoapods.org/'
+source 'https://github.com/lynx-family/Specs.git'
+```
+
 在宿主应用的 `pubspec.yaml` 中添加依赖：
 
 ```yaml
@@ -67,10 +75,10 @@ dependencies:
   flutter_lynx:
     git:
       url: git@codeup2.aliyun.com:68359a6af957ee9df431ecaa/basic_library/flutter-lynx.git
-      ref: 4e24e1a3f988106c1835c00318a1ba1b3d18230e
+      ref: <kmanager/pubspec.yaml 锁定的已验证提交>
 ```
 
-私有仓库需要开发机或CI具备对应Codeup读取权限。宿主应固定已验证提交，不依赖相邻本地目录或浮动`main`。
+私有仓库需要开发机或CI具备对应Codeup读取权限。宿主应固定已验证提交，禁止 `path:` 指向相邻本地目录，也不要跟浮动 `main`。
 
 ### 2. 注册宿主能力至 LynxBridge
 
@@ -136,9 +144,12 @@ void openDemoMiniProgram(BuildContext context) {
 
   Navigator.of(context).push(
     MaterialPageRoute(
+      fullscreenDialog: true,
       builder: (_) => LynxMiniProgramPage(
         manifest: manifest,
         allowedModules: const {"system", "scanner", "user"},
+        // 默认 true。不需要宿主垫安全区时关掉。
+        // applySafeArea: false,
       ),
     ),
   );

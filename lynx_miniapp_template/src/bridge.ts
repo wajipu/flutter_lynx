@@ -30,6 +30,22 @@ export interface BridgeResponse<T = any> {
   data?: T;
 }
 
+export interface HostSafeArea {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+export interface HostMenuButton {
+  width: number;
+  height: number;
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+}
+
 export interface SystemInfo {
   platform: string;
   osVersion: string;
@@ -37,6 +53,9 @@ export interface SystemInfo {
   screenHeight: number;
   pixelRatio: number;
   language: string;
+  statusBarHeight: number;
+  safeArea: HostSafeArea;
+  menuButton: HostMenuButton;
 }
 
 export interface UserInfo {

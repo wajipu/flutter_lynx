@@ -13,6 +13,10 @@ export "src/bridge/built_in/ui_bridge_handler.dart";
 export "src/bridge/built_in/storage_bridge_handler.dart";
 export "src/bridge/built_in/router_bridge_handler.dart";
 
+// Host metrics / native capsule switch
+export "src/host/lynx_host_metrics.dart";
+export "src/host/lynx_host_capsule.dart";
+
 // Manager
 export "src/manager/mini_program_manifest.dart";
 export "src/manager/bundle_downloader.dart";

@@ -63,6 +63,7 @@ class LynxPlatformView(
             ViewGroup.LayoutParams.MATCH_PARENT
         )
         setBackgroundColor(Color.WHITE)
+        isClickable = false
     }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val fileExecutor = Executors.newSingleThreadExecutor()
@@ -149,6 +150,7 @@ class LynxPlatformView(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
+        bringCapsuleToFront()
     }
 
     private fun destroyNativeView() {
@@ -161,7 +163,7 @@ class LynxPlatformView(
         try {
             previous?.destroy()
         } finally {
-            rootLayout.removeAllViews()
+            previous?.let { rootLayout.removeView(it) }
         }
     }
 

@@ -14,11 +14,12 @@ Lynx dynamic mini-program engine and container for Flutter applications.
   s.dependency "Flutter"
   s.platform = :ios, "12.0"
 
-  # Keep the same official 3.2 stack as Android. Image only; no HTTP/DevTool service.
-  s.dependency "Lynx/Framework", "3.2.0"
-  s.dependency "PrimJS/quickjs", "2.12.0"
-  s.dependency "PrimJS/napi", "2.12.0"
-  s.dependency "LynxService/Image", "3.2.0"
+  # Official stable 4.1 stack. Host Podfile must also declare lynx-family Specs.
+  # Image only; no HTTP/Log/DevTool service.
+  s.dependency "Lynx/Framework", "4.1.0"
+  s.dependency "PrimJS/quickjs", "4.1.1"
+  s.dependency "PrimJS/napi", "4.1.1"
+  s.dependency "LynxService/Image", "4.1.0"
   s.dependency "SDWebImage", "5.15.5"
   s.dependency "SDWebImageWebPCoder", "0.11.0"
 

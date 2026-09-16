@@ -1,11 +1,33 @@
-import { useEffect, useState } from "@lynx-js/react";
+import { useEffect, useInitData, useState } from "@lynx-js/react";
 import { LynxBridge } from "../src/bridge";
+
+function readApplySafeArea(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function readPx(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 
 // Reuse the example's bundled launcher PNG; no network or extra image fixture is needed.
 const verificationImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAIpQTFRFAAAAAVebVMX4Kbb2VMX4AVebKbb2VMX4VMX4Kbb2VMX4VMX4VMX4AVebB1ePVMX4AVebBENyKbb2UcT4VMX4ADxrAUJ1AU2KAU6LAVSVAVSWAVWXAVaZAVaaAVeaAVebAy1LAzFRBUJuBU2ABlOJHom6H43AIZXLIprSIpzVKbb2Mbn2UcT4VMX4UU+PBQAAABV0Uk5TABAQICAwMDCPn5+vv8/Pz+/v7+/vb7KPEwAAAKVJREFUSMft1MkSgjAQRdGIA86igoKirSIOiP//ew6J3WwMnYULU3nL1LnVuwhh9/zwTpt4zjvv/G99d0gbePW+X3kJfd0Bjq8WPE8F138K6Xu3stbLQvmiwOK7fxXosdB5IVrkVaH3csq/CyP/LOYM35xRcB03GJ92B4vLMR2ZFOcs2YJBcTrEqw3wi3y/WK4B2EW+i+IUgF9ME8CxinYAVhR/sgfbkVbaxFzJpwAAAABJRU5ErkJggg==";
 
 /** A/B fixtures exercise the real bundle, local state and both directions of the native bridge. */
 export function RuntimeValidation({ variant }: { variant: "A" | "B" }) {
+  const initData = useInitData() as {
+    applySafeArea?: boolean | number | string;
+    safeArea?: { top?: number; bottom?: number };
+    menuButton?: { bottom?: number };
+  };
+  const applySafeArea = readApplySafeArea(initData?.applySafeArea);
+  // 胶囊浮在全屏 Lynx 上；打开安全区时避开 menuButton 下沿和底部 Home Indicator。
+  const paddingTop = applySafeArea
+    ? readPx(initData?.menuButton?.bottom)
+    : 20;
+  const paddingBottom = applySafeArea
+    ? readPx(initData?.safeArea?.bottom) + 20
+    : 20;
   const [count, setCount] = useState(0);
   const [systemInfo, setSystemInfo] = useState("pending");
   const [hostEvents, setHostEvents] = useState(0);
@@ -67,7 +89,17 @@ export function RuntimeValidation({ variant }: { variant: "A" | "B" }) {
   const buttonStyle = { padding: "16px", marginBottom: "12px", backgroundColor: variant === "A" ? "#14532d" : "#1e3a8a", borderRadius: "8px" };
 
   return (
-    <view style={{ padding: "20px", backgroundColor: "#ffffff", display: "flex", flexDirection: "column", width: "100%" }}>
+    <view style={{
+      paddingTop,
+      paddingRight: 20,
+      paddingBottom,
+      paddingLeft: 20,
+      minHeight: "100%",
+      backgroundColor: "#ffffff",
+      display: "flex",
+      flexDirection: "column",
+      width: "100%",
+    }}>
       <text style={{ color: "#111827", fontSize: "24px", marginBottom: "16px" }}>Lynx runtime variant {variant}</text>
       <text style={{ color: "#111827", fontSize: "18px", marginBottom: "12px" }}>click-count: {count}</text>
       <view id="local-increment" style={buttonStyle} bindtap={() => setCount(value => value + 1)}>

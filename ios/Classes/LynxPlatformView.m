@@ -1,6 +1,8 @@
 #import "LynxPlatformView.h"
 #import "LynxBridgeModule.h"
 
+#import <UIKit/UIKit.h>
+
 #import <Lynx/LynxConfig.h>
 #import <Lynx/LynxEnv.h>
 #import <Lynx/LynxError.h>
@@ -109,14 +111,13 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   CGSize size = self.bounds.size;
   // Flutter UiKitView is often created with a zero frame; Lynx keeps that
   // viewport until we push the real size after layout.
-  if (view == nil || size.width < 1 || size.height < 1 || CGSizeEqualToSize(size, self.lastViewport)) {
-    return;
+  if (view != nil && size.width >= 1 && size.height >= 1 && !CGSizeEqualToSize(size, self.lastViewport)) {
+    self.lastViewport = size;
+    view.frame = self.bounds;
+    [view updateViewportWithPreferredLayoutWidth:size.width
+                           preferredLayoutHeight:size.height
+                                      needLayout:YES];
   }
-  self.lastViewport = size;
-  view.frame = self.bounds;
-  [view updateViewportWithPreferredLayoutWidth:size.width
-                         preferredLayoutHeight:size.height
-                                    needLayout:YES];
 }
 @end
 
@@ -208,6 +209,7 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
     _allowedModulesError = moduleError;
     _rootView = [[FlutterLynxRootView alloc] initWithFrame:frame];
     _rootView.backgroundColor = UIColor.whiteColor;
+    _rootView.userInteractionEnabled = YES;
     _methodChannel = [FlutterMethodChannel
         methodChannelWithName:[NSString stringWithFormat:@"com.kmanager.flutter_lynx/lynx_view_%lld", viewId]
               binaryMessenger:messenger];
@@ -303,7 +305,6 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   _templateRequested = NO;
   [previous clearForDestroy];
   [previous removeFromSuperview];
-  [_rootView.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
 }
 
 - (void)emitEvent:(NSString *)name arguments:(id)arguments loaded:(NSNumber *)loaded {

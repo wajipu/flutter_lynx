@@ -38,6 +38,33 @@ void main() {
       expect(reconstructed.appId, "test_miniapp");
       expect(reconstructed.md5, "abc123");
       expect(reconstructed.initialData?["user"], "admin");
+      expect(reconstructed.applySafeArea, isTrue);
+      expect(map["applySafeArea"], isTrue);
+    });
+
+    test("fromMap 缺省 applySafeArea 时默认打开", () {
+      final manifest = MiniProgramManifest.fromMap({
+        "appId": "safe_default",
+        "name": "默认安全区",
+        "version": "1.0.0",
+        "bundleUrl": "https://example.com/main.lynx.bundle",
+      });
+      expect(manifest.applySafeArea, isTrue);
+    });
+
+    test("applySafeArea 为 false 时保持关闭", () {
+      final manifest = MiniProgramManifest(
+        appId: "safe_off",
+        name: "关闭安全区",
+        version: "1.0.0",
+        bundleUrl: "https://example.com/main.lynx.bundle",
+        applySafeArea: false,
+      );
+      expect(manifest.toMap()["applySafeArea"], isFalse);
+      expect(
+        MiniProgramManifest.fromMap(manifest.toMap()).applySafeArea,
+        isFalse,
+      );
     });
   });
 

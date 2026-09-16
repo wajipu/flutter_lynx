@@ -1,4 +1,8 @@
-# Official Lynx 3.2 requires iOS 10+; keep Flutter plugin floor at 12.
+# Lynx 4.1.0 is published to lynx-family Specs, not CocoaPods CDN.
+source 'https://cdn.cocoapods.org/'
+source 'https://github.com/lynx-family/Specs.git'
+
+# Official Lynx 4.1 requires iOS 10+; keep Flutter plugin floor at 12.
 platform :ios, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -24,7 +28,6 @@ def flutter_root
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-require File.expand_path('../../ios/lynx_3_2_xcode16.rb', __dir__)
 
 flutter_ios_podfile_setup
 
@@ -42,5 +45,4 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
-  apply_lynx_3_2_xcode16_compat(installer)
 end

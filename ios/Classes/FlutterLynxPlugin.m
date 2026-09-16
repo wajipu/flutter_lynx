@@ -1,10 +1,12 @@
 #import "FlutterLynxPlugin.h"
+#import "LynxHostCapsuleOverlay.h"
 #import "LynxPlatformView.h"
 
 #import <UIKit/UIKit.h>
 
 @implementation FlutterLynxPlugin {
   FlutterMethodChannel *_pluginChannel;
+  FlutterMethodChannel *_hostCapsuleChannel;
 }
 
 static FlutterMethodChannel *kBridgeChannel;
@@ -20,6 +22,13 @@ static FlutterMethodChannel *kBridgeChannel;
   kBridgeChannel = [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
                                                binaryMessenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:kBridgeChannel];
+
+  FlutterMethodChannel *hostCapsuleChannel =
+      [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/host_capsule"
+                                  binaryMessenger:[registrar messenger]];
+  [registrar addMethodCallDelegate:instance channel:hostCapsuleChannel];
+  instance->_hostCapsuleChannel = hostCapsuleChannel;
+  [[LynxHostCapsuleOverlay shared] bindChannel:hostCapsuleChannel];
 
   LynxPlatformViewFactory *factory =
       [[LynxPlatformViewFactory alloc] initWithMessenger:[registrar messenger]];
@@ -82,6 +91,20 @@ static FlutterMethodChannel *kBridgeChannel;
     result([@"iOS " stringByAppendingString:[[UIDevice currentDevice] systemVersion]]);
     return;
   }
+  if ([call.method isEqualToString:@"show"] || [call.method isEqualToString:@"setDark"] ||
+      [call.method isEqualToString:@"hide"]) {
+    NSDictionary *args = [call.arguments isKindOfClass:[NSDictionary class]] ? call.arguments : @{};
+    BOOL dark = [args[@"dark"] isKindOfClass:[NSNumber class]] && [args[@"dark"] intValue] != 0;
+    if ([call.method isEqualToString:@"show"]) {
+      [[LynxHostCapsuleOverlay shared] showDark:dark];
+    } else if ([call.method isEqualToString:@"setDark"]) {
+      [[LynxHostCapsuleOverlay shared] setDark:dark];
+    } else {
+      [[LynxHostCapsuleOverlay shared] hide];
+    }
+    result(@YES);
+    return;
+  }
   if ([call.method isEqualToString:@"sendCustomEvent"]) {
     NSDictionary *args = [call.arguments isKindOfClass:[NSDictionary class]] ? call.arguments : @{};
     NSString *eventName = [args[@"eventName"] isKindOfClass:[NSString class]] ? args[@"eventName"] : @"";
@@ -100,8 +123,11 @@ static FlutterMethodChannel *kBridgeChannel;
 }
 
 - (void)detachFromEngineForRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+  [[LynxHostCapsuleOverlay shared] hide];
   [_pluginChannel setMethodCallHandler:nil];
   _pluginChannel = nil;
+  [_hostCapsuleChannel setMethodCallHandler:nil];
+  _hostCapsuleChannel = nil;
   [kBridgeChannel setMethodCallHandler:nil];
   kBridgeChannel = nil;
 }

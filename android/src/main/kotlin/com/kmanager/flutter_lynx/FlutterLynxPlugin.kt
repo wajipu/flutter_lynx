@@ -1,13 +1,16 @@
 package com.kmanager.flutter_lynx
 
+import android.app.Activity
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
+class FlutterLynxPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     companion object {
         var bridgeChannel: MethodChannel? = null
             private set
@@ -53,6 +56,8 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
     }
 
     private var pluginChannel: MethodChannel? = null
+    private var hostCapsuleChannel: MethodChannel? = null
+    private var activity: Activity? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         val messenger: BinaryMessenger = binding.binaryMessenger
@@ -63,6 +68,11 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
 
         bridgeChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/bridge").apply {
             setMethodCallHandler(this@FlutterLynxPlugin)
+        }
+
+        hostCapsuleChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/host_capsule").apply {
+            setMethodCallHandler(this@FlutterLynxPlugin)
+            LynxHostCapsuleOverlay.bindChannel(this)
         }
 
         // Register Lynx Platform View Factory
@@ -76,6 +86,18 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
         when (call.method) {
             "getPlatformVersion" -> {
                 result.success("Android ${android.os.Build.VERSION.RELEASE}")
+            }
+            "show" -> {
+                LynxHostCapsuleOverlay.show(call.argument<Number>("dark")?.toInt() != 0)
+                result.success(true)
+            }
+            "setDark" -> {
+                LynxHostCapsuleOverlay.setDark(call.argument<Number>("dark")?.toInt() != 0)
+                result.success(true)
+            }
+            "hide" -> {
+                LynxHostCapsuleOverlay.hide()
+                result.success(true)
             }
             "sendCustomEvent" -> {
                 val eventName = call.argument<String>("eventName") ?: ""
@@ -91,9 +113,32 @@ class FlutterLynxPlugin : FlutterPlugin, MethodCallHandler {
         }
     }
 
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        LynxHostCapsuleOverlay.bindActivity(binding.activity)
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        LynxHostCapsuleOverlay.bindActivity(binding.activity)
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        activity?.let { LynxHostCapsuleOverlay.unbindActivity(it) }
+        activity = null
+    }
+
+    override fun onDetachedFromActivity() {
+        activity?.let { LynxHostCapsuleOverlay.unbindActivity(it) }
+        activity = null
+    }
+
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        LynxHostCapsuleOverlay.hide()
         pluginChannel?.setMethodCallHandler(null)
         pluginChannel = null
+        hostCapsuleChannel?.setMethodCallHandler(null)
+        hostCapsuleChannel = null
         bridgeChannel?.setMethodCallHandler(null)
         bridgeChannel = null
     }

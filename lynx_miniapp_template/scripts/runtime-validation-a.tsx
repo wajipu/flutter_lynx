@@ -1,4 +1,8 @@
-import { root } from "@lynx-js/react";
+import { InitDataProvider, root } from "@lynx-js/react";
 import { RuntimeValidation } from "./runtime-validation";
 
-root.render(<RuntimeValidation variant="A" />);
+root.render(
+  <InitDataProvider>
+    <RuntimeValidation variant="A" />
+  </InitDataProvider>,
+);

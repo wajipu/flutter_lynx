@@ -6,7 +6,21 @@ import 'package:flutter_lynx/flutter_lynx.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MaterialApp(home: RuntimeVerificationPage()));
+  runApp(MaterialApp(
+    theme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1677FF)),
+      useMaterial3: true,
+    ),
+    darkTheme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF1677FF),
+        brightness: Brightness.dark,
+      ),
+      useMaterial3: true,
+    ),
+    themeMode: ThemeMode.system,
+    home: const RuntimeVerificationPage(),
+  ));
 }
 
 /// A/B包使用同一个PlatformView；界面正文与计数逻辑位于编译后的TSX中。
@@ -106,6 +120,7 @@ class _RuntimeVerificationPageState extends State<RuntimeVerificationPage> {
   /// 验证标准容器的真实首屏回调能移除加载遮罩，而不只验证裸LynxView。
   void _openContainer() {
     Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
       builder: (_) => LynxMiniProgramPage(
           manifest: MiniProgramManifest(
         appId: 'runtime_verification_container',

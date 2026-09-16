@@ -21,21 +21,6 @@ allprojects {
     }
 }
 
-// ImageService 3.2.0's published POM omits its compileOnly Lynx dependency. D8 needs
-// that edge when dexing the service, or ILynxImageService's default method loses
-// its implementation forwarder. Apply the exact-version repair in host resolution too.
-rootProject.allprojects {
-    dependencies.components.withModule("org.lynxsdk.lynx:lynx-service-image") { details ->
-        if (details.id.version == "3.2.0") {
-            details.allVariants {
-                withDependencies {
-                    add("org.lynxsdk.lynx:lynx:3.2.0")
-                }
-            }
-        }
-    }
-}
-
 apply plugin: "com.android.library"
 apply plugin: "kotlin-android"
 
@@ -63,10 +48,14 @@ android {
     }
 
     dependencies {
-        // The published Lynx POM supplies its matching PrimJS 2.12.0, JS SDK and trace runtime.
-        implementation("org.lynxsdk.lynx:lynx:3.2.0")
-        // Official image service requires these two Fresco artifacts even for its prefetch module.
-        implementation("org.lynxsdk.lynx:lynx-service-image:3.2.0")
+        // Official stable 4.1 stack from lynxjs.org/guide/start/integrate-with-existing-apps.
+        // Pin exact versions; Maven metadata "latest" currently points at a 4.1.0-nightly.
+        implementation("org.lynxsdk.lynx:lynx:4.1.0")
+        implementation("org.lynxsdk.lynx:lynx-jssdk:4.1.0")
+        implementation("org.lynxsdk.lynx:lynx-trace:4.1.0")
+        implementation("org.lynxsdk.lynx:primjs:4.1.1")
+        // Image only; no HTTP/Log/DevTool service.
+        implementation("org.lynxsdk.lynx:lynx-service-image:4.1.0")
         implementation("com.facebook.fresco:fresco:2.3.0")
         implementation("com.facebook.fresco:animated-base:2.3.0")
         testImplementation("org.jetbrains.kotlin:kotlin-test")

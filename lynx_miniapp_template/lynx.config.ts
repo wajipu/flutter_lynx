@@ -3,7 +3,7 @@ import { pluginReactLynx } from "@lynx-js/react-rsbuild-plugin";
 
 export default defineConfig({
   plugins: [
-    pluginReactLynx({ targetSdkVersion: "3.2" }),
+    pluginReactLynx({ engineVersion: "4.1" }),
   ],
   source: {
     entry: {

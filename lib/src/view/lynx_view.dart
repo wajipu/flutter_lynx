@@ -154,7 +154,7 @@ class _LynxViewState extends State<LynxView> {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
             gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+            hitTestBehavior: PlatformViewHitTestBehavior.translucent,
           );
         },
         onCreatePlatformView: (params) {
@@ -180,6 +180,7 @@ class _LynxViewState extends State<LynxView> {
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
+        hitTestBehavior: PlatformViewHitTestBehavior.translucent,
         onPlatformViewCreated: (id) => _onPlatformViewCreated(id, generation),
       );
     } else {
@@ -203,7 +204,7 @@ class _LynxViewState extends State<LynxView> {
   }
 }
 
-/// Official Lynx 3.2 only ships Android and iOS engines. Desktop support starts at 3.7.
+/// Official Flutter embedding only covers Android and iOS. Desktop is a CMake SDK, not this plugin.
 class _UnsupportedOfficialLynxRuntime extends StatefulWidget {
   final LynxLoadFailCallback? onLoadFail;
 
@@ -217,7 +218,7 @@ class _UnsupportedOfficialLynxRuntime extends StatefulWidget {
 class _UnsupportedOfficialLynxRuntimeState
     extends State<_UnsupportedOfficialLynxRuntime> {
   static const String _message =
-      "Official Lynx 3.2 has no engine on this platform; desktop support starts at Lynx 3.7";
+      "Official Lynx 4.1.0 is not embedded on this Flutter platform; desktop uses a separate CMake SDK";
 
   @override
   void initState() {

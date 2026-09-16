@@ -1,6 +1,7 @@
 import "dart:io";
 import "dart:ui" as ui;
 import "package:flutter/services.dart";
+import "../../host/lynx_host_metrics.dart";
 import "../lynx_bridge_handler.dart";
 import "../lynx_bridge_request.dart";
 import "../lynx_bridge_response.dart";
@@ -27,21 +28,17 @@ class SystemBridgeHandler implements LynxBridgeHandler {
     switch (request.method) {
       case "getSystemInfo":
         final view = ui.PlatformDispatcher.instance.views.first;
-        final physicalSize = view.physicalSize;
-        final pixelRatio = view.devicePixelRatio;
-        final screenWidth = physicalSize.width / pixelRatio;
-        final screenHeight = physicalSize.height / pixelRatio;
-
+        final metrics = LynxHostMetrics.fromView(
+          view,
+          capsuleHasMore: true,
+        );
         return LynxBridgeResponse.success(
           callId: request.callId,
-          data: {
-            "platform": Platform.operatingSystem,
-            "osVersion": Platform.operatingSystemVersion,
-            "screenWidth": screenWidth,
-            "screenHeight": screenHeight,
-            "pixelRatio": pixelRatio,
-            "language": Platform.localeName,
-          },
+          data: metrics.toSystemInfo(
+            platform: Platform.operatingSystem,
+            osVersion: Platform.operatingSystemVersion,
+            language: Platform.localeName,
+          ),
         );
 
       case "getNetworkType":

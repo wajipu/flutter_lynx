@@ -24,7 +24,7 @@ public class FlutterLynxPlugin: NSObject, FlutterPlugin {
     case "sendCustomEvent":
       result(FlutterError(
         code: "lynx_native_unavailable",
-        message: "Official Lynx 3.2 has no macOS engine; desktop support starts at Lynx 3.7",
+        message: "Official Lynx 4.1.0 is not embedded on Flutter macOS; desktop uses a separate CMake SDK",
         details: nil
       ))
     default:
