@@ -2,6 +2,7 @@ import "package:flutter/services.dart";
 import "lynx_bridge_handler.dart";
 import "lynx_bridge_request.dart";
 import "lynx_bridge_response.dart";
+import "built_in/data_bridge_handler.dart";
 import "built_in/system_bridge_handler.dart";
 import "built_in/ui_bridge_handler.dart";
 import "built_in/storage_bridge_handler.dart";
@@ -27,12 +28,17 @@ class LynxBridge {
   final StorageBridgeHandler storageHandler = StorageBridgeHandler();
   final RouterBridgeHandler routerHandler = RouterBridgeHandler();
 
+  /// 业务数据模块：白名单方法 + 宿主代调（koklam-docs 13 号文）。
+  /// 宿主需在创建数据 LynxView 前给 [dataHandler.delegate] 注入代调实现。
+  final DataBridgeHandler dataHandler = DataBridgeHandler();
+
   LynxBridge._internal() {
     // Register built-in handlers
     addHandler(systemHandler);
     addHandler(uiHandler);
     addHandler(storageHandler);
     addHandler(routerHandler);
+    addHandler(dataHandler);
 
     // Listen for calls from native Lynx engine
     _channel.setMethodCallHandler(_onMethodCall);

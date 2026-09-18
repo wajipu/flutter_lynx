@@ -1,0 +1,348 @@
+/* miso.ui / haskell-miso.org 的深色 shadcn 工作台演示，不改原模板业务页样式。 */
+page {
+  width: 100%;
+  height: 100%;
+  background-color: #09090b;
+}
+
+.miso-page {
+  width: 100%;
+  height: 100%;
+  background-color: #09090b;
+  box-sizing: border-box;
+}
+
+.miso-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 24px;
+}
+
+.miso-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background-color: #18181b;
+  border-width: 1px;
+  border-color: #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.miso-mark-text {
+  color: #f59e0b;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.miso-kicker {
+  color: #a1a1aa;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.miso-title {
+  color: #fafafa;
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+.miso-lead {
+  color: #a1a1aa;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.miso-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.miso-btn {
+  height: 40px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+.miso-btn-primary {
+  background-color: #fafafa;
+}
+
+.miso-btn-ghost {
+  background-color: #18181b;
+  border-width: 1px;
+  border-color: #27272a;
+}
+
+.miso-btn-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.miso-btn-text-primary {
+  color: #09090b;
+}
+
+.miso-btn-text-ghost {
+  color: #fafafa;
+}
+
+.miso-terminal {
+  width: 100%;
+  background-color: #18181b;
+  border-width: 1px;
+  border-color: #27272a;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.miso-terminal-line {
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.miso-section {
+  margin-bottom: 22px;
+}
+
+.miso-section-title {
+  color: #fafafa;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.miso-section-copy {
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.miso-card {
+  background-color: #18181b;
+  border-width: 1px;
+  border-color: #27272a;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.miso-card-title {
+  color: #fafafa;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.miso-card-copy {
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.miso-badge-row {
+  display: flex;
+  flex-direction: row;
+  margin-top: 10px;
+}
+
+.miso-badge {
+  height: 22px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 999px;
+  border-width: 1px;
+  border-color: #3f3f46;
+  display: flex;
+  align-items: center;
+  margin-right: 6px;
+}
+
+.miso-badge-text {
+  color: #e4e4e7;
+  font-size: 11px;
+}
+
+.miso-counter {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.miso-counter-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background-color: #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miso-counter-btn-text {
+  color: #fafafa;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.miso-counter-value {
+  color: #fafafa;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.miso-reset {
+  margin-top: 10px;
+  height: 32px;
+  border-radius: 999px;
+  background-color: #09090b;
+  border-width: 1px;
+  border-color: #3f3f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miso-reset-text {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.miso-alert {
+  border-width: 1px;
+  border-color: #14532d;
+  background-color: #052e16;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.miso-alert-text {
+  color: #86efac;
+  font-size: 13px;
+}
+
+.miso-accordion-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.miso-accordion-q {
+  color: #fafafa;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.miso-accordion-icon {
+  color: #a1a1aa;
+  font-size: 16px;
+}
+
+.miso-accordion-a {
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.5;
+  padding-bottom: 8px;
+}
+
+.miso-inline {
+  height: 100%;
+  background-color: #18181b;
+  border-width: 1px;
+  border-color: #27272a;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.miso-inline-kicker {
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+.miso-inline-title {
+  color: #fafafa;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+/* 库存预警真实数据区块：加载 / 空态 / 失败态（13 号文 §5 三态）。 */
+.miso-alert-meta {
+  color: #e4e4e7;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.miso-alert-time {
+  color: #71717a;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.miso-alert-empty {
+  color: #a1a1aa;
+  font-size: 13px;
+}
+
+.miso-alert-error-text {
+  color: #fca5a5;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.miso-retry {
+  margin-top: 6px;
+  align-self: flex-start;
+  height: 32px;
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: 999px;
+  background-color: #09090b;
+  border-width: 1px;
+  border-color: #3f3f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miso-skeleton-line {
+  height: 14px;
+  border-radius: 7px;
+  background-color: #27272a;
+  margin-bottom: 8px;
+}
+
+.miso-skeleton-line.short {
+  width: 55%;
+  margin-bottom: 0;
+}

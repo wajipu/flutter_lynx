@@ -5,7 +5,7 @@
 ## 目录说明
 
 - `src/index.tsx`: 小程序页面主入口（使用 ReactLynx 语法）
-- `src/bridge.ts`: 宿主 JSBridge 客户端 SDK（提供扫码、网络请求代理、用户信息获取、原生 UI 等能力）
+- `src/bridge.ts`: 宿主 JSBridge 客户端 SDK（提供扫码、原生 UI、`data` 业务数据白名单方法等能力；宿主不存在的 `network`/`user` 代理已按假数据清除计划移除，不得重新宣称）
 - `src/styles.css`: 小程序样式定义
 - `lynx.config.ts`: Rspeedy 构建配置
 - `scripts/miniapp-entry.tsx`: 挂载已有页面的入口，不改动业务页面
@@ -65,7 +65,7 @@ export MINIAPP_BUILD_OUTPUT_DIR="$(mktemp -d /tmp/lynx-template-build.XXXXXX)"
 | `minHostVersion` | `x.y.z+build`，所有整数组件不超过 `2147483647` |
 | `translations` | 非空数组，项严格为 `{locale,changelog}`；changelog 1–4000 字符，不允许重复 locale，语言有效性及完整性由后端校验 |
 
-配置拒绝未知字段。`versionName` 只读取 `package.json.version`，必须为 `x.y.z` 且各段不超过 `2147483647`。配置里不存 Token、密码、Clientid、API 地址、任意 headers 或扩展字段。
+配置拒绝未知字段。`versionName` 只读取 `package.json.version`，必须为 `x.y.z` 且各段不超过 `2147483647`。当前工作台包声明 `bridgeApiVersion: 2`（新增 `data` 业务数据模块，见 koklam-docs 13 号文）；声明 2 的包只有升级后的宿主会下载，旧宿主按清单直接过滤。配置里不存 Token、密码、Clientid、API 地址、任意 headers 或扩展字段。
 
 ### 2. 使用现有登录会话
 
@@ -73,7 +73,7 @@ export MINIAPP_BUILD_OUTPUT_DIR="$(mktemp -d /tmp/lynx-template-build.XXXXXX)"
 
 | 环境变量 | 内容 |
 | --- | --- |
-| `MINIAPP_API_BASE_URL` | 当前环境的远端 Cloud HTTPS 基础地址；可以包含部署路径前缀，不包含上传路由、账号密码、查询参数或 fragment |
+| `MINIAPP_API_BASE_URL` | 当前环境的远端 Cloud 基础地址，http 或 https 均可，不强制 TLS；可以包含部署路径前缀，不包含上传路由、账号密码、查询参数或 fragment |
 | `MINIAPP_ACCESS_TOKEN` | 现有账号的原始登录 Token，不含 `Bearer ` 前缀 |
 | `MINIAPP_CLIENT_ID` | 与该登录会话对应的现有 `Clientid` |
 
@@ -94,7 +94,7 @@ npm run miniapp:upload
 - `file`：本次生成的单个 `.lynx.bundle` 二进制。
 - `metadata`（`application/json`）：`appCode,versionName,lynxSdkVersion,bridgeApiVersion,minHostVersion,translations,bundleSha256`。bundle 与发布方案全端统一，不选择 Android/iOS 目标平台。
 
-不会发送 tenantId、用户 ID、OSS ID、状态、签名或任意扩展字段。只允许远端 HTTPS，拒绝本机/监听/局域网地址及解析到这些地址的域名；DNS 结果校验后固定用于此次连接，不跟随重定向，避免凭据被转发。
+不会发送 tenantId、用户 ID、OSS ID、状态、签名或任意扩展字段。远端 http/https 均可，不强制 TLS；拒绝本机/监听/局域网地址及解析到这些地址的域名。DNS 结果校验后固定用于此次连接，不跟随重定向，避免凭据被转发。
 
 成功只报告 `R.data` 的固定字段：`appCode,versionId,versionName,status,validationStatus,validationMessage`。`status` 必须为 `0`（草稿）；校验状态 `0` 待校验 / `1` 通过 / `2` 失败。二进制头和摘要检查仅是上传前结构检查，不等于签名或运行时验证。命令不会启用应用、更新正式指针、灰度发布或正式发布。
 
