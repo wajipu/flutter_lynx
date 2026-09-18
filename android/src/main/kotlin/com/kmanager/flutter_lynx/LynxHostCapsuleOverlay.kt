@@ -65,6 +65,16 @@ object LynxHostCapsuleOverlay {
         }
     }
 
+    /// 仅把已挂载的胶囊重新抬到窗口最上层；未挂载时保持隐藏，
+    /// 显隐状态仍只由 Dart 侧 show/hide 控制。
+    fun bringToFront() {
+        val root = overlay ?: return
+        val host = activity ?: return
+        if (root.parent === host.window.decorView) {
+            root.bringToFront()
+        }
+    }
+
     private fun createOverlay(host: Activity): PassthroughFrameLayout {
         val root = PassthroughFrameLayout(host).apply {
             isClickable = false

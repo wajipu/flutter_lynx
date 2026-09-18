@@ -150,7 +150,8 @@ class LynxPlatformView(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
-        bringCapsuleToFront()
+        // 重建 Lynx 视图后把窗口层胶囊抬回最上层，防止新插入的视图盖住胶囊。
+        LynxHostCapsuleOverlay.bringToFront()
     }
 
     private fun destroyNativeView() {
