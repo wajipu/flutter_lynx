@@ -19,6 +19,18 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
 // 内联源码没有真实来源地址；about: scheme 保证引擎不会拿它解析相对资源。
 static NSString *const kInlineTemplateBaseURL = @"about:lynx-inline";
 
+/// StandardMessageCodec 把 Dart Uint8List 解码为 FlutterStandardTypedData（其
+/// data 才是字节本体），不是裸 NSData；直喂 bytes 参数必须经此解码。
+static NSData *DecodeTemplateBytesParam(id value) {
+  if ([value isKindOfClass:[NSData class]]) {
+    return value;
+  }
+  if ([value isKindOfClass:[FlutterStandardTypedData class]]) {
+    return [(FlutterStandardTypedData *)value data];
+  }
+  return nil;
+}
+
 @interface FlutterLynxPreparedFileProvider : NSObject <LynxTemplateProvider>
 @end
 
@@ -209,7 +221,7 @@ static NSString *const kInlineTemplateBaseURL = @"about:lynx-inline";
     _url = [params[@"url"] isKindOfClass:[NSString class]] ? params[@"url"] : @"";
     // 文本走 source（UTF-8 编码），rspeedy/tasm 二进制模板产物走 templateBytes。
     _source = [params[@"source"] isKindOfClass:[NSString class]] ? params[@"source"] : nil;
-    _templateBytes = [params[@"templateBytes"] isKindOfClass:[NSData class]] ? params[@"templateBytes"] : nil;
+    _templateBytes = DecodeTemplateBytesParam(params[@"templateBytes"]);
     _initialData = [self stringKeyedMap:params[@"initialData"]] ?: @{};
     NSError *moduleError = nil;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
@@ -467,12 +479,13 @@ static NSString *const kInlineTemplateBaseURL = @"about:lynx-inline";
       nextSource = sourceArg;
       inlineBytes = [nextSource dataUsingEncoding:NSUTF8StringEncoding];
     } else if (bytesArg != nil) {
-      if (![bytesArg isKindOfClass:[NSData class]]) {
+      NSData *decoded = DecodeTemplateBytesParam(bytesArg);
+      if (decoded == nil) {
         @throw [NSException exceptionWithName:NSInvalidArgumentException
                                        reason:@"templateBytes must be raw bytes"
                                      userInfo:nil];
       }
-      inlineBytes = bytesArg;
+      inlineBytes = decoded;
     }
     if (inlineBytes.length == 0 || inlineBytes.length > kMaxBundleBytes) {
       @throw [NSException exceptionWithName:NSInvalidArgumentException
