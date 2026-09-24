@@ -15,22 +15,31 @@ import "../canvas/lynx_dynamic_canvas.dart";
 /// Executes and renders the mini-program template and styles on macOS/Desktop
 /// without requiring mobile-specific PlatformViews, supporting full bidirectional JSBridge.
 class LynxDesktopRuntimeView extends StatefulWidget {
-  final String url;
+  /// 已准备的本地包路径或file URI；与 [source] 二选一。
+  final String? url;
   final LynxTemplateData? initialData;
   final void Function(LynxController controller)? onLynxCreated;
   final VoidCallback? onLoadSuccess;
   final void Function(String error)? onLoadFail;
   final VoidCallback? onFirstScreen;
 
+  /// 模板内容直喂入口（UTF-8 文本）；与 [url] 二选一。
+  ///
+  /// 对齐官方 `LynxView.loadTemplate`：桌面运行时不落盘、不读文件，
+  /// 直接以内存中的模板内容作为本次装载来源（内容须为引擎可执行的模板产物）。
+  final String? source;
+
   const LynxDesktopRuntimeView({
     super.key,
-    required this.url,
+    this.url,
+    this.source,
     this.initialData,
     this.onLynxCreated,
     this.onLoadSuccess,
     this.onLoadFail,
     this.onFirstScreen,
-  });
+  }) : assert((url == null) != (source == null),
+            "url 与 source 必须且只能提供一个：文件链路用 url，源码直喂用 source");
 
   @override
   State<LynxDesktopRuntimeView> createState() => _LynxDesktopRuntimeViewState();
@@ -341,11 +350,19 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView>
 
   Future<void> _initializeBundle() async {
     try {
-      LynxLogger.info("DesktopRuntime", "装载 Lynx Bundle: ${widget.url}");
-      final file = File(widget.url);
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        LynxLogger.info("DesktopRuntime", "Bundle 读取成功 (${content.length} 字节)");
+      if (widget.source != null) {
+        // 源码直喂链路：内容已在内存中，不读文件，语义对齐官方 loadTemplate。
+        LynxLogger.info(
+          "DesktopRuntime",
+          "直喂 Lynx 模板源码 (${widget.source!.length} 字符)，跳过本地文件装载",
+        );
+      } else {
+        LynxLogger.info("DesktopRuntime", "装载 Lynx Bundle: ${widget.url}");
+        final file = File(widget.url!);
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          LynxLogger.info("DesktopRuntime", "Bundle 读取成功 (${content.length} 字节)");
+        }
       }
     } catch (e) {
       LynxLogger.warn("DesktopRuntime", "读取本地 Bundle 文件提示: $e");

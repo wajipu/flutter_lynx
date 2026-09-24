@@ -1,5 +1,9 @@
 import "dart:async";
+import "dart:io";
+import "dart:typed_data";
+
 import "package:flutter/material.dart";
+import "package:flutter/services.dart" show rootBundle;
 import "package:flutter_lynx/flutter_lynx.dart";
 
 void main() {
@@ -141,7 +145,36 @@ class _DemoHomePageState extends State<DemoHomePage>
   );
 
   LynxController? _embeddedLynxController;
+  LynxController? _inlineCardController;
   int _counter = 0;
+
+  /// 内置真实 tasm 二进制模板产物（运行时 A 验证包，engineVersion 4.1），
+  /// 演示 templateBytes 直喂：内容随 App 版本内置，不经文件与缓存链路。
+  static const String _inlineCardAsset = "assets/miniapp/runtime-a.lynx.bundle";
+  Uint8List? _inlineCardBytes;
+
+  Future<void> _loadEmbeddedCardViaBytes() async {
+    final bytes = await rootBundle.load(_inlineCardAsset);
+    final templateBytes = bytes.buffer
+        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    _addLog(
+        "Host >> 直喂内置产物 ${templateBytes.length} 字节（与文件链路同源内容）");
+    setState(() => _inlineCardBytes = templateBytes);
+  }
+
+  Future<void> _loadEmbeddedCardViaFileBaseline() async {
+    // 对照组：同一份产物先落盘，再走既有文件链路，验证两条链路渲染一致。
+    final bytes = await rootBundle.load(_inlineCardAsset);
+    final tempFile = File(
+        "${Directory.systemTemp.path}/inline-card-parity.lynx.bundle");
+    await tempFile.writeAsBytes(bytes.buffer
+        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
+    _addLog("Host >> 文件链路对照加载: ${tempFile.path}");
+    setState(() => _inlineCardBytes = null);
+    _fileBaselinePath = tempFile.path;
+  }
+
+  String? _fileBaselinePath;
 
   final List<MiniProgramManifest> _presetMiniPrograms = [
     const MiniProgramManifest(
@@ -487,6 +520,7 @@ class _DemoHomePageState extends State<DemoHomePage>
                     "count": _counter,
                     "updatedAt": DateTime.now().toIso8601String(),
                   });
+                  _inlineCardController?.updateData({"count": _counter});
                   _addLog("Host >> updateData(count: $_counter)");
                 },
                 icon: const Icon(Icons.add),
@@ -519,7 +553,97 @@ class _DemoHomePageState extends State<DemoHomePage>
           style:
               OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
         ),
+
+        const SizedBox(height: 24),
+        const Text(
+          "直喂模板源码加载（对齐官方 loadTemplate）",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          "确认卡片模板产物随 App 版本内置，运行时经 loadFromSource/templateBytes 直喂引擎，"
+          "不再要求先落盘；下方两个入口喂入同一份内置产物，可对照渲染结果。",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _loadEmbeddedCardViaFileBaseline,
+                icon: const Icon(Icons.description_outlined, size: 18),
+                label: const Text("文件链路 (对照)",
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _loadEmbeddedCardViaBytes,
+                icon: const Icon(Icons.bolt, size: 18),
+                label: const Text("直喂产物 bytes", style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1677FF),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 240,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _buildInlineCardBody(),
+        ),
       ],
+    );
+  }
+
+  Widget _buildInlineCardBody() {
+    if (_inlineCardBytes != null) {
+      return LynxView(
+        key: const ValueKey("inline-bytes"),
+        templateBytes: _inlineCardBytes,
+        initialData: const LynxTemplateData({
+          "title": "直喂确认卡片",
+          "source": "templateBytes",
+        }),
+        onLynxCreated: (controller) {
+          _inlineCardController = controller;
+          _addLog("Inline LynxView created (templateBytes 模式).");
+        },
+        onLoadSuccess: () =>
+            _addLog("Inline LynxView loaded (直喂链路首屏成功)."),
+        onLoadFail: (error) => _addLog("Inline LynxView load error: $error"),
+      );
+    }
+    if (_fileBaselinePath != null) {
+      return LynxView(
+        key: const ValueKey("inline-file"),
+        url: _fileBaselinePath,
+        initialData: const LynxTemplateData({
+          "title": "直喂确认卡片",
+          "source": "url",
+        }),
+        onLynxCreated: (controller) {
+          _inlineCardController = controller;
+          _addLog("Inline LynxView created (url 文件对照模式).");
+        },
+        onLoadSuccess: () =>
+            _addLog("Inline LynxView loaded (文件链路对照首屏成功)."),
+        onLoadFail: (error) => _addLog("Inline LynxView load error: $error"),
+      );
+    }
+    return Center(
+      child: Text(
+        "选择上方入口加载内置确认卡片模板",
+        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+      ),
     );
   }
 

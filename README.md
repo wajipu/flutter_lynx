@@ -174,6 +174,40 @@ LynxView(
 )
 ```
 
+### 5. 直喂模板源码加载（对齐官方 `LynxView.loadTemplate`）
+
+固定、可信的模板（如确认卡片）可随 App 版本内置，运行时直接把模板内容喂给引擎，
+不经落盘与缓存链路。`url`、`source`（文本内容）、`templateBytes`（二进制产物）三选一：
+
+```dart
+// 文本型模板内容直喂（对应官方 TemplateBundle.fromTemplate 的 String 语义）
+LynxView(
+  source: templateText, // 引擎可执行的模板产物文本，上限 10 MiB
+  allowedModules: const {"system"},
+  initialData: LynxTemplateData({"orderId": "A1024"}),
+);
+
+// rspeedy/tasm 编译产物是二进制模板（非 UTF-8），必须走 bytes 通道：
+final asset = await rootBundle.load("assets/miniapp/main.lynx.bundle");
+LynxView(
+  templateBytes: asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
+  allowedModules: const {"system"},
+);
+```
+
+运行期换内容可调控制器（对应官方 `loadTemplate(bytes)` 的动态调用）：
+
+```dart
+controller.loadFromSource(templateText);
+await controller.loadFromTemplateBytes(bytes, initialData: {"orderId": "A1024"});
+```
+
+三条链路在原生侧共用同一个官方 bytes 直喂渲染入口
+（Android `LynxView.renderTemplateWithBaseUrl` / iOS `loadTemplate:withURL:initData:`），
+`loadFromSource`/`templateBytes` 只是省掉了"读文件"这一步，渲染结果与文件链路一致。
+`LynxDesktopRuntimeView`（桌面演示运行时）同样支持传 `source` 直喂，与 `url` 二选一。
+数据注入仍走 `LynxTemplateData` 与 `controller.updateData`，与文件链路完全一致。
+
 ---
 
 ## 🛠️ 小程序开发说明
@@ -181,12 +215,14 @@ LynxView(
 本仓库包含官方标准的小程序开发模板：`lynx_miniapp_template/`。
 
 1. **进入模板工程**：
+
    ```bash
    cd lynx_miniapp_template
    npm install
    ```
 
 2. **本地调试**：
+
    ```bash
    npm run dev
    ```

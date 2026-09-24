@@ -14,7 +14,22 @@ typedef LynxFirstScreenCallback = void Function();
 /// Flutter widget embedding the native LynxView rendering engine.
 class LynxView extends StatefulWidget {
   /// 已准备的本地包路径或file URI；远端/asset先交给包管理器准备。
-  final String url;
+  ///
+  /// 与 [source] 二选一；既有小程序文件链路继续用它，语义不变。
+  final String? url;
+
+  /// 模板内容直喂入口（UTF-8 文本），不经本地 bundle 文件与缓存链路。
+  ///
+  /// 对齐官方 `LynxView.loadTemplate`：原生把内容按 UTF-8 编成 bytes 直喂引擎，
+  /// 渲染入口与文件链路相同。内容必须是引擎可执行的模板产物（如随 App 版本内置的
+  /// 编译产物文本）。
+  final String? source;
+
+  /// 模板 bytes 直喂入口，语义同 [source]。
+  ///
+  /// rspeedy/tasm 编译出的 `main.lynx.bundle` 是二进制模板，不经 UTF-8 无损转换，
+  /// 这类内容必须走本入口。[url]、[source]、[templateBytes] 必须且只能提供一个。
+  final Uint8List? templateBytes;
 
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
@@ -37,7 +52,9 @@ class LynxView extends StatefulWidget {
 
   const LynxView({
     super.key,
-    required this.url,
+    this.url,
+    this.source,
+    this.templateBytes,
     this.initialData,
     this.allowedModules = const {
       "system",
@@ -50,7 +67,12 @@ class LynxView extends StatefulWidget {
     this.onLoadSuccess,
     this.onLoadFail,
     this.onFirstScreen,
-  });
+  }) : assert(
+          (url != null ? 1 : 0) +
+                  (source != null ? 1 : 0) +
+                  (templateBytes != null ? 1 : 0) ==
+              1,
+          "url、source、templateBytes 必须且只能提供一个：文件链路用 url，源码直喂用 source，二进制模板产物直喂用 templateBytes");
 
   @override
   State<LynxView> createState() => _LynxViewState();
@@ -71,7 +93,9 @@ class _LynxViewState extends State<LynxView> {
 
   Map<String, dynamic> _buildCreationParams() {
     return {
-      "url": widget.url,
+      if (widget.url != null) "url": widget.url,
+      if (widget.source != null) "source": widget.source,
+      if (widget.templateBytes != null) "templateBytes": widget.templateBytes,
       "allowedModules": _allowedModules.toList(growable: false),
       if (widget.initialData != null)
         "initialData": widget.initialData!.toMap(),
@@ -114,10 +138,19 @@ class _LynxViewState extends State<LynxView> {
 
   Future<void> _reload(LynxController controller) async {
     try {
-      await controller.reload(
-        newUrl: widget.url,
-        newInitialData: widget.initialData?.toMap() ?? {},
-      );
+      // 三种入口在原生侧最终走同一个 bytes 直喂渲染入口，只是取数方式不同。
+      final initialData = widget.initialData?.toMap() ?? {};
+      if (widget.source != null) {
+        await controller.loadFromSource(widget.source!, initialData: initialData);
+      } else if (widget.templateBytes != null) {
+        await controller.loadFromTemplateBytes(
+            widget.templateBytes!, initialData: initialData);
+      } else {
+        await controller.reload(
+          newUrl: widget.url,
+          newInitialData: initialData,
+        );
+      }
     } catch (error) {
       if (mounted && identical(_controller, controller)) {
         widget.onLoadFail?.call(error.toString());
@@ -136,7 +169,9 @@ class _LynxViewState extends State<LynxView> {
       return;
     }
     // initialData只用于首次加载；运行时数据更新由控制器显式执行。
-    if (widget.url != oldWidget.url &&
+    if ((widget.url != oldWidget.url ||
+            widget.source != oldWidget.source ||
+            widget.templateBytes != oldWidget.templateBytes) &&
         _controller != null &&
         _hasOfficialLynxEngine) {
       _reload(_controller!);

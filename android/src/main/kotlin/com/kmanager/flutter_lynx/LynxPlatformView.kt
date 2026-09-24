@@ -72,6 +72,10 @@ class LynxPlatformView(
     private val eventChannel =
         MethodChannel(messenger, "com.kmanager.flutter_lynx/lynx_view_" + viewId + "_events")
     private var url = creationParams["url"] as? String ?: ""
+    // 源码直喂模式：内容不经文件，渲染入口与文件链路相同（官方 bytes 直喂 API）。
+    // 文本走 source（UTF-8 编码），rspeedy/tasm 二进制模板产物走 templateBytes。
+    private var source: String? = creationParams["source"] as? String
+    private var templateBytes: ByteArray? = creationParams["templateBytes"] as? ByteArray
     private var initialData = stringMap(creationParams["initialData"]) ?: emptyMap()
     // Preserve invalid creation input until Dart's reload handshake can receive onLoadFail.
     private val allowedModules = runCatching { parseAllowedModules(creationParams["allowedModules"]) }
@@ -189,6 +193,75 @@ class LynxPlatformView(
         return file
     }
 
+    /** 内联源码没有真实来源地址；about: scheme 保证引擎不会拿它解析相对资源。 */
+    private fun inlineTemplateBytes(call: MethodCall): Pair<ByteArray, Map<String, Any?>> {
+        val args = if (call.arguments == null) emptyMap() else {
+            stringMap(call.arguments)
+                ?: throw IllegalArgumentException("loadFromSource requires string-keyed arguments")
+        }
+        val sourceArg = args["source"]
+        val bytesArg = args["templateBytes"]
+        val nextSource = if (sourceArg != null) {
+            sourceArg as? String ?: throw IllegalArgumentException("source must be a string")
+        } else null
+        val nextBytes = if (bytesArg != null) {
+            bytesArg as? ByteArray
+                ?: throw IllegalArgumentException("templateBytes must be raw bytes")
+        } else null
+        if ((nextSource == null) == (nextBytes == null)) {
+            throw IllegalArgumentException(
+                "loadFromSource requires exactly one of source (string) or templateBytes (bytes)")
+        }
+        val bytes = nextSource?.toByteArray(Charsets.UTF_8) ?: nextBytes!!
+        require(bytes.isNotEmpty() && bytes.size <= MAX_BUNDLE_BYTES) {
+            "Lynx template source is empty or larger than 10 MiB"
+        }
+        val nextData = if (args.containsKey("initialData")) {
+            stringMap(args["initialData"])
+                ?: throw IllegalArgumentException("initialData must be an object with string keys")
+        } else initialData
+        return bytes to nextData
+    }
+
+    private fun loadFromSource(call: MethodCall, result: MethodChannel.Result) {
+        loadGeneration += 1
+        val generation = loadGeneration
+        loadStarted = true
+        try {
+            // 先解析参数再拆视图：入参不合法时保留旧画面，等 onLoadFail 后由宿主决定重试。
+            val (bytes, nextData) = inlineTemplateBytes(call)
+            destroyNativeView()
+            // 两种装载模式互斥：直喂后清空文件 URL，避免后续无参 reload 拿到过期文件。
+            url = ""
+            source = call.argument<String>("source")
+            templateBytes = call.argument<ByteArray>("templateBytes")
+            initialData = nextData
+            createNativeView()
+            val targetView = lynxView!!
+            mainHandler.post {
+                if (!disposed && generation == loadGeneration && lynxView === targetView) {
+                    try {
+                        templateRequested = true
+                        // 与文件链路同一官方渲染入口，仅来源从文件字节换成内存字节。
+                        targetView.renderTemplateWithBaseUrl(bytes, nextData, INLINE_TEMPLATE_BASE_URL)
+                    } catch (error: Exception) {
+                        fail(error.message ?: "Unable to render the Lynx template source", generation)
+                    } catch (error: LinkageError) {
+                        fail(error.message ?: "Lynx native library failure", generation)
+                    }
+                }
+            }
+            // Scheduling acknowledgement only; success is exclusively a LynxViewClient callback.
+            result.success(true)
+        } catch (error: Exception) {
+            fail(error.message ?: "Unable to load the Lynx template source", generation)
+            result.error("lynx_load_failed", error.message, null)
+        } catch (error: LinkageError) {
+            fail(error.message ?: "Lynx native library failure", generation)
+            result.error("lynx_native_unavailable", error.message, null)
+        }
+    }
+
     private fun reload(call: MethodCall, result: MethodChannel.Result) {
         loadGeneration += 1
         val generation = loadGeneration
@@ -209,6 +282,9 @@ class LynxPlatformView(
             } else initialData
             val file = preparedFile(nextUrl)
             url = nextUrl
+            // 文件链路接管后丢弃直喂内容，各模式不混用。
+            source = null
+            templateBytes = null
             initialData = nextData
             createNativeView()
             val targetView = lynxView!!
@@ -272,6 +348,7 @@ class LynxPlatformView(
         try {
             when (call.method) {
                 "reload" -> reload(call, result)
+                "loadFromSource" -> loadFromSource(call, result)
                 "updateData" -> {
                     val data = stringMap(call.arguments)
                         ?: throw IllegalArgumentException("updateData requires string-keyed data")
@@ -331,6 +408,7 @@ class LynxPlatformView(
 
     private companion object {
         const val MAX_BUNDLE_BYTES = 10 * 1024 * 1024
+        const val INLINE_TEMPLATE_BASE_URL = "about:lynx-inline"
         val MODULE_NAME = Regex("[A-Za-z0-9_-]{1,64}")
     }
 }

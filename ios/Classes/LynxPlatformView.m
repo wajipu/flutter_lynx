@@ -16,6 +16,8 @@
 
 static const NSInteger kMaxBundleBytes = 10 * 1024 * 1024;
 static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
+// 内联源码没有真实来源地址；about: scheme 保证引擎不会拿它解析相对资源。
+static NSString *const kInlineTemplateBaseURL = @"about:lynx-inline";
 
 @interface FlutterLynxPreparedFileProvider : NSObject <LynxTemplateProvider>
 @end
@@ -182,6 +184,8 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   FlutterMethodChannel *_eventChannel;
   int64_t _viewId;
   NSString *_url;
+  NSString *_source;
+  NSData *_templateBytes;
   NSDictionary *_initialData;
   NSSet<NSString *> *_allowedModules;
   NSError *_allowedModulesError;
@@ -203,6 +207,9 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   if (self) {
     _viewId = viewId;
     _url = [params[@"url"] isKindOfClass:[NSString class]] ? params[@"url"] : @"";
+    // 文本走 source（UTF-8 编码），rspeedy/tasm 二进制模板产物走 templateBytes。
+    _source = [params[@"source"] isKindOfClass:[NSString class]] ? params[@"source"] : nil;
+    _templateBytes = [params[@"templateBytes"] isKindOfClass:[NSData class]] ? params[@"templateBytes"] : nil;
     _initialData = [self stringKeyedMap:params[@"initialData"]] ?: @{};
     NSError *moduleError = nil;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
@@ -396,6 +403,9 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
                                    userInfo:nil];
     }
     _url = nextUrl;
+    // 文件链路接管后丢弃直喂内容，各模式不混用。
+    _source = nil;
+    _templateBytes = nil;
     _initialData = nextData;
     [self createNativeView];
     LynxView *targetView = _lynxView;
@@ -429,6 +439,84 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   }
 }
 
+- (void)loadFromSource:(FlutterMethodCall *)call result:(FlutterResult)result {
+  _loadGeneration += 1;
+  NSInteger generation = _loadGeneration;
+  _loadStarted = YES;
+  @try {
+    // 先解析参数再拆视图：入参不合法时保留旧画面，等 onLoadFail 后由宿主决定重试。
+    NSDictionary *args = @{};
+    if (call.arguments != nil && call.arguments != [NSNull null]) {
+      args = [self stringKeyedMap:call.arguments];
+      if (args == nil) {
+        @throw [NSException exceptionWithName:NSInvalidArgumentException
+                                       reason:@"loadFromSource requires string-keyed arguments"
+                                     userInfo:nil];
+      }
+    }
+    id sourceArg = args[@"source"];
+    id bytesArg = args[@"templateBytes"];
+    NSString *nextSource = nil;
+    NSData *inlineBytes = nil;
+    if (sourceArg != nil) {
+      if (![sourceArg isKindOfClass:[NSString class]]) {
+        @throw [NSException exceptionWithName:NSInvalidArgumentException
+                                       reason:@"source must be a string"
+                                     userInfo:nil];
+      }
+      nextSource = sourceArg;
+      inlineBytes = [nextSource dataUsingEncoding:NSUTF8StringEncoding];
+    } else if (bytesArg != nil) {
+      if (![bytesArg isKindOfClass:[NSData class]]) {
+        @throw [NSException exceptionWithName:NSInvalidArgumentException
+                                       reason:@"templateBytes must be raw bytes"
+                                     userInfo:nil];
+      }
+      inlineBytes = bytesArg;
+    }
+    if (inlineBytes.length == 0 || inlineBytes.length > kMaxBundleBytes) {
+      @throw [NSException exceptionWithName:NSInvalidArgumentException
+                                     reason:@"Lynx template source is empty or larger than 10 MiB"
+                                   userInfo:nil];
+    }
+    NSDictionary *nextData = _initialData;
+    if (args[@"initialData"] != nil) {
+      nextData = [self stringKeyedMap:args[@"initialData"]];
+      if (nextData == nil) {
+        @throw [NSException exceptionWithName:NSInvalidArgumentException
+                                       reason:@"initialData must be an object with string keys"
+                                     userInfo:nil];
+      }
+    }
+    [self destroyNativeView];
+    // 两种装载模式互斥：直喂后清空文件 URL，避免后续无参 reload 拿到过期文件。
+    _url = @"";
+    _source = nextSource;
+    _templateBytes = nextSource == nil ? inlineBytes : nil;
+    _initialData = nextData;
+    [self createNativeView];
+    LynxView *targetView = _lynxView;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (self->_disposed || generation != self->_loadGeneration || self->_lynxView != targetView) {
+        return;
+      }
+      @try {
+        self->_templateRequested = YES;
+        LynxTemplateData *data = [[LynxTemplateData alloc] initWithDictionary:nextData];
+        // 与文件链路同一官方 bytes 直喂入口 loadTemplate:withURL:initData:，URL 换成内联占位。
+        [targetView loadTemplate:inlineBytes withURL:kInlineTemplateBaseURL initData:data];
+      } @catch (NSException *exception) {
+        [self fail:(exception.reason ?: @"Unable to render the Lynx template source") generation:generation];
+      }
+    });
+    // Scheduling acknowledgement only; success is exclusively a lifecycle client callback.
+    result(@YES);
+  } @catch (NSException *exception) {
+    [self fail:(exception.reason ?: @"Unable to load the Lynx template source") generation:generation];
+    result([FlutterError errorWithCode:@"lynx_load_failed" message:exception.reason details:nil]);
+  }
+}
+
 - (BOOL)sendCustomEvent:(NSString *)eventName data:(NSDictionary *)data {
   if (_lynxView == nil || _disposed || !_loaded || eventName.length == 0) {
     return NO;
@@ -449,6 +537,10 @@ static NSString *const kModuleNamePattern = @"^[A-Za-z0-9_-]{1,64}$";
   @try {
     if ([call.method isEqualToString:@"reload"]) {
       [self reload:call result:result];
+      return;
+    }
+    if ([call.method isEqualToString:@"loadFromSource"]) {
+      [self loadFromSource:call result:result];
       return;
     }
     if ([call.method isEqualToString:@"updateData"]) {
