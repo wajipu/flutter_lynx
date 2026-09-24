@@ -38,6 +38,16 @@ class LynxView extends StatefulWidget {
   /// 这类内容必须走本入口。[url]、[source]、[templateBytes] 必须且只能提供一个。
   final Uint8List? templateBytes;
 
+  /// 内容自适应高度（仅 iOS 生效）：原生按模板内容高回传 [onHeightChanged]，
+  /// 由宿主调整容器高度；Android 引擎无对等公开 API，保持固定高容器。
+  ///
+  /// 注意 PlatformView 的高度始终由 Flutter 容器决定，"自适应"是
+  /// 原生把内容高报给 Dart 后宿主主动改容器，不是原生自己变高。
+  final bool autoHeight;
+
+  /// [autoHeight] 开启时，原生测得的内容高度回调（逻辑像素）。
+  final ValueChanged<double>? onHeightChanged;
+
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
 
@@ -62,6 +72,8 @@ class LynxView extends StatefulWidget {
     this.url,
     this.source,
     this.templateBytes,
+    this.autoHeight = false,
+    this.onHeightChanged,
     this.initialData,
     this.allowedModules = const {
       "system",
@@ -103,6 +115,7 @@ class _LynxViewState extends State<LynxView> {
       if (widget.url != null) "url": widget.url,
       if (widget.source != null) "source": widget.source,
       if (widget.templateBytes != null) "templateBytes": widget.templateBytes,
+      "autoHeight": widget.autoHeight,
       "allowedModules": _allowedModules.toList(growable: false),
       if (widget.initialData != null)
         "initialData": widget.initialData!.toMap(),
@@ -130,6 +143,12 @@ class _LynxViewState extends State<LynxView> {
           break;
         case "onFirstScreen":
           widget.onFirstScreen?.call();
+          break;
+        case "onHeightChanged":
+          final height = (call.arguments as num?)?.toDouble();
+          if (height != null && height > 0) {
+            widget.onHeightChanged?.call(height);
+          }
           break;
       }
     });
