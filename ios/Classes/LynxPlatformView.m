@@ -133,8 +133,11 @@ static NSData *DecodeTemplateBytesParam(id value) {
   }
   if (self.autoHeight) {
     // 宽度仍由容器约束；宽度变化时同步 viewport 宽度（高度交给内容决定）。
-    if (fabs(size.width - self.lastViewport.width) > 0.5) {
-      self.lastViewport.width = size.width;
+    // struct 属性不能对成员单独赋值，先取整体再写回。
+    CGSize lastViewport = self.lastViewport;
+    if (fabs(size.width - lastViewport.width) > 0.5) {
+      lastViewport.width = size.width;
+      self.lastViewport = lastViewport;
       view.frame = CGRectMake(0, 0, size.width, MAX(view.frame.size.height, 1));
       [view updateViewportWithPreferredLayoutWidth:size.width
                          preferredLayoutHeight:view.frame.size.height
@@ -349,9 +352,13 @@ static NSData *DecodeTemplateBytesParam(id value) {
   _rootView.lynxView = nativeView;
   _rootView.lastViewport = CGSizeZero;
   _rootView.autoHeight = _autoHeight;
-  __weak typeof(self) weakSelf = self;
+  // 复用本方法前面已定义的 weakSelf；eventChannel 是 ivar，用 -> 访问。
   _rootView.onContentHeight = ^(CGFloat height) {
-    [weakSelf.eventChannel invokeMethod:@"onHeightChanged" arguments:@(height)];
+    LynxPlatformView *strongSelf = weakSelf;
+    if (strongSelf == nil) {
+      return;
+    }
+    [strongSelf->_eventChannel invokeMethod:@"onHeightChanged" arguments:@(height)];
   };
   [_rootView addSubview:nativeView];
   [_rootView setNeedsLayout];
