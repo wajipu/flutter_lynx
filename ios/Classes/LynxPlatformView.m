@@ -116,6 +116,11 @@ static NSData *DecodeTemplateBytesParam(id value) {
 @interface FlutterLynxRootView : UIView
 @property(nonatomic, weak) LynxView *lynxView;
 @property(nonatomic, assign) CGSize lastViewport;
+/// 内容自适应高度：开启后高度由模板内容决定，测得的内容高经 onContentHeight
+/// 回报宿主调整 Flutter 容器；宽度仍由容器约束（Exact）。
+@property(nonatomic, assign) BOOL autoHeight;
+@property(nonatomic, copy) void (^onContentHeight)(CGFloat);
+@property(nonatomic, assign) CGFloat reportedContentHeight;
 @end
 
 @implementation FlutterLynxRootView
@@ -123,9 +128,32 @@ static NSData *DecodeTemplateBytesParam(id value) {
   [super layoutSubviews];
   LynxView *view = self.lynxView;
   CGSize size = self.bounds.size;
+  if (view == nil || size.width < 1) {
+    return;
+  }
+  if (self.autoHeight) {
+    // 宽度仍由容器约束；宽度变化时同步 viewport 宽度（高度交给内容决定）。
+    if (fabs(size.width - self.lastViewport.width) > 0.5) {
+      self.lastViewport.width = size.width;
+      view.frame = CGRectMake(0, 0, size.width, MAX(view.frame.size.height, 1));
+      [view updateViewportWithPreferredLayoutWidth:size.width
+                         preferredLayoutHeight:view.frame.size.height
+                                    needLayout:YES];
+    }
+    CGFloat contentHeight = view.intrinsicContentSize.height;
+    if (contentHeight >= 1 &&
+        fabs(contentHeight - self.reportedContentHeight) > 0.5) {
+      self.reportedContentHeight = contentHeight;
+      view.frame = CGRectMake(0, 0, size.width, contentHeight);
+      if (self.onContentHeight) {
+        self.onContentHeight(contentHeight);
+      }
+    }
+    return;
+  }
   // Flutter UiKitView is often created with a zero frame; Lynx keeps that
   // viewport until we push the real size after layout.
-  if (view != nil && size.width >= 1 && size.height >= 1 && !CGSizeEqualToSize(size, self.lastViewport)) {
+  if (size.height >= 1 && !CGSizeEqualToSize(size, self.lastViewport)) {
     self.lastViewport = size;
     view.frame = self.bounds;
     [view updateViewportWithPreferredLayoutWidth:size.width
@@ -194,6 +222,8 @@ static NSData *DecodeTemplateBytesParam(id value) {
   FlutterLynxRootView *_rootView;
   FlutterMethodChannel *_methodChannel;
   FlutterMethodChannel *_eventChannel;
+  BOOL _autoHeight;
+  double _reportedContentHeight;
   int64_t _viewId;
   NSString *_url;
   NSString *_source;
@@ -222,6 +252,8 @@ static NSData *DecodeTemplateBytesParam(id value) {
     // 文本走 source（UTF-8 编码），rspeedy/tasm 二进制模板产物走 templateBytes。
     _source = [params[@"source"] isKindOfClass:[NSString class]] ? params[@"source"] : nil;
     _templateBytes = DecodeTemplateBytesParam(params[@"templateBytes"]);
+    _autoHeight = [params[@"autoHeight"] isKindOfClass:[NSNumber class]] &&
+                  [params[@"autoHeight"] boolValue];
     _initialData = [self stringKeyedMap:params[@"initialData"]] ?: @{};
     NSError *moduleError = nil;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
@@ -296,15 +328,31 @@ static NSData *DecodeTemplateBytesParam(id value) {
     builder.fontScale = 1.0;
   }];
   nativeView.frame = _rootView.bounds;
-  nativeView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-  nativeView.layoutWidthMode = LynxViewSizeModeExact;
-  nativeView.layoutHeightMode = LynxViewSizeModeExact;
+  if (_autoHeight) {
+    // 内容自适应高度：Max 模式下高度由模板内容决定（封顶 preferredMaxLayoutHeight），
+    // 内容高经 root 测量后回报宿主；宽度仍随容器。autoresizing 不带 FlexibleHeight，
+    // 避免容器更新前被拉伸。
+    nativeView.layoutWidthMode = LynxViewSizeModeExact;
+    nativeView.layoutHeightMode = LynxViewSizeModeMax;
+    nativeView.preferredMaxLayoutHeight = 480;
+    nativeView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+  } else {
+    nativeView.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    nativeView.layoutWidthMode = LynxViewSizeModeExact;
+    nativeView.layoutHeightMode = LynxViewSizeModeExact;
+  }
   nativeView.preferredLayoutWidth = CGRectGetWidth(_rootView.bounds);
   nativeView.preferredLayoutHeight = CGRectGetHeight(_rootView.bounds);
   [nativeView addLifecycleClient:lifecycle];
   _lynxView = nativeView;
   _rootView.lynxView = nativeView;
   _rootView.lastViewport = CGSizeZero;
+  _rootView.autoHeight = _autoHeight;
+  __weak typeof(self) weakSelf = self;
+  _rootView.onContentHeight = ^(CGFloat height) {
+    [weakSelf.eventChannel invokeMethod:@"onHeightChanged" arguments:@(height)];
+  };
   [_rootView addSubview:nativeView];
   [_rootView setNeedsLayout];
 }

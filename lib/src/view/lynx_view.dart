@@ -11,6 +11,13 @@ typedef LynxLoadSuccessCallback = void Function();
 typedef LynxLoadFailCallback = void Function(String error);
 typedef LynxFirstScreenCallback = void Function();
 
+/// Host scrollables and tap wrappers must not win the arena over Lynx.
+Set<Factory<OneSequenceGestureRecognizer>> lynxPlatformViewGestures() {
+  return <Factory<OneSequenceGestureRecognizer>>{
+    Factory<EagerGestureRecognizer>(EagerGestureRecognizer.new),
+  };
+}
+
 /// Flutter widget embedding the native LynxView rendering engine.
 class LynxView extends StatefulWidget {
   /// 已准备的本地包路径或file URI；远端/asset先交给包管理器准备。
@@ -188,8 +195,8 @@ class _LynxViewState extends State<LynxView> {
         surfaceFactory: (context, controller) {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
-            gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-            hitTestBehavior: PlatformViewHitTestBehavior.translucent,
+            gestureRecognizers: lynxPlatformViewGestures(),
+            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
           );
         },
         onCreatePlatformView: (params) {
@@ -215,7 +222,8 @@ class _LynxViewState extends State<LynxView> {
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
-        hitTestBehavior: PlatformViewHitTestBehavior.translucent,
+        gestureRecognizers: lynxPlatformViewGestures(),
+        hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         onPlatformViewCreated: (id) => _onPlatformViewCreated(id, generation),
       );
     } else {

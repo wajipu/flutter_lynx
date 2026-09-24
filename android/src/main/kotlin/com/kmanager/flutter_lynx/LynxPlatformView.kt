@@ -77,6 +77,9 @@ class LynxPlatformView(
     private var source: String? = creationParams["source"] as? String
     private var templateBytes: ByteArray? = creationParams["templateBytes"] as? ByteArray
     private var initialData = stringMap(creationParams["initialData"]) ?: emptyMap()
+    // 内容自适应高度：iOS 走 LynxViewSizeModeAuto + intrinsic 回传；Android 引擎
+    // 4.1 无对等公开 API，此参数仅透传保留协议一致，Android 保持固定高容器。
+    private val autoHeight = creationParams["autoHeight"] as? Boolean ?: false
     // Preserve invalid creation input until Dart's reload handshake can receive onLoadFail.
     private val allowedModules = runCatching { parseAllowedModules(creationParams["allowedModules"]) }
     private var lynxView: LynxView? = null
