@@ -1,0 +1,75 @@
+/* 确认卡片样式：浅色卡片自包含，不依赖宿主主题；
+   主色 #1677FF，危险操作红 #FF4D4F。 */
+.confirm-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 20px 16px 16px 16px;
+  box-sizing: border-box;
+}
+
+.confirm-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.confirm-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.confirm-card-message {
+  font-size: 14px;
+  color: #646a73;
+  margin-top: 8px;
+}
+
+.confirm-card-actions {
+  display: flex;
+  flex-direction: row;
+  margin-top: 20px;
+}
+
+.confirm-card-btn {
+  flex: 1;
+  height: 44px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.confirm-card-btn-primary {
+  background-color: #1677ff;
+  margin-left: 6px;
+}
+
+.confirm-card-btn-secondary {
+  background-color: #f2f3f5;
+  margin-right: 6px;
+}
+
+.confirm-card-btn-danger {
+  background-color: #ff4d4f;
+  margin-left: 6px;
+}
+
+.confirm-card-btn-disabled {
+  opacity: 0.5;
+}
+
+.confirm-card-btn-primary-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.confirm-card-btn-secondary-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4e5969;
+}
