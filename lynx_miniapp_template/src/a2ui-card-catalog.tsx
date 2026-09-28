@@ -11,6 +11,7 @@ import type {
   ResourceInfo,
   Surface,
 } from "@lynx-js/genui/a2ui";
+import { LUCIDE_ICON_PATHS, svgToDataUri } from "./a2ui-card-icons";
 
 /**
  * A2UI 目录组件的实现层美化（呈现层）。
@@ -49,27 +50,49 @@ export interface A2UICardTheme {
   cardShadow: string;
 }
 
-/** 默认亮色主题：与 confirm-card.tsx 在真机验证过的色板同源（#1677ff 系）。 */
-export const defaultA2UICardTheme: A2UICardTheme = {
-  background: "#f7f8fa",
-  surface: "#ffffff",
-  surfaceMuted: "#f2f3f5",
-  onSurface: "#1f2329",
-  onSurfaceMuted: "#86909c",
-  primary: "#1677ff",
-  onPrimary: "#ffffff",
-  border: "#e5e6eb",
-  divider: "#f0f1f3",
-  cardShadow: "0 4px 16px rgba(29, 35, 46, 0.06)",
+/** 默认亮色主题：Koklam 编辑风（kmanager AppTheme 亮色 token 同源）。 */
+export const lightA2UICardTheme: A2UICardTheme = {
+  background: "#FAFAFA", // lightPaper
+  surface: "#FFFFFF", // lightSurface
+  surfaceMuted: "#F4F4F5", // lightSubtle
+  onSurface: "#171D1F", // lightInk
+  onSurfaceMuted: "#747A76", // lightMuted
+  primary: "#126652", // brandGreen（Spring Green）
+  onPrimary: "#FFFFFF",
+  // 亮色模式容器刻意不描边（宿主约定）；outlined 卡退化为分隔线色细边。
+  border: "#EDEDEA", // lightDivider
+  divider: "#EDEDEA", // lightDivider
+  cardShadow: "0 2px 8px rgba(23, 29, 31, 0.04)",
 };
+
+/** 暗色主题：Koklam 暗色 token 同源，宿主明暗切换时按 base 注入。 */
+export const darkA2UICardTheme: A2UICardTheme = {
+  background: "#09090B", // darkBackground
+  surface: "#18181B", // darkSurface
+  surfaceMuted: "#27272A", // darkSubtle
+  onSurface: "#F5F7F1", // darkInk
+  onSurfaceMuted: "#AEB8B2", // darkMuted
+  primary: "#34D399", // darkBrandBright
+  onPrimary: "#09090B",
+  border: "#202020", // darkBorder
+  divider: "#202020", // darkBorder
+  cardShadow: "none",
+};
+
+/** 兼容别名：默认主题即亮色。 */
+export const defaultA2UICardTheme = lightA2UICardTheme;
 
 /**
  * 合并宿主注入的主题覆写：只接受主题里已有的键且值非空字符串，其余
  * （未知键、非字符串、空值）一律忽略——initData 是宿主可信通道，但
- * 仍按白名单收敛，防止宿主误传把整块样式打挂。
+ * 仍按白名单收敛，防止宿主误传把整块样式打挂。明暗切换时宿主可传
+ * base=darkA2UICardTheme 再叠加覆写。
  */
-export function mergeA2UICardTheme(overrides: unknown): A2UICardTheme {
-  const theme: Record<string, string> = { ...defaultA2UICardTheme };
+export function mergeA2UICardTheme(
+  overrides: unknown,
+  base: A2UICardTheme = lightA2UICardTheme,
+): A2UICardTheme {
+  const theme: Record<string, string> = { ...base };
   if (overrides && typeof overrides === "object" && !Array.isArray(overrides)) {
     for (const [key, value] of Object.entries(overrides)) {
       if (key in theme && typeof value === "string" && value.length > 0) {
@@ -154,6 +177,13 @@ interface StyledLoadingProps extends GenericComponentProps {
   variant?: "inline" | "block";
 }
 
+interface StyledIconProps extends GenericComponentProps {
+  /** A2UI basic catalog 图标名（Material 语，如 "check"/"warning"），经 LUCIDE 映射渲染。 */
+  name: string;
+  size?: "sm" | "md" | "lg";
+  color?: "primary" | "muted" | "inherit";
+}
+
 // 官方 CSS 用 .button .text-* 后代选择器把按钮内文字反色；内联样式优先级
 // 高于样式继承，无法被父级覆写，因此用 context 把按钮态传给子 Text。
 interface ButtonLabelState {
@@ -215,16 +245,18 @@ function toAlign(
   }
 }
 
-// 字号/字重/行高层级：h1..h5、body、caption（官方 caption 只有 10px 太小，
-// 提升到 12px 并配弱化色，拉开与 body 的层级）。
+// 字号/字重/行高层级：对齐 kmanager AppTypography（Apple HIG 刻度，全应用
+// 禁止低于 11pt）：h1→title2(22) h2→title3(20，弹窗主标) h3→headline(17 导航/
+// 卡片标题) h4→body-strong(15) h5→footnote-strong(13) body→body(15)
+// caption→caption1(12，字段标签/徽章)。
 const TEXT_VARIANTS = {
-  h1: { fontSize: "24px", lineHeight: "32px", fontWeight: "700" },
+  h1: { fontSize: "22px", lineHeight: "30px", fontWeight: "700" },
   h2: { fontSize: "20px", lineHeight: "28px", fontWeight: "700" },
-  h3: { fontSize: "17px", lineHeight: "24px", fontWeight: "600" },
+  h3: { fontSize: "17px", lineHeight: "22px", fontWeight: "600" },
   h4: { fontSize: "15px", lineHeight: "22px", fontWeight: "600" },
   h5: { fontSize: "13px", lineHeight: "18px", fontWeight: "600" },
-  body: { fontSize: "14px", lineHeight: "22px", fontWeight: "400" },
-  caption: { fontSize: "12px", lineHeight: "17px", fontWeight: "400" },
+  body: { fontSize: "15px", lineHeight: "22px", fontWeight: "400" },
+  caption: { fontSize: "12px", lineHeight: "16px", fontWeight: "400" },
 } as const;
 
 type TextVariant = keyof typeof TEXT_VARIANTS;
@@ -439,16 +471,16 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return {
           ...base,
           backgroundColor: theme.surface,
-          borderRadius: "16px",
-          padding: "16px",
+          borderRadius: "14px", // AppRadius.card
+          padding: "16px", // AppInsets.card
           border: `1px solid ${theme.border}`,
         };
       case "filled":
         return {
           ...base,
           backgroundColor: theme.surfaceMuted,
-          borderRadius: "16px",
-          padding: "16px",
+          borderRadius: "14px", // AppRadius.card
+          padding: "16px", // AppInsets.card
         };
       case "ghost":
         return { ...base, backgroundColor: "transparent" };
@@ -456,8 +488,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return {
           ...base,
           backgroundColor: theme.surface,
-          borderRadius: "16px",
-          padding: "16px",
+          borderRadius: "14px", // AppRadius.card
+          padding: "16px", // AppInsets.card
           boxShadow: theme.cardShadow,
         };
     }
@@ -768,6 +800,36 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // 官方 Icon 靠 Material Icons 字体连字渲染，真机无字体源会输出乱码文本
+  // （docs §4 排除的原因）。这里改为内置 Lucide 矢量数据（宿主图标语言即
+  // Forui/Lucide）：name 映射 LUCIDE_ICON_PATHS，stroke 颜色按主题注入后
+  // 整图转 data URI 交给 <image>。未映射的名字静默渲染空，不出乱码兜底。
+  function Icon(props: StyledIconProps) {
+    const { id, name, size = "md", color = "inherit" } = props;
+    const paths =
+      typeof name === "string" ? LUCIDE_ICON_PATHS[name] : undefined;
+    if (!paths) return null;
+    // 尺寸对齐 AppIconSize：sm 16 / md 20 / lg 24。
+    const px = size === "sm" ? "16px" : size === "lg" ? "24px" : "20px";
+    const stroke =
+      color === "primary"
+        ? theme.primary
+        : color === "muted"
+          ? theme.onSurfaceMuted
+          : theme.onSurface;
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ` +
+      `fill="none" stroke="${stroke}" stroke-width="2" ` +
+      `stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    return (
+      <image
+        key={id}
+        style={{ width: px, height: px, flexShrink: 0 }}
+        src={svgToDataUri(svg)}
+      />
+    );
+  }
+
   // 官方 Button 用内部导出的 A2UIRenderer 渲染子组件资源（该导出不对包外
   // 开放）。这里用公开 API 逐行为复刻：useSyncExternalStore 订阅资源快照，
   // pending 显示骨架（官方默认兜底）、error 显示文本、surfaceUpdate 交给
@@ -808,5 +870,16 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     return null;
   }
 
-  return { Text, Row, Column, Card, Divider, Button, Image, List, Loading };
+  return {
+    Text,
+    Row,
+    Column,
+    Card,
+    Divider,
+    Button,
+    Icon,
+    Image,
+    List,
+    Loading,
+  };
 }

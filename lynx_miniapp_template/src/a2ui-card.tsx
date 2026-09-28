@@ -78,12 +78,13 @@ function catalogEntry(component: unknown): CatalogComponent {
 }
 
 // 卡片化外壳：白底 + 圆角 + 阴影，浮在 theme.background 衬底上，模板根
-// Column 零改动即获得卡片语境；answered 时降透明度防连点。
+// Column 零改动即获得卡片语境；answered 时降透明度防连点。圆角对齐
+// AppRadius.card=14，内边距对齐 AppInsets.card=16。
 function cardShellStyle(theme: A2UICardTheme): Record<string, string | number> {
   return {
     width: "100%",
     backgroundColor: theme.surface,
-    borderRadius: "16px",
+    borderRadius: "14px",
     padding: "16px",
     boxShadow: theme.cardShadow,
   };
@@ -104,9 +105,10 @@ function placeholderStyle(
  * A2UI 宿主卡片（小柯助手）：内嵌官方 @lynx-js/genui 的 <A2UI> 渲染器，
  * 渲染宿主经 Dart 侧 initialData 注入的 A2UI v0.9 消息流。
  *
- * catalog 即组件白名单（沙箱边界）：只放确认卡需要的展示类组件
- * （Text/Row/Column/Card/Divider/Button/Image/List/Loading），集合与
- * 重构前一致；输入类组件与 Icon 仍刻意排除（docs §4）。
+ * catalog 即组件白名单（沙箱边界）：展示类组件 Text/Row/Column/Card/
+ * Divider/Button/Icon/Image/List/Loading，全部为本地美化实现；输入类组件
+ * （TextField/RadioGroup/...）仍刻意排除（docs §4）。Icon 用内置 Lucide
+ * 矢量数据渲染（原字体方案真机乱码，故排除；改矢量后解除）。
  */
 export function A2UICard() {
   const initData = useInitData() as A2UICardInitData | undefined;
@@ -158,6 +160,7 @@ export function A2UICard() {
       catalogEntry(components.Card),
       catalogEntry(components.Divider),
       catalogEntry(components.Button),
+      catalogEntry(components.Icon),
       catalogEntry(components.Image),
       catalogEntry(components.List),
       catalogEntry(components.Loading),
