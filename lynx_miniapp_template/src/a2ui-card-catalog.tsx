@@ -48,6 +48,12 @@ export interface A2UICardTheme {
   divider: string;
   /** elevated 卡片阴影（完整 box-shadow 值；空串表示关闭阴影）。 */
   cardShadow: string;
+  /**
+   * 提交离场动效："fade-up"（默认，320ms 上滑淡出后交给宿主关闭）或
+   * "none"（关闭动效，提交后仅降透明防连点——in-chat 等卡片不离场、
+   * 提交后转终态只读卡的场景用）。
+   */
+  exitAnimation: string;
 }
 
 /** 默认亮色主题：Koklam 编辑风（kmanager AppTheme 亮色 token 同源）。 */
@@ -63,6 +69,7 @@ export const lightA2UICardTheme: A2UICardTheme = {
   border: "#EDEDEA", // lightDivider
   divider: "#EDEDEA", // lightDivider
   cardShadow: "0 2px 8px rgba(23, 29, 31, 0.04)",
+  exitAnimation: "fade-up",
 };
 
 /** 暗色主题：Koklam 暗色 token 同源，宿主明暗切换时按 base 注入。 */
@@ -77,6 +84,7 @@ export const darkA2UICardTheme: A2UICardTheme = {
   border: "#202020", // darkBorder
   divider: "#202020", // darkBorder
   cardShadow: "none",
+  exitAnimation: "fade-up",
 };
 
 /** 兼容别名：默认主题即亮色。 */

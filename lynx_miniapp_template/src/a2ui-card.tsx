@@ -210,7 +210,11 @@ export function A2UICard() {
         onAction={handleAction}
         wrapSurface={(children, _ctx) => (
           <view
-            className={answered ? "a2ui-light a2ui-card-exit" : "a2ui-light"}
+            className={
+              answered && theme.exitAnimation !== "none"
+                ? "a2ui-light a2ui-card-exit"
+                : "a2ui-light"
+            }
             style={
               answered
                 ? { ...cardShellStyle(theme), opacity: 0.5 }

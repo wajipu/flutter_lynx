@@ -64,6 +64,9 @@ LynxBridge.invoke(
 宿主可在 initData 增加可选 `theme` 命名空间覆写任意键（如 kmanager 明暗主题切换时注入
 `{"theme": {"background": "#111318", "surface": "#1b1d22", ...}}`）。键白名单收敛：非主题键、
 非字符串值一律忽略。`theme` 不播种进渲染器数据模型（模板不允许 path 绑定主题键）。
+主题键含行为项 `exitAnimation`：`"fade-up"`（默认，提交后 320ms 上滑淡出）或 `"none"`
+（关闭离场动效，提交后仅降透明防连点——in-chat 等卡片不离场、提交后转终态只读卡的
+场景注入此键）。
 
 **提交离场动效**：确认/取消提交后卡片自带 320ms 上滑淡出（`src/a2ui-card-exit.css`
 的 `a2ui-card-exit` 类，@keyframes 走样式表——Lynx 内联样式不支持关键帧动画；
