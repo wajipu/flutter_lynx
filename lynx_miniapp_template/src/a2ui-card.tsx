@@ -14,6 +14,8 @@ import type {
 // CSS 变量；白名单组件已全部换成美化实现，这里保留官方 theme.css 与
 // a2ui-light 包裹类，让兜底路径有变量可用。
 import "@lynx-js/genui/a2ui/styles/theme.css";
+// 提交离场动效（上滑淡出）：@keyframes 只能走样式表，见 a2ui-card-exit.css。
+import "./a2ui-card-exit.css";
 import { LynxBridge } from "./bridge";
 import {
   createCatalogComponents,
@@ -208,7 +210,7 @@ export function A2UICard() {
         onAction={handleAction}
         wrapSurface={(children, _ctx) => (
           <view
-            className="a2ui-light"
+            className={answered ? "a2ui-light a2ui-card-exit" : "a2ui-light"}
             style={
               answered
                 ? { ...cardShellStyle(theme), opacity: 0.5 }

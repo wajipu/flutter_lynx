@@ -65,6 +65,12 @@ LynxBridge.invoke(
 `{"theme": {"background": "#111318", "surface": "#1b1d22", ...}}`）。键白名单收敛：非主题键、
 非字符串值一律忽略。`theme` 不播种进渲染器数据模型（模板不允许 path 绑定主题键）。
 
+**提交离场动效**：确认/取消提交后卡片自带 320ms 上滑淡出（`src/a2ui-card-exit.css`
+的 `a2ui-card-exit` 类，@keyframes 走样式表——Lynx 内联样式不支持关键帧动画；
+注意 flex 简写里 basis 为 0 必须带单位，如 `flex: "1 1 0%"`，无单位会被引擎静默丢弃）。
+上报失败恢复可点时类被移除、卡片回到可见，动画天然可逆。**宿主建议收到
+`ui.confirmResult` 后延迟 ~350ms 再关半屏**，与卡片动画衔接。
+
 ## 4. Catalog = 组件白名单（沙箱边界）
 
 Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲染器 fail-soft（告警一次、渲染 null），不崩宿主。

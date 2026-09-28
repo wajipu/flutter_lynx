@@ -1,0 +1,22 @@
+/* 确认卡离场动效（轻量版）：确认/取消提交后整卡上滑淡出。
+   走样式表因为 Lynx 的 @keyframes 动画只能经 CSS 声明（内联样式不支持）；
+   fill-mode: forwards 保持离场终态，失败重试（类被移除）时元素回到基础
+   样式恢复可见，动画天然可逆。宿主建议在收到 ui.confirmResult 后延迟
+   ~350ms 再关闭半屏，与动画衔接。 */
+@keyframes a2ui-card-exit-up {
+  from {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+.a2ui-card-exit {
+  animation-name: a2ui-card-exit-up;
+  animation-duration: 320ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
