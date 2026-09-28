@@ -27,6 +27,13 @@ void _addLog(String msg) {
   _logStreamController.add(List.from(_bridgeLogs));
 }
 
+/// A2UI 确认卡回执状态：true 表示已收到 ui.confirmResult。演示容器据此把
+/// 卡片区切换成「已提交」占位，衔接卡片自身的上滑淡出离场动效（卡片播完
+/// 320ms 动画后宿主占位顶上，模拟真实宿主关闭半屏前的过渡）。真实宿主在
+/// 收到回执后关闭半屏即可，无需关心此通知器。
+final ValueNotifier<bool> a2uiSubmittedNotifier = ValueNotifier(false);
+int a2uiSubmitToken = 0;
+
 /// Initialize host capabilities and register with Lynx JSBridge
 void _initLynxHostCapabilities() {
   final bridge = LynxBridge.instance;
@@ -99,10 +106,17 @@ void _initLynxHostCapabilities() {
     };
   }, module: "report");
 
-  // 5. A2UI 确认卡回传：卡片内确认/取消按钮点击经 ui.confirmResult 通知宿主，
-  // payload 形如 {action: "confirm"|"cancel", confirmationId, quantity, ...}。
+  // 5. A2UI 确认卡回执：收到 ui.confirmResult 后延迟 450ms 再切换占位，给
+  // 卡片自身的 320ms 上滑淡出离场动效留出播放窗口（真实宿主同样建议延迟
+  // ~350ms 再关半屏）。token 防重装载竞态。
   bridge.register("confirmResult", (params) async {
     _addLog("JSB >> ui.confirmResult 回传: ${jsonEncode(params)}");
+    final token = ++a2uiSubmitToken;
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (a2uiSubmitToken == token) {
+        a2uiSubmittedNotifier.value = true;
+      }
+    });
     return {"received": true};
   }, module: "ui");
 
@@ -174,6 +188,9 @@ class _DemoHomePageState extends State<DemoHomePage>
 
   /// 装载 A2UI 确认卡：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
   Future<void> _loadA2uiConfirmCard() async {
+    // 重新装载时作废在途的「已提交」占位切换，并复位回执状态。
+    a2uiSubmitToken++;
+    a2uiSubmittedNotifier.value = false;
     final messagesText = await rootBundle.loadString(_a2uiMessagesAsset);
     final messages = jsonDecode(messagesText) as List<dynamic>;
     final bytes = await rootBundle.load(_a2uiBundleAsset);
@@ -740,7 +757,9 @@ class _DemoHomePageState extends State<DemoHomePage>
   }
 
   /// A2UI 确认卡展示区：未装载时提示，装载后以 templateBytes 直喂官方 `<A2UI>` 渲染
-  /// bundle，A2UI 消息数组随 initialData 注入。
+  /// bundle，A2UI 消息数组随 initialData 注入。收到 ui.confirmResult 后（延迟
+  /// 450ms 等卡片播完上滑淡出离场动效）切换为「已提交」占位，模拟真实宿主
+  /// 关闭半屏前的衔接。
   Widget _buildA2uiCardBody() {
     final bytes = _a2uiBundleBytes;
     final messages = _a2uiMessages;
@@ -753,43 +772,66 @@ class _DemoHomePageState extends State<DemoHomePage>
         ),
       );
     }
-    return LynxView(
-      key: const ValueKey("a2ui-card"),
-      templateBytes: bytes,
-      allowedModules: const {"system", "ui"},
-      initialData: LynxTemplateData({
-        "token": "bearer_jwt_token_demo_2026",
-        "confirmationId": "cf_demo_20260928_001",
-        "title": "A2UI 确认卡",
-        // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
-        // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
-        "statusText": "待确认",
-        "label": {
-          "title": "确认补货？",
-          "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
-          "product": "商品",
-          "stock": "当前库存",
-          "quantity": "补货数量",
-          "confirm": "确认补货",
-          "cancel": "再想想",
+    return ValueListenableBuilder<bool>(
+      valueListenable: a2uiSubmittedNotifier,
+      builder: (context, submitted, child) {
+        if (submitted) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle,
+                    color: Color(0xFF126652), size: 40),
+                const SizedBox(height: 8),
+                Text(
+                  "已提交（真实宿主在此关闭半屏）",
+                  style:
+                      TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ],
+            ),
+          );
+        }
+        return child!;
+      },
+      child: LynxView(
+        key: const ValueKey("a2ui-card"),
+        templateBytes: bytes,
+        allowedModules: const {"system", "ui"},
+        initialData: LynxTemplateData({
+          "token": "bearer_jwt_token_demo_2026",
+          "confirmationId": "cf_demo_20260928_001",
+          "title": "A2UI 确认卡",
+          // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
+          // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
+          "statusText": "待确认",
+          "label": {
+            "title": "确认补货？",
+            "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
+            "product": "商品",
+            "stock": "当前库存",
+            "quantity": "补货数量",
+            "confirm": "确认补货",
+            "cancel": "再想想",
+          },
+          "payload": {
+            "product": "冰鲜柠檬茶（大杯）",
+            "stock": "3",
+            "threshold": "10",
+            "quantity": "25",
+          },
+          "messages": messages,
+        }),
+        onLynxCreated: (controller) {
+          _addLog("A2UI LynxView created (templateBytes 模式).");
         },
-        "payload": {
-          "product": "冰鲜柠檬茶（大杯）",
-          "stock": "3",
-          "threshold": "10",
-          "quantity": "25",
+        onLoadSuccess: () {
+          _addLog("A2UI LynxView loaded (确认卡首屏成功).");
         },
-        "messages": messages,
-      }),
-      onLynxCreated: (controller) {
-        _addLog("A2UI LynxView created (templateBytes 模式).");
-      },
-      onLoadSuccess: () {
-        _addLog("A2UI LynxView loaded (确认卡首屏成功).");
-      },
-      onLoadFail: (error) {
-        _addLog("A2UI LynxView load error: $error");
-      },
+        onLoadFail: (error) {
+          _addLog("A2UI LynxView load error: $error");
+        },
+      ),
     );
   }
 
