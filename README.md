@@ -208,6 +208,30 @@ await controller.loadFromTemplateBytes(bytes, initialData: {"orderId": "A1024"})
 `LynxDesktopRuntimeView`（桌面演示运行时）同样支持传 `source` 直喂，与 `url` 二选一。
 数据注入仍走 `LynxTemplateData` 与 `controller.updateData`，与文件链路完全一致。
 
+### 6. 模型生成 UI（A2UI 主线，移动端）
+
+大模型现场生成的 UI 走官方 **A2UI v0.9** 协议：模型输出协议消息，随 `initialData.messages`
+注入内置的 ReactLynx 宿主 bundle（官方 `@lynx-js/genui@0.5.0` `<A2UI>` 渲染器 + Catalog
+组件白名单），按钮点击经既有 `ui.confirmResult` Bridge 回传宿主。
+
+```dart
+final bytes = await rootBundle.load("assets/miniapp/a2ui-card.lynx.bundle");
+LynxView(
+  templateBytes: bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+  allowedModules: const {"system", "ui"},
+  initialData: LynxTemplateData({
+    "token": token,
+    "confirmationId": confirmationId,
+    "messages": modelGeneratedA2uiMessages, // A2UI v0.9 消息数组
+  }),
+);
+```
+
+集成方案全文（架构、Catalog 白名单、回传契约、真机验证步骤、Skill 消息样例硬约束）：
+[docs/a2ui-mobile-integration.md](docs/a2ui-mobile-integration.md)。
+桌面 A2UI 子集渲染器延后（策略待定）；备选自研格式 lynx-card/1 的解析渲染实现保留于
+`lib/src/card/`，决策记录见 [docs/lynx-card-format.md](docs/lynx-card-format.md)。
+
 ---
 
 ## 🛠️ 小程序开发说明

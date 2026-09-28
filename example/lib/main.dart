@@ -1,4 +1,5 @@
 import "dart:async";
+import "dart:convert";
 import "dart:io";
 import "dart:typed_data";
 
@@ -98,7 +99,14 @@ void _initLynxHostCapabilities() {
     };
   }, module: "report");
 
-  // 5. Custom UI Handler
+  // 5. A2UI 确认卡回传：卡片内确认/取消按钮点击经 ui.confirmResult 通知宿主，
+  // payload 形如 {action: "confirm"|"cancel", confirmationId, quantity, ...}。
+  bridge.register("confirmResult", (params) async {
+    _addLog("JSB >> ui.confirmResult 回传: ${jsonEncode(params)}");
+    return {"received": true};
+  }, module: "ui");
+
+  // 6. Custom UI Handler
   bridge.uiHandler.onShowToast = (title, {icon, durationMs}) {
     _addLog("JSB >> showToast: $title (icon: $icon)");
   };
@@ -152,6 +160,32 @@ class _DemoHomePageState extends State<DemoHomePage>
   /// 演示 templateBytes 直喂：内容随 App 版本内置，不经文件与缓存链路。
   static const String _inlineCardAsset = "assets/miniapp/runtime-a.lynx.bundle";
   Uint8List? _inlineCardBytes;
+
+  /// A2UI 宿主侧渲染 bundle（官方 ReactLynx `<A2UI>` 渲染器构建产物，
+  /// 随 App 版本内置，templateBytes 直喂装载）。
+  static const String _a2uiBundleAsset = "assets/miniapp/a2ui-card.lynx.bundle";
+
+  /// 小柯产出的 A2UI v0.9 协议消息数组样例（确认补货卡），
+  /// 与 bundle 一起装载，经 initData 注入 `<A2UI>` 渲染器。
+  static const String _a2uiMessagesAsset =
+      "assets/a2ui/confirm-card-messages.json";
+  Uint8List? _a2uiBundleBytes;
+  List<dynamic>? _a2uiMessages;
+
+  /// 装载 A2UI 确认卡：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
+  Future<void> _loadA2uiConfirmCard() async {
+    final messagesText = await rootBundle.loadString(_a2uiMessagesAsset);
+    final messages = jsonDecode(messagesText) as List<dynamic>;
+    final bytes = await rootBundle.load(_a2uiBundleAsset);
+    final bundleBytes = bytes.buffer
+        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    _addLog("Host >> A2UI 消息装载 ${messages.length} 条（v0.9 协议数组）");
+    _addLog("Host >> A2UI 宿主 bundle 装载 ${bundleBytes.length} 字节");
+    setState(() {
+      _a2uiMessages = messages;
+      _a2uiBundleBytes = bundleBytes;
+    });
+  }
 
   Future<void> _loadEmbeddedCardViaBytes() async {
     final bytes = await rootBundle.load(_inlineCardAsset);
@@ -224,7 +258,7 @@ class _DemoHomePageState extends State<DemoHomePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _addLog("Host system initialized. LynxBridge ready.");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_presetMiniPrograms.isNotEmpty && mounted) {
@@ -283,6 +317,7 @@ class _DemoHomePageState extends State<DemoHomePage>
           tabs: const [
             Tab(icon: Icon(Icons.apps), text: "小程序中心"),
             Tab(icon: Icon(Icons.view_quilt), text: "组件嵌入"),
+            Tab(icon: Icon(Icons.fact_check), text: "A2UI 确认卡"),
             Tab(icon: Icon(Icons.terminal), text: "JSB 调测日志"),
           ],
         ),
@@ -292,6 +327,7 @@ class _DemoHomePageState extends State<DemoHomePage>
         children: [
           _buildMiniProgramLauncherTab(),
           _buildEmbeddedViewTab(),
+          _buildA2uiConfirmCardTab(),
           _buildBridgeLogTab(),
         ],
       ),
@@ -647,7 +683,86 @@ class _DemoHomePageState extends State<DemoHomePage>
     );
   }
 
-  // --- Tab 3: JSBridge Logs ---
+  // --- Tab 3: A2UI 确认卡（宿主侧端到端演示） ---
+  Widget _buildA2uiConfirmCardTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          "A2UI 确认卡（宿主侧端到端）",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          "小柯现场生成的 A2UI v0.9 消息随 initData 注入官方 ReactLynx <A2UI> 渲染器，"
+          "确认/取消点击经 ui.confirmResult 回传宿主（结果见「JSB 调测日志」页签）；"
+          "桌面端暂不支持 <A2UI> 渲染器，验证统一安排在移动端。",
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _loadA2uiConfirmCard,
+          icon: const Icon(Icons.fact_check, size: 18),
+          label: Text(
+            _a2uiBundleBytes == null ? "装载 A2UI 确认卡" : "重新装载 A2UI 确认卡",
+            style: const TextStyle(fontSize: 12),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1677FF),
+            foregroundColor: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 440,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _buildA2uiCardBody(),
+        ),
+      ],
+    );
+  }
+
+  /// A2UI 确认卡展示区：未装载时提示，装载后以 templateBytes 直喂官方 `<A2UI>` 渲染
+  /// bundle，A2UI 消息数组随 initialData 注入。
+  Widget _buildA2uiCardBody() {
+    final bytes = _a2uiBundleBytes;
+    final messages = _a2uiMessages;
+    if (bytes == null || messages == null) {
+      return Center(
+        child: Text(
+          "点击上方按钮装载 A2UI 确认卡（宿主 bundle + v0.9 消息数组）",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+        ),
+      );
+    }
+    return LynxView(
+      key: const ValueKey("a2ui-card"),
+      templateBytes: bytes,
+      allowedModules: const {"system", "ui"},
+      initialData: LynxTemplateData({
+        "token": "bearer_jwt_token_demo_2026",
+        "confirmationId": "cf_demo_20260928_001",
+        "title": "A2UI 确认卡",
+        "messages": messages,
+      }),
+      onLynxCreated: (controller) {
+        _addLog("A2UI LynxView created (templateBytes 模式).");
+      },
+      onLoadSuccess: () {
+        _addLog("A2UI LynxView loaded (确认卡首屏成功).");
+      },
+      onLoadFail: (error) {
+        _addLog("A2UI LynxView load error: $error");
+      },
+    );
+  }
+
+  // --- Tab 4: JSBridge Logs ---
   Widget _buildBridgeLogTab() {
     return Column(
       children: [

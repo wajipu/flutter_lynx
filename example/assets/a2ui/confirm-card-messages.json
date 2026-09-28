@@ -1,0 +1,157 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "xiaoke-confirm-card",
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+      "sendDataModel": true
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "xiaoke-confirm-card",
+      "path": "/",
+      "value": {
+        "confirmationId": "cf_demo_20260928_001",
+        "product": "冰鲜柠檬茶（大杯）",
+        "stock": "3",
+        "threshold": "10",
+        "quantity": "25"
+      }
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "xiaoke-confirm-card",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "card-title",
+            "card-description",
+            "row-product",
+            "row-stock",
+            "row-quantity",
+            "row-actions"
+          ]
+        },
+        {
+          "id": "card-title",
+          "component": "Text",
+          "variant": "h3",
+          "text": "确认补货 25 件？"
+        },
+        {
+          "id": "card-description",
+          "component": "Text",
+          "variant": "body",
+          "text": "当前库存已低于安全阈值，请确认以下补货明细后提交。"
+        },
+        {
+          "id": "row-product",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": ["label-product", "value-product"]
+        },
+        {
+          "id": "label-product",
+          "component": "Text",
+          "variant": "caption",
+          "text": "商品"
+        },
+        {
+          "id": "value-product",
+          "component": "Text",
+          "text": { "path": "/product" }
+        },
+        {
+          "id": "row-stock",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": ["label-stock", "value-stock"]
+        },
+        {
+          "id": "label-stock",
+          "component": "Text",
+          "variant": "caption",
+          "text": "当前库存"
+        },
+        {
+          "id": "value-stock",
+          "component": "Text",
+          "text": { "path": "/stock" }
+        },
+        {
+          "id": "row-quantity",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": ["label-quantity", "value-quantity"]
+        },
+        {
+          "id": "label-quantity",
+          "component": "Text",
+          "variant": "caption",
+          "text": "补货数量"
+        },
+        {
+          "id": "value-quantity",
+          "component": "Text",
+          "text": { "path": "/quantity" }
+        },
+        {
+          "id": "row-actions",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": ["btn-cancel", "btn-confirm"]
+        },
+        {
+          "id": "btn-cancel",
+          "component": "Button",
+          "variant": "borderless",
+          "child": "btn-cancel-label",
+          "action": {
+            "event": {
+              "name": "cancel",
+              "context": {
+                "confirmationId": { "path": "/confirmationId" },
+                "quantity": { "path": "/quantity" }
+              }
+            }
+          }
+        },
+        {
+          "id": "btn-cancel-label",
+          "component": "Text",
+          "text": "再想想"
+        },
+        {
+          "id": "btn-confirm",
+          "component": "Button",
+          "variant": "primary",
+          "child": "btn-confirm-label",
+          "action": {
+            "event": {
+              "name": "confirm",
+              "context": {
+                "confirmationId": { "path": "/confirmationId" },
+                "quantity": { "path": "/quantity" }
+              }
+            }
+          }
+        },
+        {
+          "id": "btn-confirm-label",
+          "component": "Text",
+          "text": "确认补货"
+        }
+      ]
+    }
+  }
+]
