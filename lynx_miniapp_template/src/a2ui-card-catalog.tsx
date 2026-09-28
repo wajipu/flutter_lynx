@@ -341,7 +341,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             return (
               <view
                 key={childId}
-                style={{ flex: `${weight} ${weight} 0`, minWidth: 0 }}
+                style={{ flex: `${weight} ${weight} 0%`, minWidth: 0 }}
               >
                 <NodeRenderer component={childWithContext} surface={surface} />
               </view>
@@ -435,7 +435,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             return (
               <view
                 key={item.key}
-                style={{ flex: `${weight} ${weight} 0`, minHeight: 0 }}
+                style={{ flex: `${weight} ${weight} 0%`, minHeight: 0 }}
               >
                 <NodeRenderer component={item.component} surface={surface} />
               </view>
@@ -542,7 +542,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const shellStyle: Record<string, string | number> = {
       // flex:1 让并排按钮等分宽度（对齐 confirm-card 真机验证过的动作排布）；
       // 确认卡按钮都放在动作 Row 里，Column 直挂 Button 不在既定模板形态内。
-      flex: 1,
+      flex: "1 1 0%",
       height: "44px",
       display: "flex",
       flexDirection: "row",
@@ -674,7 +674,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         style = { ...base, maxWidth: "240px" };
     }
     if (weighted) {
-      style = { ...style, flex: "1 1 0" };
+      style = { ...style, flex: "1 1 0%" };
     }
     return style;
   }
