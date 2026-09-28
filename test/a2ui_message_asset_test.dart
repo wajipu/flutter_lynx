@@ -78,7 +78,7 @@ void main() {
 
     test(
         "消息种类符合契约：恰好一条 createSurface(catalogId 含 basic)"
-        " + 恰好一条 updateComponents + 恰好一条 updateDataModel，无 deleteSurface", () {
+        " + 恰好一条 updateComponents + 零 updateDataModel，无 deleteSurface", () {
       // 逐条按「消息里出现的动作键」分类统计。
       final counts = <String, int>{};
       for (final message in messages) {
@@ -92,8 +92,8 @@ void main() {
       }
       expect(counts["createSurface"], 1, reason: "确认卡只创建一个 surface");
       expect(counts["updateComponents"], 1);
-      expect(counts["updateDataModel"], 1,
-          reason: "确认卡业务字段经 updateDataModel 一次性注入");
+      expect(counts["updateDataModel"] ?? 0, 0,
+          reason: "生产契约：数据由宿主经 initData 播种进数据模型，模板零数据携带");
       expect(counts["deleteSurface"] ?? 0, 0,
           reason: "确认卡是展示型 surface，不应携带删除动作");
 
@@ -195,34 +195,39 @@ void main() {
         isTrue,
         reason: 'confirm 的 quantity 必须用 {"path": ...} 绑定数据模型',
       );
-      expect(quantity["path"], "/quantity");
+      expect(quantity["path"], "/payload/quantity");
     });
 
-    test("无函数调用约束与 confirmationId 字符串类型", () {
+    test("无函数调用；绑定全部落在契约命名空间；文案零硬编码", () {
       // 渲染端 catalog 保持最小化：全文不允许出现 {"call": ...} 函数调用，
       // 只允许字面量与 {"path": ...} 数据绑定。
       expect(rawText.contains("{call"), isFalse);
 
-      // 业务字段全部为字符串值（ID/数值过桥禁转换），confirmationId 尤其如此。
-      final dataModelMessages = collectMaps(
-        messages,
-        (node) => node.containsKey("updateDataModel"),
-      );
-      expect(dataModelMessages, hasLength(1));
-      final value = dataModelMessages.single["updateDataModel"]["value"]
-          as Map<dynamic, dynamic>;
-      expect(value["confirmationId"], isA<String>(),
-          reason: "confirmationId 是单号类 ID，必须保持字符串");
-      expect(
-        value.keys,
-        everyElement(isA<String>()),
-        reason: "数据模型键必须全部为字符串",
-      );
-      expect(
-        value.values,
-        everyElement(isA<String>()),
-        reason: "数据模型值必须全部为字符串（quantity 用 '25'），过桥禁止数值转换",
-      );
+      // 所有 {"path": ...} 绑定必须落在宿主播种的契约命名空间内
+      // （koklam-docs f42edc0）：/label/*（三语文案）、/payload/*（候选
+      // 字段）、/confirmationId、/statusText。
+      final bindings = collectMaps(messages, (node) => node.containsKey("path"))
+          .map((node) => node["path"] as String)
+          .toList();
+      expect(bindings, isNotEmpty);
+      const namespacePattern = r"^/(label|payload)/.+";
+      for (final path in bindings) {
+        final allowed = RegExp(namespacePattern).hasMatch(path) ||
+            path == "/confirmationId" ||
+            path == "/statusText";
+        expect(allowed, isTrue, reason: "越界绑定: $path");
+      }
+
+      // 文案零硬编码：所有 Text 的 text 一律是 {"path": ...} 绑定
+      // （三语文案由宿主经 initData.label 注入）。
+      final texts = collectMaps(messages, (node) => node["component"] == "Text");
+      expect(texts, isNotEmpty);
+      for (final text in texts) {
+        final value = text["text"];
+        expect(value, isA<Map<dynamic, dynamic>>(),
+            reason: "Text 组件存在硬编码文案: ${text["id"]}");
+        expect((value as Map<dynamic, dynamic>)["path"], isA<String>());
+      }
     });
   });
 }

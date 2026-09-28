@@ -748,6 +748,24 @@ class _DemoHomePageState extends State<DemoHomePage>
         "token": "bearer_jwt_token_demo_2026",
         "confirmationId": "cf_demo_20260928_001",
         "title": "A2UI 确认卡",
+        // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
+        // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
+        "statusText": "待确认",
+        "label": {
+          "title": "确认补货？",
+          "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
+          "product": "商品",
+          "stock": "当前库存",
+          "quantity": "补货数量",
+          "confirm": "确认补货",
+          "cancel": "再想想",
+        },
+        "payload": {
+          "product": "冰鲜柠檬茶（大杯）",
+          "stock": "3",
+          "threshold": "10",
+          "quantity": "25",
+        },
         "messages": messages,
       }),
       onLynxCreated: (controller) {

@@ -69,6 +69,8 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 ## 5. 数据与安全边界
 
 - **无网络、无文件**：模型消息与业务数据全部经 `initialData`（initData 通道）注入；bundle 不发起任何请求。
+
+- **数据模型播种**：宿主把 initData 的契约命名空间（`/payload/*`、`/confirmationId`、`/statusText`、`/label/*`）在首条 `createSurface` 后以一条播种 `updateDataModel` 灌进渲染器数据模型；生产模板零 `updateDataModel`、零硬编码文案——文案/字段全部 path 绑定（`label.confirm/cancel/...` 等由宿主按三语注入）。模板自带 `updateDataModel` 时按消息序覆盖播种值；`token` 等非契约字段刻意不进数据模型，避免凭据经绑定渗入 UI。
 - **ID 一律字符串**：`confirmationId`、`quantity` 等业务值在 dataModel 中以字符串承载（JSON 大整数过桥丢精度），Skill 提示语中硬约束。
 - **单向回传**：模板动作出口只有 `ui.confirmResult`（白名单模块授权 `allowedModules: {"system", "ui"}`）；不接 Agent 回路（action 不回服务端），确认卡是一次性渲染。
 - **既有链路不变**：文件 url 链路、`loadFromSource`/`templateBytes` 协议、既有小程序流程零改动。
@@ -83,7 +85,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 ## 7. 给小柯 Skill 的消息样例
 
 权威样例：`example/assets/a2ui/confirm-card-messages.json`（协议结构测试 `test/a2ui_message_asset_test.dart` 守护）。
-骨架（3 条消息，节选）：
+骨架（2 条消息：createSurface + updateComponents；数据由宿主经 initData 播种，模板零携带，节选）：
 
 ```json
 [
@@ -92,20 +94,6 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
     "createSurface": {
       "surfaceId": "xiaoke-confirm-card",
       "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9",
-    "updateDataModel": {
-      "surfaceId": "xiaoke-confirm-card",
-      "path": "/",
-      "value": {
-        "confirmationId": "cf_001",
-        "product": "冰鲜柠檬茶（大杯）",
-        "stock": "3",
-        "threshold": "10",
-        "quantity": "25"
-      }
     }
   },
   {
@@ -121,13 +109,13 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
         {
           "id": "title",
           "component": "Text",
-          "text": "确认补货 25 件？",
+          "text": { "path": "/label/title" },
           "variant": "h3"
         },
         {
           "id": "f-stock-value",
           "component": "Text",
-          "text": { "path": "/stock" }
+          "text": { "path": "/payload/stock" }
         },
         {
           "id": "btn-confirm",
@@ -139,7 +127,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
               "name": "confirm",
               "context": {
                 "confirmationId": { "path": "/confirmationId" },
-                "quantity": { "path": "/quantity" }
+                "quantity": { "path": "/payload/quantity" }
               }
             }
           }
@@ -150,8 +138,11 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 ]
 ```
 
+宿主须随 initData 注入契约命名空间：`payload`（候选字段）、`confirmationId`、`statusText`、`label`（`title/description/product/stock/quantity/confirm/cancel` 等，按三语注入）。
+
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
-只用白名单组件（§4）；只用字面量与 `{"path": ...}` 绑定（禁函数调用）；业务值/ID 全字符串。
+只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
+业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）。展示卡消息可包 a2ui 围栏（```a2ui，注意不是 ```lynx），解析分段器需支持该标记。
 
 ## 8. 桌面策略（延后说明）
 

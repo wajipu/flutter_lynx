@@ -30,6 +30,46 @@ interface A2UICardInitData {
   confirmationId?: string;
   /** A2UI v0.9 消息数组（小柯/服务端下发的协议消息流）。 */
   messages?: unknown[];
+  /** 候选字段（生产模板经 {"path": "/payload/..."} 绑定）。 */
+  payload?: unknown;
+  /** 卡片状态文案（如「待确认」）。 */
+  statusText?: unknown;
+  /** 三语文案命名空间（label.confirm/cancel/...，模板零硬编码文案）。 */
+  label?: unknown;
+}
+
+/**
+ * 把 initData 的契约命名空间播种进渲染器数据模型。
+ *
+ * 生产契约（koklam-docs f42edc0）：模板零硬编码文案、通常零 updateDataModel，
+ * 全部经 {"path": ...} 引用 /payload/*、/confirmationId、/statusText、/label/*。
+ * 这些值由宿主按会话/三语注入 initData，而协议数据模型只认 updateDataModel
+ * 消息——因此在首条 createSurface 之后紧随插入一条播种消息（协议要求 surface
+ * 先建）；模板自带 updateDataModel 时位置更靠后，按消息序覆盖播种默认值。
+ * token 等非契约字段刻意不进数据模型，避免模板绑定意外把凭据带进 UI。
+ */
+function buildInitialMessages(
+  rawMessages: unknown[],
+  seed: Record<string, unknown>,
+): unknown[] {
+  if (Object.keys(seed).length === 0) return rawMessages;
+  const messages = [...rawMessages];
+  const surfaceIndex = messages.findIndex(
+    (message) =>
+      typeof message === "object" &&
+      message !== null &&
+      "createSurface" in message,
+  );
+  if (surfaceIndex < 0) return messages;
+  const surfaceId = (
+    messages[surfaceIndex] as { createSurface?: { surfaceId?: unknown } }
+  ).createSurface?.surfaceId;
+  if (typeof surfaceId !== "string" || surfaceId.length === 0) return messages;
+  messages.splice(surfaceIndex + 1, 0, {
+    version: "v0.9",
+    updateDataModel: { surfaceId, path: "/", value: { ...seed } },
+  });
+  return messages;
 }
 
 // 样式全部内联，对齐 confirm-card.tsx（已在真机引擎上验证过的写法）；
@@ -98,17 +138,33 @@ export function A2UICard() {
 
   // 消息流只在挂载时经 initData 注入一次，store 随之只建一次；
   // 后续要支持多轮交互时，把小柯回包 push 进同一 store 即可。
-  const store = useMemo(
-    () =>
-      createMessageStore({
-        initialMessages: initData?.messages
-          ? normalizePayloadToMessages(initData.messages)
-          : [],
-      }),
+  const store = useMemo(() => {
     // initData 视为挂载期常量（与 confirm-card.tsx 的读取方式一致）。
+    // 除 messages 外的契约命名空间（payload/confirmationId/statusText/label）
+    // 播种进渲染器数据模型，生产模板经 {"path": ...} 绑定引用。
+    const rawMessages = Array.isArray(initData?.messages)
+      ? (initData!.messages as unknown[]).slice()
+      : [];
+    const seed: Record<string, unknown> = {};
+    const seedKeys = [
+      "payload",
+      "confirmationId",
+      "statusText",
+      "label",
+    ] as const;
+    for (const key of seedKeys) {
+      const value = initData?.[key];
+      if (value !== undefined && value !== null) {
+        seed[key] = value;
+      }
+    }
+    return createMessageStore({
+      initialMessages: normalizePayloadToMessages(
+        buildInitialMessages(rawMessages, seed),
+      ),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 见上注释
-    [],
-  );
+  }, []);
 
   const handleAction = (payload: UserActionPayload) => {
     const action = payload.name;

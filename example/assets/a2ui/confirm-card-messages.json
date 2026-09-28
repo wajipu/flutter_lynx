@@ -9,20 +9,6 @@
   },
   {
     "version": "v0.9",
-    "updateDataModel": {
-      "surfaceId": "xiaoke-confirm-card",
-      "path": "/",
-      "value": {
-        "confirmationId": "cf_demo_20260928_001",
-        "product": "冰鲜柠檬茶（大杯）",
-        "stock": "3",
-        "threshold": "10",
-        "quantity": "25"
-      }
-    }
-  },
-  {
-    "version": "v0.9",
     "updateComponents": {
       "surfaceId": "xiaoke-confirm-card",
       "components": [
@@ -31,6 +17,7 @@
           "component": "Column",
           "children": [
             "card-title",
+            "card-status",
             "card-description",
             "row-product",
             "row-stock",
@@ -42,74 +29,110 @@
           "id": "card-title",
           "component": "Text",
           "variant": "h3",
-          "text": "确认补货 25 件？"
+          "text": {
+            "path": "/label/title"
+          }
+        },
+        {
+          "id": "card-status",
+          "component": "Text",
+          "variant": "caption",
+          "text": {
+            "path": "/statusText"
+          }
         },
         {
           "id": "card-description",
           "component": "Text",
           "variant": "body",
-          "text": "当前库存已低于安全阈值，请确认以下补货明细后提交。"
+          "text": {
+            "path": "/label/description"
+          }
         },
         {
           "id": "row-product",
           "component": "Row",
           "justify": "spaceBetween",
           "align": "center",
-          "children": ["label-product", "value-product"]
+          "children": [
+            "label-product",
+            "value-product"
+          ]
         },
         {
           "id": "label-product",
           "component": "Text",
           "variant": "caption",
-          "text": "商品"
+          "text": {
+            "path": "/label/product"
+          }
         },
         {
           "id": "value-product",
           "component": "Text",
-          "text": { "path": "/product" }
+          "text": {
+            "path": "/payload/product"
+          }
         },
         {
           "id": "row-stock",
           "component": "Row",
           "justify": "spaceBetween",
           "align": "center",
-          "children": ["label-stock", "value-stock"]
+          "children": [
+            "label-stock",
+            "value-stock"
+          ]
         },
         {
           "id": "label-stock",
           "component": "Text",
           "variant": "caption",
-          "text": "当前库存"
+          "text": {
+            "path": "/label/stock"
+          }
         },
         {
           "id": "value-stock",
           "component": "Text",
-          "text": { "path": "/stock" }
+          "text": {
+            "path": "/payload/stock"
+          }
         },
         {
           "id": "row-quantity",
           "component": "Row",
           "justify": "spaceBetween",
           "align": "center",
-          "children": ["label-quantity", "value-quantity"]
+          "children": [
+            "label-quantity",
+            "value-quantity"
+          ]
         },
         {
           "id": "label-quantity",
           "component": "Text",
           "variant": "caption",
-          "text": "补货数量"
+          "text": {
+            "path": "/label/quantity"
+          }
         },
         {
           "id": "value-quantity",
           "component": "Text",
-          "text": { "path": "/quantity" }
+          "text": {
+            "path": "/payload/quantity"
+          }
         },
         {
           "id": "row-actions",
           "component": "Row",
           "justify": "spaceBetween",
           "align": "center",
-          "children": ["btn-cancel", "btn-confirm"]
+          "children": [
+            "btn-cancel",
+            "btn-confirm"
+          ]
         },
         {
           "id": "btn-cancel",
@@ -120,8 +143,12 @@
             "event": {
               "name": "cancel",
               "context": {
-                "confirmationId": { "path": "/confirmationId" },
-                "quantity": { "path": "/quantity" }
+                "confirmationId": {
+                  "path": "/confirmationId"
+                },
+                "quantity": {
+                  "path": "/payload/quantity"
+                }
               }
             }
           }
@@ -129,7 +156,9 @@
         {
           "id": "btn-cancel-label",
           "component": "Text",
-          "text": "再想想"
+          "text": {
+            "path": "/label/cancel"
+          }
         },
         {
           "id": "btn-confirm",
@@ -140,8 +169,12 @@
             "event": {
               "name": "confirm",
               "context": {
-                "confirmationId": { "path": "/confirmationId" },
-                "quantity": { "path": "/quantity" }
+                "confirmationId": {
+                  "path": "/confirmationId"
+                },
+                "quantity": {
+                  "path": "/payload/quantity"
+                }
               }
             }
           }
@@ -149,7 +182,9 @@
         {
           "id": "btn-confirm-label",
           "component": "Text",
-          "text": "确认补货"
+          "text": {
+            "path": "/label/confirm"
+          }
         }
       ]
     }
