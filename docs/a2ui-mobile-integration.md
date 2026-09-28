@@ -148,6 +148,30 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
 业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）。展示卡消息可包 a2ui 围栏（```a2ui，注意不是 ```lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
 
+## 9. 已知坑与排查分流
+
+### 9.1 生产压缩剥离组件函数名 → Lynx 1101 白屏（已修，2026-09-28）
+
+**根因链**：生产构建压缩剥离组件函数名 → genui `defineCatalog` 按
+`displayName ?? 函数名` 派生组件名失败 → catalog 注册抛
+`Lynx 1101 "Cannot add a component to the catalog: no displayName or function name"`
+→ **渲染树静默死亡，而 `onLoadSuccess` 照常回调**。
+
+最迷惑点：失败发生在**渲染期**而不是装载期——bundle 装载成功会让人往
+数据注入/消息格式方向排查，实际是 catalog 注册问题。kmanager 已在真机/
+模拟器用真实 PRODUCT_CREATE 模板复现并验证修复。
+
+**修法**：白名单组件显式钉 displayName（`src/a2ui-card.tsx` 的
+`catalogComponents` 表已落地，即官方错误信息指名的修法）；自定义组件同理，
+必须设 `displayName` 或用 `[组件, manifest]` 元组注册。
+
+### 9.2 渲染期失败 vs 装载期失败的排查分流
+
+| 现象 | 定位 | 排查方向 |
+| --- | --- | --- |
+| `onLoadFail` 回调 | **装载期**失败 | bundle 字节/大小、initData 编解码、引擎装载参数 |
+| 白屏但 `onLoadSuccess` 照常 | **渲染期**失败 | catalog 注册（见 9.1）、消息 Schema 违约、白名单外组件、CSS/字体缺失 |
+
 ## 8. 桌面策略（延后说明）
 
 桌面 A2UI 子集渲染器延后出本任务范围（kmanager 桌面 runtime 为纯 Flutter shim，任何格式均需自写渲染器），
