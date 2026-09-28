@@ -104,6 +104,25 @@ function catalogEntry(component: unknown): CatalogComponent {
   return component as CatalogComponent;
 }
 
+// 生产构建会压缩函数名，defineCatalog 靠 displayName ?? 函数名派生组件名，
+// 压缩后函数名丢失会让 catalog 注册直接抛错、整卡白屏（真机复现：
+// Lynx 1101 "Cannot add a component to the catalog: no displayName or
+// function name"）。这里显式钉住每个组件的 displayName（官方错误信息指名此修法）。
+const catalogComponents: Record<string, unknown> = {
+  Text,
+  Row,
+  Column,
+  Card,
+  Divider,
+  Button,
+  Image,
+  List,
+  Loading,
+};
+for (const [name, component] of Object.entries(catalogComponents)) {
+  (component as { displayName?: string }).displayName = name;
+}
+
 const catalog: readonly CatalogInput[] = [
   // basicFunctions 是 A2UI v0.9 基础目录的函数实现，官方类型为
   // CatalogFunctionEntry[]（可直接展开进 catalogs）；不展开的话消息里的
