@@ -170,7 +170,9 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
-业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）。展示卡消息可包 a2ui 围栏（`a2ui，注意不是 `lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
+业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）；
+**禁用一切 SVG 表达**（宿主引擎不支持 SVG：模板不产出 svg 内容/属性，图表用 LineChart/PieChart 承载，PieChart 呈现为占比条）；
+Tabs 页签标题为字面量（`tabs[].title` 不做 path 绑定）；图表数据走 `labels`/`series`/`data` 顶层 prop 的 path 绑定。展示卡消息可包 a2ui 围栏（`a2ui，注意不是 `lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
 
 ## 9. 已知坑与排查分流
 
