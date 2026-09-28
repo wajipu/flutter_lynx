@@ -1,0 +1,89 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "xiaoke-display-card",
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "xiaoke-display-card",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": ["head-row", "revenue-row", "divider-1", "tabs"]
+        },
+        {
+          "id": "head-row",
+          "component": "Row",
+          "align": "center",
+          "children": ["head-icon", "head-title"]
+        },
+        {
+          "id": "head-icon",
+          "component": "Icon",
+          "name": "star",
+          "size": "md",
+          "color": "primary"
+        },
+        {
+          "id": "head-title",
+          "component": "Text",
+          "variant": "h3",
+          "text": { "path": "/label/title" }
+        },
+        {
+          "id": "revenue-row",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": ["revenue-label", "revenue-value"]
+        },
+        {
+          "id": "revenue-label",
+          "component": "Text",
+          "variant": "caption",
+          "text": { "path": "/label/revenueLabel" }
+        },
+        {
+          "id": "revenue-value",
+          "component": "Text",
+          "variant": "h3",
+          "text": { "path": "/payload/todayRevenue" }
+        },
+        {
+          "id": "divider-1",
+          "component": "Divider"
+        },
+        {
+          "id": "tabs",
+          "component": "Tabs",
+          "tabs": [
+            { "title": "销量趋势", "child": "tab-line" },
+            { "title": "品类占比", "child": "tab-pie" }
+          ]
+        },
+        {
+          "id": "tab-line",
+          "component": "LineChart",
+          "labels": { "path": "/payload/days" },
+          "series": { "path": "/payload/salesSeries" },
+          "yLabel": "本周销量（杯）",
+          "xLabel": "按日",
+          "height": 200
+        },
+        {
+          "id": "tab-pie",
+          "component": "PieChart",
+          "data": { "path": "/payload/categoryShare" },
+          "variant": "donut",
+          "title": "品类销售占比",
+          "height": 220
+        }
+      ]
+    }
+  }
+]

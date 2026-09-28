@@ -22,6 +22,8 @@ final StreamController<List<String>> _logStreamController =
 
 void _addLog(String msg) {
   final timestamp = DateTime.now().toIso8601String().substring(11, 19);
+  // ignore: avoid_print
+  print("[demo] $msg");
   _bridgeLogs.insert(0, "[$timestamp] $msg");
   if (_bridgeLogs.length > 50) _bridgeLogs.removeLast();
   _logStreamController.add(List.from(_bridgeLogs));
@@ -185,13 +187,19 @@ class _DemoHomePageState extends State<DemoHomePage>
       "assets/a2ui/confirm-card-messages.json";
   Uint8List? _a2uiBundleBytes;
   List<dynamic>? _a2uiMessages;
+  bool _a2uiDisplayMode = false;
 
-  /// 装载 A2UI 确认卡：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
-  Future<void> _loadA2uiConfirmCard() async {
+  /// 装载 A2UI 卡片：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
+  /// [display] 为 true 时装载「展示卡」消息（Tabs/图表演示）并注入展示卡的
+  /// label/payload 命名空间，实证同一 bundle 不同 JSON 出不同卡。
+  Future<void> _loadA2uiConfirmCard({bool display = false}) async {
     // 重新装载时作废在途的「已提交」占位切换，并复位回执状态。
     a2uiSubmitToken++;
     a2uiSubmittedNotifier.value = false;
-    final messagesText = await rootBundle.loadString(_a2uiMessagesAsset);
+    final messagesAsset = display
+        ? "assets/a2ui/display-card-messages.json"
+        : _a2uiMessagesAsset;
+    final messagesText = await rootBundle.loadString(messagesAsset);
     final messages = jsonDecode(messagesText) as List<dynamic>;
     final bytes = await rootBundle.load(_a2uiBundleAsset);
     final bundleBytes = bytes.buffer
@@ -201,6 +209,7 @@ class _DemoHomePageState extends State<DemoHomePage>
     setState(() {
       _a2uiMessages = messages;
       _a2uiBundleBytes = bundleBytes;
+      _a2uiDisplayMode = display;
     });
   }
 
@@ -273,9 +282,12 @@ class _DemoHomePageState extends State<DemoHomePage>
   ];
 
   /// 自动化演示钩子：`--dart-define=A2UI_AUTOLOAD=true` 时跳过演示小程序自启，
-  /// 直接切到「A2UI 确认卡」页签并装载，供无交互自动化验证使用；默认关闭，
-  /// 不改变任何既有行为。
+  /// 直接切到「A2UI 确认卡」页签并装载（`A2UI_AUTOLOAD_MODE=display` 时装载
+  /// 展示卡），供无交互自动化验证使用；默认关闭，不改变任何既有行为。
   static const bool _a2uiAutoload = bool.fromEnvironment("A2UI_AUTOLOAD");
+  static const String _a2uiAutoloadMode = String.fromEnvironment(
+    "A2UI_AUTOLOAD_MODE",
+  );
 
   @override
   void initState() {
@@ -286,7 +298,9 @@ class _DemoHomePageState extends State<DemoHomePage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _tabController.animateTo(2);
-        _loadA2uiConfirmCard();
+        _loadA2uiConfirmCard(
+          display: _a2uiAutoloadMode == "display",
+        );
       });
       return;
     }
@@ -730,17 +744,42 @@ class _DemoHomePageState extends State<DemoHomePage>
           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
         const SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: _loadA2uiConfirmCard,
-          icon: const Icon(Icons.fact_check, size: 18),
-          label: Text(
-            _a2uiBundleBytes == null ? "装载 A2UI 确认卡" : "重新装载 A2UI 确认卡",
-            style: const TextStyle(fontSize: 12),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1677FF),
-            foregroundColor: Colors.white,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _loadA2uiConfirmCard(),
+                icon: const Icon(Icons.fact_check, size: 18),
+                label: Text(
+                  _a2uiBundleBytes == null
+                      ? "装载 A2UI 确认卡"
+                      : "重新装载确认卡",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1677FF),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _loadA2uiConfirmCard(display: true),
+                icon: const Icon(Icons.insert_chart, size: 18),
+                label: Text(
+                  _a2uiDisplayMode
+                      ? "重新装载展示卡"
+                      : "装载展示卡（Tabs/图表）",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF126652),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
@@ -800,25 +839,46 @@ class _DemoHomePageState extends State<DemoHomePage>
         allowedModules: const {"system", "ui"},
         initialData: LynxTemplateData({
           "token": "bearer_jwt_token_demo_2026",
-          "confirmationId": "cf_demo_20260928_001",
-          "title": "A2UI 确认卡",
-          // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
-          // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
-          "statusText": "待确认",
-          "label": {
-            "title": "确认补货？",
-            "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
-            "product": "商品",
-            "stock": "当前库存",
-            "quantity": "补货数量",
-            "confirm": "确认补货",
-            "cancel": "再想想",
-          },
-          "payload": {
-            "product": "冰鲜柠檬茶（大杯）",
-            "stock": "3",
-            "threshold": "10",
-            "quantity": "25",
+          if (!_a2uiDisplayMode) ...{
+            "confirmationId": "cf_demo_20260928_001",
+            "title": "A2UI 确认卡",
+            // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
+            // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
+            "statusText": "待确认",
+            "label": {
+              "title": "确认补货？",
+              "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
+              "product": "商品",
+              "stock": "当前库存",
+              "quantity": "补货数量",
+              "confirm": "确认补货",
+              "cancel": "再想想",
+            },
+            "payload": {
+              "product": "冰鲜柠檬茶（大杯）",
+              "stock": "3",
+              "threshold": "10",
+              "quantity": "25",
+            },
+          } else ...{
+            // 展示卡命名空间：同一 bundle、不同 JSON 与数据，演示布局词汇表。
+            "label": {
+              "title": "今日经营概览",
+              "revenueLabel": "今日营业额",
+            },
+            "payload": {
+              "todayRevenue": "¥8,432",
+              "days": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+              "salesSeries": [
+                {"name": "饮品", "values": [120, 132, 101, 134, 90, 158, 176]},
+                {"name": "轻食", "values": [80, 92, 71, 95, 66, 110, 128]},
+              ],
+              "categoryShare": [
+                {"name": "饮品", "value": 866},
+                {"name": "轻食", "value": 642},
+                {"name": "烘焙", "value": 358},
+              ],
+            },
           },
           "messages": messages,
         }),

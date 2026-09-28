@@ -1,9 +1,15 @@
 import {
   createContext,
   useContext,
+  useState,
   useSyncExternalStore,
 } from "@lynx-js/react";
-import { NodeRenderer, useChecks, useDataBinding } from "@lynx-js/genui/a2ui";
+import {
+  NodeRenderer,
+  useChecks,
+  useDataBinding,
+  useResolvedProps,
+} from "@lynx-js/genui/a2ui";
 import type {
   ComponentInstance,
   GenericComponentProps,
@@ -11,7 +17,10 @@ import type {
   ResourceInfo,
   Surface,
 } from "@lynx-js/genui/a2ui";
-import { LUCIDE_ICON_PATHS, svgToDataUri } from "./a2ui-card-icons";
+import {
+  ICON_CODEPOINTS,
+  ICON_FONT_FAMILY,
+} from "./a2ui-card-icon-font";
 
 /**
  * A2UI 目录组件的实现层美化（呈现层）。
@@ -190,6 +199,10 @@ interface StyledIconProps extends GenericComponentProps {
   name: string;
   size?: "sm" | "md" | "lg";
   color?: "primary" | "muted" | "inherit";
+}
+
+interface StyledTabsProps extends GenericComponentProps {
+  tabs?: Array<{ title: string; child: string }>;
 }
 
 // 官方 CSS 用 .button .text-* 后代选择器把按钮内文字反色；内联样式优先级
@@ -808,33 +821,752 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
-  // 官方 Icon 靠 Material Icons 字体连字渲染，真机无字体源会输出乱码文本
-  // （docs §4 排除的原因）。这里改为内置 Lucide 矢量数据（宿主图标语言即
-  // Forui/Lucide）：name 映射 LUCIDE_ICON_PATHS，stroke 颜色按主题注入后
-  // 整图转 data URI 交给 <image>。未映射的名字静默渲染空，不出乱码兜底。
+  // 官方 Icon 靠 Material Icons 字体连字渲染，真机无字体源会输出乱码文本；
+  // 本引擎 image 不支持 SVG data URI、<svg> 元素也不渲染（实测，见探针记录），
+  // 因此改为 Lucide 图标字体子集（5.5KB woff2，@font-face base64 加载）：
+  // name 映射码点，以 <text> 字形渲染——颜色随主题文本色，天然支持明暗主题。
+  // 未映射的名字静默渲染空。
   function Icon(props: StyledIconProps) {
     const { id, name, size = "md", color = "inherit" } = props;
-    const paths =
-      typeof name === "string" ? LUCIDE_ICON_PATHS[name] : undefined;
-    if (!paths) return null;
+    const glyph =
+      typeof name === "string" ? ICON_CODEPOINTS[name] : undefined;
+    if (!glyph) return null;
     // 尺寸对齐 AppIconSize：sm 16 / md 20 / lg 24。
     const px = size === "sm" ? "16px" : size === "lg" ? "24px" : "20px";
-    const stroke =
+    const colorValue =
       color === "primary"
         ? theme.primary
         : color === "muted"
           ? theme.onSurfaceMuted
           : theme.onSurface;
-    const svg =
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ` +
-      `fill="none" stroke="${stroke}" stroke-width="2" ` +
-      `stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
     return (
-      <image
+      <text
         key={id}
-        style={{ width: px, height: px, flexShrink: 0 }}
-        src={svgToDataUri(svg)}
+        style={{
+          fontFamily: ICON_FONT_FAMILY,
+          fontSize: px,
+          lineHeight: px,
+          color: colorValue,
+          flexShrink: 0,
+        }}
+      >
+        {glyph}
+      </text>
+    );
+  }
+
+  // --- Tabs / LineChart / PieChart：官方实现逐字移植，呈现层 Koklam 化。 ---
+
+  function Tabs(props: StyledTabsProps) {
+    const { surface, tabs } = props;
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const list = Array.isArray(tabs) ? tabs : [];
+    const activeIndex =
+      list.length > 0 ? Math.min(selectedIndex, list.length - 1) : 0;
+    const activeTab = list[activeIndex];
+    if (list.length === 0) {
+      return <view style={{ width: "100%" }} />;
+    }
+    const activeChild = activeTab?.child
+      ? surface.components.get(activeTab.child)
+      : undefined;
+    return (
+      <view
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: "12px",
+            marginBottom: "12px",
+            width: "100%",
+          }}
+        >
+          {list.map((tab, index) => {
+            const active = index === activeIndex;
+            return (
+              <view
+                key={`${index}-${tab.child}`}
+                style={{
+                  paddingLeft: "2px",
+                  paddingRight: "2px",
+                  paddingTop: "8px",
+                  paddingBottom: "10px",
+                  borderBottom: active
+                    ? `2px solid ${theme.primary}`
+                    : `2px solid transparent`,
+                }}
+                bindtap={() => setSelectedIndex(index)}
+              >
+                <text
+                  style={{
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    fontWeight: "600",
+                    flexShrink: 0,
+                    color: active ? theme.primary : theme.onSurfaceMuted,
+                  }}
+                >
+                  {tab.title}
+                </text>
+              </view>
+            );
+          })}
+        </view>
+        {activeChild && (
+          <NodeRenderer component={activeChild} surface={surface} />
+        )}
+      </view>
+    );
+  }
+
+  const DEFAULT_CHART_COLORS = [
+    "#126652",
+    "#0a8f8f",
+    "#8a5cf6",
+    "#d92d20",
+    "#2d6a4f",
+    "#b26a00",
+  ];
+  function escapeXml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+  function formatValue(value: number): string {
+    if (!Number.isFinite(value)) return "0";
+    const rounded =
+      Math.abs(value) >= 1000 ? Math.round(value) : Number(value.toFixed(1));
+    return String(rounded);
+  }
+
+  const LINE_SVG_WIDTH = 360;
+  const LINE_DEFAULT_HEIGHT = 240;
+  const LINE_MARGIN = { top: 16, right: 16, bottom: 24, left: 16 };
+
+  function normalizeSeries(
+    series: unknown[],
+    palette: string[],
+  ): Array<{ name: string; values: number[]; color: string }> {
+    return series.map((item, index) => {
+      const record = (item ?? {}) as Record<string, unknown>;
+      return {
+        name: String(record["name"] ?? ""),
+        values: Array.isArray(record["values"])
+          ? (record["values"] as number[])
+          : [],
+        color:
+          typeof record["color"] === "string"
+            ? record["color"]
+            : (palette[index % palette.length] ?? "#126652"),
+      };
+    });
+  }
+
+  function buildLinearPath(points: Array<{ x: number; y: number }>): string {
+    if (points.length === 0) return "";
+    const first = points[0]!;
+    const rest = points.slice(1);
+    let path = `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`;
+    for (const point of rest) {
+      path += ` L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }
+    return path;
+  }
+
+  function buildStepPath(points: Array<{ x: number; y: number }>): string {
+    if (points.length === 0) return "";
+    const first = points[0]!;
+    const rest = points.slice(1);
+    let path = `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`;
+    let prev = first;
+    for (const point of rest) {
+      path += ` L ${point.x.toFixed(1)} ${prev.y.toFixed(1)}`;
+      path += ` L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+      prev = point;
+    }
+    return path;
+  }
+
+  function buildNaturalPath(points: Array<{ x: number; y: number }>): string {
+    if (points.length === 0) return "";
+    if (points.length === 1) {
+      const point = points[0]!;
+      return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }
+    let path = `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const p0 = points[index - 1] ?? points[index]!;
+      const p1 = points[index]!;
+      const p2 = points[index + 1]!;
+      const p3 = points[index + 2] ?? p2;
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return path;
+  }
+
+  function buildPath(
+    points: Array<{ x: number; y: number }>,
+    variant: string,
+  ): string {
+    switch (variant) {
+      case "step":
+        return buildStepPath(points);
+      case "natural":
+        return buildNaturalPath(points);
+      default:
+        return buildLinearPath(points);
+    }
+  }
+
+  function sampleIndices(count: number, maxLabels: number): number[] {
+    if (count <= 0) return [];
+    if (count <= maxLabels) {
+      return Array.from({ length: count }, (_, index) => index);
+    }
+    const step = Math.ceil(count / maxLabels);
+    const indices: number[] = [];
+    for (let index = 0; index < count; index += step) {
+      indices.push(index);
+    }
+    const last = count - 1;
+    if (indices[indices.length - 1] !== last) {
+      indices.push(last);
+    }
+    return Array.from(new Set(indices));
+  }
+
+  function minMax(values: number[]): { min: number; max: number } {
+    if (values.length === 0) return { min: 0, max: 1 };
+    let min = values[0]!;
+    let max = values[0]!;
+    for (const value of values) {
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    if (min === max) {
+      min -= 1;
+      max += 1;
+    }
+    return { min, max };
+  }
+
+  function LineChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      : [];
+    const variant =
+      typeof resolvedProps["variant"] === "string"
+        ? resolvedProps["variant"]
+        : "natural";
+    const showGrid = resolvedProps["showGrid"] !== false;
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height =
+      typeof heightValue === "number" ? heightValue : LINE_DEFAULT_HEIGHT;
+    // view 画布几何：与官方 SVG 版同一套数学，画布固定 300px 设计宽
+    // （卡内内容宽约 334px，居中绘制）。本引擎不支持 SVG（image data URI 与
+    // <svg> 元素实测均空白），线段用「中心点定位 + 旋转」的绝对定位 view 绘制。
+    const canvasW = 300;
+    const canvasMargin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const plotW = canvasW - canvasMargin.left - canvasMargin.right;
+    const plotH = height - canvasMargin.top - canvasMargin.bottom;
+    const maxPoints = labels.length;
+    const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
+    const { min: plotMin, max: plotMax } = minMax(allValues);
+    const plotRange = plotMax - plotMin;
+    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
+    const seriesPoints = series.map((item) =>
+      item.values.slice(0, maxPoints).map((value, index) => ({
+        x: canvasMargin.left + xStep * index,
+        y:
+          canvasMargin.top +
+          plotH -
+          (plotRange === 0
+            ? 0.5
+            : (value - plotMin) / plotRange) * plotH,
+        color: item.color,
+      })),
+    );
+    const gridLines = 4;
+    const chartGrid = showGrid
+      ? Array.from({ length: gridLines + 1 }, (_, index) => {
+          const ratio = index / gridLines;
+          return (
+            <view
+              key={`grid-${index}`}
+              style={{
+                position: "absolute",
+                left: `${canvasMargin.left}px`,
+                top: `${canvasMargin.top + plotH - ratio * plotH}px`,
+                width: `${plotW}px`,
+                height: "1px",
+                backgroundColor: theme.border,
+              }}
+            />
+          );
+        })
+      : null;
+    const chartBaseline = (
+      <view
+        style={{
+          position: "absolute",
+          left: `${canvasMargin.left}px`,
+          top: `${canvasMargin.top + plotH}px`,
+          width: `${plotW}px`,
+          height: "1.5px",
+          backgroundColor: theme.onSurfaceMuted,
+        }}
       />
+    );
+    const chartSegments = seriesPoints.map((points, seriesIndex) =>
+      points.slice(0, -1).map((point, index) => {
+        const next = points[index + 1]!;
+        const dx = next.x - point.x;
+        const dy = next.y - point.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+        return (
+          <view
+            key={`seg-${seriesIndex}-${index}`}
+            style={{
+              position: "absolute",
+              left: `${(point.x + next.x) / 2 - len / 2}px`,
+              top: `${(point.y + next.y) / 2 - 1.25}px`,
+              width: `${len}px`,
+              height: "2.5px",
+              borderRadius: "2px",
+              backgroundColor: point.color,
+              transform: `rotate(${angleDeg}deg)`,
+            }}
+          />
+        );
+      }),
+    );
+    const chartDots = seriesPoints.map((points, seriesIndex) =>
+      points.map((point, index) => (
+        <view
+          key={`dot-${seriesIndex}-${index}`}
+          style={{
+            position: "absolute",
+            left: `${point.x - 3.5}px`,
+            top: `${point.y - 3.5}px`,
+            width: "7px",
+            height: "7px",
+            borderRadius: "3.5px",
+            backgroundColor: point.color,
+            border: `1.5px solid ${theme.surface}`,
+          }}
+        />
+      )),
+    );
+    const visibleLabelIndices = sampleIndices(labels.length, 8);
+    const { min, max } = minMax(
+      series.flatMap((item) => item.values.slice(0, labels.length)),
+    );
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              flexShrink: 0,
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+          {typeof resolvedProps["xLabel"] === "string" &&
+          resolvedProps["xLabel"].length > 0 ? (
+            <text
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                flexShrink: 0,
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {resolvedProps["xLabel"]}
+            </text>
+          ) : null}
+        </view>
+
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <text
+            style={{
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {formatValue(min)}
+          </text>
+          <text
+            style={{
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {formatValue(max)}
+          </text>
+        </view>
+
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+            alignSelf: "center",
+          }}
+        >
+          {chartGrid}
+          {chartBaseline}
+          {chartSegments}
+          {chartDots}
+        </view>
+
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          {visibleLabelIndices.map((index) => (
+            <text
+              key={`${index}-${labels[index] ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {labels[index] ?? ""}
+            </text>
+          ))}
+        </view>
+
+        {showLegend ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "8px 14px",
+              width: "100%",
+            }}
+          >
+            {series.map((item, index) => (
+              <view
+                key={item.name}
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "2px",
+                    backgroundColor: item.color,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {item.name}
+                </text>
+              </view>
+            ))}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
+  const PIE_SVG_WIDTH = 360;
+  const PIE_SVG_HEIGHT = 220;
+  const PIE_CENTER_X = PIE_SVG_WIDTH / 2;
+  const PIE_CENTER_Y = PIE_SVG_HEIGHT / 2;
+  const PIE_OUTER_RADIUS = 84;
+  const PIE_DONUT_INNER_RADIUS = 52;
+
+  function formatPercent(value: number): string {
+    if (!Number.isFinite(value)) return "0%";
+    return `${Number(value.toFixed(1))}%`;
+  }
+
+  function PieChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const dataValue = resolvedProps["data"];
+    const slices = Array.isArray(dataValue)
+      ? (dataValue as Array<Record<string, unknown>>)
+      : [];
+    const variant =
+      typeof resolvedProps["variant"] === "string"
+        ? resolvedProps["variant"]
+        : "pie";
+    const title =
+      typeof resolvedProps["title"] === "string" && resolvedProps["title"]
+        ? resolvedProps["title"]
+        : "";
+    const total = slices.reduce(
+      (sum, slice) => sum + Math.max(0, Number(slice["value"]) || 0),
+      0,
+    );
+    const subtitle =
+      typeof resolvedProps["subtitle"] === "string" && resolvedProps["subtitle"]
+        ? resolvedProps["subtitle"]
+        : slices.length > 0
+          ? `${slices.length} 项 • ${formatValue(total)} 合计`
+          : "暂无数据";
+    const showPercentages = resolvedProps["showPercentages"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height =
+      typeof heightValue === "number" ? heightValue : PIE_SVG_HEIGHT;
+    const paddingAngleValue = resolvedProps["paddingAngle"];
+    const paddingAngle =
+      typeof paddingAngleValue === "number" ? paddingAngleValue : 2;
+    const palette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          minWidth: 0,
+        }}
+      >
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <view
+            style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+          >
+            <text
+              style={{
+                fontSize: "16px",
+                lineHeight: "22px",
+                fontWeight: "600",
+                color: theme.onSurface,
+              }}
+            >
+              {title}
+            </text>
+            <text
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {subtitle}
+            </text>
+          </view>
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+            }}
+          >
+            <text
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              合计
+            </text>
+            <text
+              style={{
+                fontSize: "17px",
+                lineHeight: "22px",
+                fontWeight: "700",
+                color: theme.onSurface,
+              }}
+            >
+              {formatValue(total)}
+            </text>
+          </view>
+        </view>
+
+        {/* 弧形饼图需要矢量能力，本引擎不支持 SVG；用占比条呈现同一数据
+            （名称/数值/百分比/相对大小），宿主升级引擎后可切回图形版本。 */}
+        <view
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          {slices.map((slice, index) => {
+            const value = Math.max(0, Number(slice["value"]) || 0);
+            const percent = total > 0 ? (value / total) * 100 : 0;
+            const barColor =
+              typeof slice["color"] === "string"
+                ? slice["color"]
+                : palette[index % palette.length] ??
+                  DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length] ??
+                  DEFAULT_CHART_COLORS[0]!;
+            return (
+              <view
+                key={`bar-${String(slice["name"] ?? "")}-${index}`}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <view
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <view
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "2px",
+                        backgroundColor: barColor,
+                      }}
+                    />
+                    <text
+                      style={{
+                        fontSize: "13px",
+                        lineHeight: "18px",
+                        color: theme.onSurface,
+                      }}
+                    >
+                      {String(slice["name"] ?? "")}
+                    </text>
+                  </view>
+                  <text
+                    style={{
+                      fontSize: "13px",
+                      lineHeight: "18px",
+                      color: theme.onSurfaceMuted,
+                    }}
+                  >
+                    {showPercentages
+                      ? `${formatValue(value)}（${formatPercent(percent)}）`
+                      : formatValue(value)}
+                  </text>
+                </view>
+                <view
+                  style={{
+                    width: "100%",
+                    height: "8px",
+                    borderRadius: "4px",
+                    backgroundColor: theme.surfaceMuted,
+                  }}
+                >
+                  <view
+                    style={{
+                      width: `${Math.min(100, percent)}%`,
+                      height: "8px",
+                      borderRadius: "4px",
+                      backgroundColor: barColor,
+                    }}
+                  />
+                </view>
+              </view>
+            );
+          })}
+        </view>
+
+      </view>
     );
   }
 
@@ -889,5 +1621,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     Image,
     List,
     Loading,
+    Tabs,
+    LineChart,
+    PieChart,
   };
 }

@@ -77,10 +77,18 @@ LynxBridge.invoke(
 ## 4. Catalog = 组件白名单（沙箱边界）
 
 Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲染器 fail-soft（告警一次、渲染 null），不崩宿主。
-当前白名单（以 `src/a2ui-card.tsx` 实际注册为准）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ `Text / Row / Column / Card / Divider / Button / Icon / Image / List / Loading`（确认卡与展示卡所需子集）。
-十个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单语义边界不变**。视觉规范对齐宿主 Koklam 设计系统（kmanager `lib/theme/app_theme.dart`：Spring Green `#126652` 品牌主色、Paper `#FAFAFA`、Ink `#171D1F`、Apple HIG 字阶、卡片圆角 14、图标尺寸 16/20/24），并以 `A2UICardTheme` 键暴露；宿主明暗切换时经 `initData.theme` 注入 `darkA2UICardTheme` 同源色板即可。
-白名单扩充 = 数组加一个内置组件，消息面与渲染面同步收敛；禁止全量引入 22 个内置组件中的输入类组件
-（TextField/RadioGroup/ChoicePicker/Slider/DateTimeInput/Modal）除非业务评审通过；Icon 已解除排除——真机无 Material Icons 字体的问题改为内置 Lucide 矢量数据渲染（`src/a2ui-card-icons.ts`，数据源 lucide-static/ISC，29 个 basic catalog 图标名全量映射，未映射名静默渲染空），与宿主 Forui 图标语言一致。
+当前白名单（以 `src/a2ui-card.tsx` 实际注册为准）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ `Text / Row / Column / Card / Divider / Button / Icon / Image / List / Loading / Tabs / LineChart / PieChart`（确认卡与展示卡所需子集）。
+十三个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单语义边界不变**。视觉规范对齐宿主 Koklam 设计系统（kmanager `lib/theme/app_theme.dart`：Spring Green `#126652` 品牌主色、Paper `#FAFAFA`、Ink `#171D1F`、Apple HIG 字阶、卡片圆角 14、图标尺寸 16/20/24），并以 `A2UICardTheme` 键暴露；宿主明暗切换时经 `initData.theme` 注入 `darkA2UICardTheme` 同源色板即可。
+
+**引擎图形能力实测（2026-09-28，iOS 模拟器）**：本引擎 `image` 不支持 SVG data URI（base64/URL 编码均空白）、`<svg>` 元素不渲染，`@font-face` base64 可用。据此：
+
+- **Icon** 用 Lucide 图标字体子集渲染（`src/a2ui-card-icon-font.ts` + `a2ui-card-font.css`，fontTools.subset 裁剪到白名单 29 个码点仅 5.5KB；数据源 lucide-static/ISC），码点字形颜色随主题文本色；未映射名静默渲染空。
+- **LineChart** 用纯 view 绘制（网格/轴线为 1px view，折线为「中心点定位 + rotate」的线段 view，数据点为圆 view），画布固定 300px 设计宽。
+- **PieChart** 以横向占比条呈现同一数据（名称/数值/百分比/相对大小）；弧形图形需引擎矢量能力，升级后再切回。
+- Tabs 页签标题为字面量（官方 Tabs 直读 props.tabs，页签标题不做 path 绑定）；图表 labels/series/data 为顶层 prop 的 path 绑定（渲染器解析）。展示卡演示消息见 `example/assets/a2ui/display-card-messages.json`（守护测试 `test/a2ui_display_card_messages_test.dart`）。
+  白名单扩充 = 数组加一个内置组件，消息面与渲染面同步收敛；禁止全量引入 22 个内置组件中的输入类组件
+  （TextField/RadioGroup/ChoicePicker/Slider/DateTimeInput/Modal）除非业务评审通过；Icon 已解除排除
+  （实现见上方引擎图形能力实测——图标字体子集方案）。
 
 **弹窗/浮层属宿主能力，模板不承载弹窗结构**（用户 2026-09-28 拍板）：沙箱无 Modal 类组件；
 模板确需弹出呈现的场景（详情展开/二次提示），只输出 action 事件回传语义，由宿主决定用原生

@@ -16,6 +16,8 @@ import type {
 import "@lynx-js/genui/a2ui/styles/theme.css";
 // 提交离场动效（上滑淡出）：@keyframes 只能走样式表，见 a2ui-card-exit.css。
 import "./a2ui-card-exit.css";
+// Lucide 图标字体（子集）：Icon 组件以码点字形渲染，见 a2ui-card-font.css。
+import "./a2ui-card-font.css";
 import { LynxBridge } from "./bridge";
 import {
   createCatalogComponents,
@@ -108,9 +110,9 @@ function placeholderStyle(
  * 渲染宿主经 Dart 侧 initialData 注入的 A2UI v0.9 消息流。
  *
  * catalog 即组件白名单（沙箱边界）：展示类组件 Text/Row/Column/Card/
- * Divider/Button/Icon/Image/List/Loading，全部为本地美化实现；输入类组件
- * （TextField/RadioGroup/...）仍刻意排除（docs §4）。Icon 用内置 Lucide
- * 矢量数据渲染（原字体方案真机乱码，故排除；改矢量后解除）。
+ * Divider/Button/Icon/Image/List/Loading/Tabs/LineChart/PieChart，全部为
+ * 本地美化实现；输入类组件（TextField/RadioGroup/...）仍刻意排除（docs §4）。
+ * Icon 用内置 Lucide 矢量数据渲染（原字体方案真机乱码，故排除；改矢量后解除）。
  */
 export function A2UICard() {
   const initData = useInitData() as A2UICardInitData | undefined;
@@ -147,26 +149,32 @@ export function A2UICard() {
   }, []);
 
   // 美化版目录组件随主题一次性创建；displayName 显式钉住（docs §9.1）。
-  const catalog = useMemo(() => {
+  const { catalog, components: catalogComponents } = useMemo(() => {
     const components = createCatalogComponents(theme);
     for (const [name, component] of Object.entries(components)) {
       (component as { displayName?: string }).displayName = name;
     }
     // basicFunctions 是 A2UI v0.9 基础目录的函数实现（CatalogFunctionEntry[]，
     // 可直接展开）；不展开的话消息里的 functionCall 数据绑定会解析失败。
-    return [
-      ...basicFunctions,
-      catalogEntry(components.Text),
-      catalogEntry(components.Row),
-      catalogEntry(components.Column),
-      catalogEntry(components.Card),
-      catalogEntry(components.Divider),
-      catalogEntry(components.Button),
-      catalogEntry(components.Icon),
-      catalogEntry(components.Image),
-      catalogEntry(components.List),
-      catalogEntry(components.Loading),
-    ] as readonly CatalogInput[];
+    return {
+      catalog: [
+        ...basicFunctions,
+        catalogEntry(components.Text),
+        catalogEntry(components.Row),
+        catalogEntry(components.Column),
+        catalogEntry(components.Card),
+        catalogEntry(components.Divider),
+        catalogEntry(components.Button),
+        catalogEntry(components.Icon),
+        catalogEntry(components.Image),
+        catalogEntry(components.List),
+        catalogEntry(components.Loading),
+        catalogEntry(components.Tabs),
+        catalogEntry(components.LineChart),
+        catalogEntry(components.PieChart),
+      ] as readonly CatalogInput[],
+      components,
+    };
   }, [theme]);
 
   const handleAction = (payload: UserActionPayload) => {
