@@ -255,11 +255,24 @@ class _DemoHomePageState extends State<DemoHomePage>
     ),
   ];
 
+  /// 自动化演示钩子：`--dart-define=A2UI_AUTOLOAD=true` 时跳过演示小程序自启，
+  /// 直接切到「A2UI 确认卡」页签并装载，供无交互自动化验证使用；默认关闭，
+  /// 不改变任何既有行为。
+  static const bool _a2uiAutoload = bool.fromEnvironment("A2UI_AUTOLOAD");
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _addLog("Host system initialized. LynxBridge ready.");
+    if (_a2uiAutoload) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _tabController.animateTo(2);
+        _loadA2uiConfirmCard();
+      });
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_presetMiniPrograms.isNotEmpty && mounted) {
         _launchMiniProgram(_presetMiniPrograms.first);
