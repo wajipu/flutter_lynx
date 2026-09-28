@@ -39,7 +39,7 @@ ReactLynx 宿主 bundle 内的官方 `<A2UI>` 渲染器（`@lynx-js/genui@0.5.0`
 | `src/a2ui-card.tsx`           | `A2UICard` 组件：`useInitData()` 取 `messages` → `createMessageStore` 一次性灌入；`<A2UI messageStore catalogs onAction>` 渲染；`onAction` 只放行 `confirm`/`cancel` 两个事件名并映射 `LynxBridge.invoke("confirmResult", {...}, "ui")`；answered 一次性防连点（失败回退可点） |
 | `scripts/a2ui-card-entry.tsx` | 入口挂载                                                                                                                                                                                                                                                                       |
 | `lynx.a2ui-card.config.ts`    | 复用基座配置（engineVersion 4.1），独立 entry `a2ui-card`，输出目录环境变量 `MINIAPP_A2UI_CARD_OUTPUT_DIR`，`cleanDistPath: false` 不触碰用户 `dist/`                                                                                                                          |
-| 构建产物                      | `a2ui-card.lynx.bundle`（tasm 二进制）→ 复制为 `example/assets/miniapp/a2ui-card.lynx.bundle`，随 App 版本内置，经 `loadFromTemplateBytes` 直喂                                                                                                                                |
+| 构建产物                      | `dist-a2ui-card/a2ui-card.lynx.bundle`（tasm 二进制，按入口命名）→ 复制为 `example/assets/miniapp/a2ui-card.lynx.bundle`，随 App 版本内置，经 `loadFromTemplateBytes` 直喂                                                                                                     |
 
 **回传契约（`ui.confirmResult`）**：`onAction` 收到 `UserActionPayload{name, surfaceId, sourceComponentId, timestamp, context}` 后：
 
@@ -59,10 +59,17 @@ LynxBridge.invoke(
 宿主收到的 payload：`{action: "confirm"|"cancel", confirmationId?, token?, ...context}` ——
 与既有确认卡契约一致，宿主路由确认单 execute/cancel，Dart 插件侧零改动。
 
+**主题注入契约（initData.theme）**：目录组件已做实现层美化（`src/a2ui-card-catalog.tsx`，
+语义逐字复刻官方实现、仅呈现层换内联样式），颜色全部走 `A2UICardTheme` 默认亮色板；
+宿主可在 initData 增加可选 `theme` 命名空间覆写任意键（如 kmanager 明暗主题切换时注入
+`{"theme": {"background": "#111318", "surface": "#1b1d22", ...}}`）。键白名单收敛：非主题键、
+非字符串值一律忽略。`theme` 不播种进渲染器数据模型（模板不允许 path 绑定主题键）。
+
 ## 4. Catalog = 组件白名单（沙箱边界）
 
 Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲染器 fail-soft（告警一次、渲染 null），不崩宿主。
 当前白名单（以 `src/a2ui-card.tsx` 实际注册为准）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ `Text / Row / Column / Card / Divider / Button / Image / List / Loading`（确认卡与展示卡所需子集）。
+九个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单集合与语义边界不变**。
 白名单扩充 = 数组加一个内置组件，消息面与渲染面同步收敛；禁止全量引入 22 个内置组件中的输入类组件
 （TextField/RadioGroup/ChoicePicker/Slider/DateTimeInput/Modal）除非业务评审通过；Icon 因真机无 Material Icons 字体会渲染为乱码文本，同样排除。
 
@@ -146,7 +153,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
-业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）。展示卡消息可包 a2ui 围栏（```a2ui，注意不是 ```lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
+业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）。展示卡消息可包 a2ui 围栏（`a2ui，注意不是 `lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
 
 ## 9. 已知坑与排查分流
 
@@ -167,9 +174,9 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 
 ### 9.2 渲染期失败 vs 装载期失败的排查分流
 
-| 现象 | 定位 | 排查方向 |
-| --- | --- | --- |
-| `onLoadFail` 回调 | **装载期**失败 | bundle 字节/大小、initData 编解码、引擎装载参数 |
+| 现象                        | 定位           | 排查方向                                                             |
+| --------------------------- | -------------- | -------------------------------------------------------------------- |
+| `onLoadFail` 回调           | **装载期**失败 | bundle 字节/大小、initData 编解码、引擎装载参数                      |
 | 白屏但 `onLoadSuccess` 照常 | **渲染期**失败 | catalog 注册（见 9.1）、消息 Schema 违约、白名单外组件、CSS/字体缺失 |
 
 ## 8. 桌面策略（延后说明）
