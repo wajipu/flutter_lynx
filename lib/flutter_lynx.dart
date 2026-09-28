@@ -14,10 +14,6 @@ export "src/bridge/built_in/storage_bridge_handler.dart";
 export "src/bridge/built_in/router_bridge_handler.dart";
 export "src/bridge/built_in/data_bridge_handler.dart";
 
-// lynx-card/1 文本模板（备选格式：解析渲染实现保留，主线决策见 docs/lynx-card-format.md §10）
-export "src/card/lynx_card_document.dart";
-export "src/card/lynx_card_view.dart";
-
 // Host metrics / native capsule switch
 export "src/host/lynx_host_metrics.dart";
 export "src/host/lynx_host_capsule.dart";
