@@ -3229,6 +3229,327 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- Timeline / BadgeGroup / Accordion：B 组流程与状态类组件，宿主自有
+  // 扩展（官方 basic catalog 无），全部 view 绘制 + 主题注入。 ---
+
+  function Timeline(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const stepsValue = resolvedProps["steps"];
+    const steps = Array.isArray(stepsValue)
+      ? (stepsValue as Array<Record<string, unknown>>)
+      : [];
+    const title =
+      typeof resolvedProps["title"] === "string" && resolvedProps["title"]
+        ? resolvedProps["title"]
+        : "";
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {title ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {title}
+          </text>
+        ) : null}
+        {steps.map((step, index) => {
+          const last = index === steps.length - 1;
+          // status：done（实心点+实线）/ current（空心环+实线）/ pending（灰点+虚位）
+          const status =
+            typeof step["status"] === "string"
+              ? step["status"]
+              : last
+                ? "current"
+                : "done";
+          const dotColor =
+            status === "pending" ? theme.surfaceMuted : theme.primary;
+          return (
+            <view
+              key={`tl-${index}`}
+              className="a2ui-anim-rise"
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "row",
+                gap: "10px",
+                animationDelay: `${index * 70}ms`,
+              }}
+            >
+              <view
+                style={{
+                  width: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <view
+                  style={{
+                    width: status === "current" ? "12px" : "10px",
+                    height: status === "current" ? "12px" : "10px",
+                    marginTop: "3px",
+                    borderRadius: "50%",
+                    backgroundColor:
+                      status === "current"
+                        ? theme.surface
+                        : dotColor,
+                    border:
+                      status === "current"
+                        ? `3px solid ${theme.primary}`
+                        : `2px solid ${status === "pending" ? theme.border : theme.primary}`,
+                  }}
+                />
+                {!last ? (
+                  <view
+                    style={{
+                      width: "2px",
+                      flex: "1 1 0%",
+                      minHeight: "14px",
+                      backgroundColor:
+                        status === "pending" ? theme.border : theme.primary,
+                    }}
+                  />
+                ) : null}
+              </view>
+              <view
+                style={{
+                  flex: "1 1 0%",
+                  paddingBottom: "12px",
+                  minWidth: 0,
+                }}
+              >
+                <text
+                  style={{
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    fontWeight: "600",
+                    color:
+                      status === "pending"
+                        ? theme.onSurfaceMuted
+                        : theme.onSurface,
+                  }}
+                >
+                  {String(step["title"] ?? "")}
+                </text>
+                {typeof step["desc"] === "string" && step["desc"] ? (
+                  <text
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "17px",
+                      color: theme.onSurfaceMuted,
+                    }}
+                  >
+                    {step["desc"]}
+                  </text>
+                ) : null}
+                {typeof step["time"] === "string" && step["time"] ? (
+                  <text
+                    style={{
+                      fontSize: "11px",
+                      lineHeight: "16px",
+                      color: theme.onSurfaceMuted,
+                    }}
+                  >
+                    {step["time"]}
+                  </text>
+                ) : null}
+              </view>
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
+  function BadgeGroup(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const itemsValue = resolvedProps["items"];
+    const items = Array.isArray(itemsValue)
+      ? (itemsValue as Array<Record<string, unknown>>)
+      : [];
+    // 语义色调 → 主题映射；以 # 开头的原始色值也接受（宿主可信通道）
+    const toneStyle = (tone: string): { bg: string; text: string } => {
+      switch (tone) {
+        case "primary":
+          return { bg: theme.primary, text: theme.onPrimary };
+        case "success":
+          return { bg: "#166534", text: "#ffffff" };
+        case "warning":
+          return { bg: "#F2B66D", text: "#171D1F" };
+        case "danger":
+          return { bg: "#d92d20", text: "#ffffff" };
+        case "neutral":
+          return { bg: theme.surfaceMuted, text: theme.onSurfaceMuted };
+        default:
+          if (tone.startsWith("#")) return { bg: tone, text: theme.onPrimary };
+          return { bg: theme.surfaceMuted, text: theme.onSurfaceMuted };
+      }
+    };
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {items.map((item, index) => {
+          const tone =
+            typeof item["tone"] === "string" ? item["tone"] : "neutral";
+          const style = toneStyle(tone);
+          return (
+            <view
+              key={`badge-${index}-${String(item["text"] ?? "")}`}
+              className="a2ui-anim-pop"
+              style={{
+                paddingLeft: "10px",
+                paddingRight: "10px",
+                paddingTop: "5px",
+                paddingBottom: "5px",
+                borderRadius: "999px",
+                backgroundColor: style.bg,
+                animationDelay: `${index * 50}ms`,
+              }}
+            >
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  fontWeight: "500",
+                  color: style.text,
+                }}
+              >
+                {String(item["text"] ?? "")}
+              </text>
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
+  function Accordion(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const panelsValue = resolvedProps["panels"];
+    const panels = Array.isArray(panelsValue)
+      ? (panelsValue as Array<Record<string, unknown>>)
+      : [];
+    const defaultOpenRaw = resolvedProps["defaultOpen"];
+    const [openIndex, setOpenIndex] = useState<number | null>(
+      typeof defaultOpenRaw === "number" ? defaultOpenRaw : null,
+    );
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {panels.map((panel, index) => {
+          const open = openIndex === index;
+          return (
+            <view
+              key={`acc-${index}`}
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                borderBottom: `1px solid ${theme.divider}`,
+              }}
+            >
+              <view
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingTop: "10px",
+                  paddingBottom: "10px",
+                }}
+                bindtap={() =>
+                  setOpenIndex(open ? null : index)
+                }
+              >
+                <text
+                  style={{
+                    fontSize: "14px",
+                    lineHeight: "20px",
+                    fontWeight: "600",
+                    color: theme.onSurface,
+                  }}
+                >
+                  {String(panel["title"] ?? "")}
+                </text>
+                <text
+                  style={{
+                    fontSize: "12px",
+                    color: theme.onSurfaceMuted,
+                    transform: `rotate(${open ? 0 : -90}deg)`,
+                  }}
+                >
+                  {"▾"}
+                </text>
+              </view>
+              {open ? (
+                <view
+                  className="a2ui-anim-fade"
+                  style={{ paddingBottom: "10px" }}
+                >
+                  <text
+                    style={{
+                      fontSize: "13px",
+                      lineHeight: "20px",
+                      color: theme.onSurfaceMuted,
+                    }}
+                  >
+                    {String(panel["content"] ?? "")}
+                  </text>
+                </view>
+              ) : null}
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
   // 官方 Button 用内部导出的 A2UIRenderer 渲染子组件资源（该导出不对包外
   // 开放）。这里用公开 API 逐行为复刻：useSyncExternalStore 订阅资源快照，
   // pending 显示骨架（官方默认兜底）、error 显示文本、surfaceUpdate 交给
@@ -3291,5 +3612,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     RankList,
     ProgressRing,
     ComparisonRow,
+    Timeline,
+    BadgeGroup,
+    Accordion,
   };
 }

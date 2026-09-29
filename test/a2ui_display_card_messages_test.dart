@@ -55,6 +55,9 @@ void main() {
       "RankList",
       "ProgressRing",
       "ComparisonRow",
+      "Timeline",
+      "BadgeGroup",
+      "Accordion",
     };
     final components = (messages[1]["updateComponents"]
         as Map<dynamic, dynamic>)["components"] as List<dynamic>;

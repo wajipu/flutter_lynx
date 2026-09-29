@@ -915,6 +915,20 @@ class _DemoHomePageState extends State<DemoHomePage>
               "progressValue": 87,
               "curOrders": 638,
               "prevOrders": 519,
+              "timelineSteps": [
+                {"title": "订单已提交", "time": "10:21", "status": "done"},
+                {"title": "制作中", "desc": "预计 8 分钟", "status": "current"},
+                {"title": "待取餐", "status": "pending"},
+              ],
+              "storeBadges": [
+                {"text": "营业中", "tone": "primary"},
+                {"text": "排队 12 桌", "tone": "warning"},
+                {"text": "可外送", "tone": "neutral"},
+              ],
+              "faqPanels": [
+                {"title": "如何修改订单？", "content": "在订单详情页点击「修改」即可调整口味与数量。"},
+                {"title": "支持退款吗？", "content": "出餐前 5 分钟以上可免费取消。"},
+              ],
             },
           },
           "messages": messages,

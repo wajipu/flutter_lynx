@@ -182,6 +182,9 @@ export function A2UICard() {
         catalogEntry(components.RankList),
         catalogEntry(components.ProgressRing),
         catalogEntry(components.ComparisonRow),
+        catalogEntry(components.Timeline),
+        catalogEntry(components.BadgeGroup),
+        catalogEntry(components.Accordion),
       ] as readonly CatalogInput[],
       components,
     };

@@ -24,7 +24,11 @@
             "progress-ring",
             "bar-chart",
             "tabs",
-            "tabs-more"
+            "tabs-more",
+            "divider-4",
+            "order-timeline",
+            "store-badges",
+            "faq-accordion"
           ]
         },
         {
@@ -232,6 +236,33 @@
         {
           "id": "divider-2",
           "component": "Divider"
+        },
+        {
+          "id": "divider-4",
+          "component": "Divider"
+        },
+        {
+          "id": "order-timeline",
+          "component": "Timeline",
+          "title": "订单进度",
+          "steps": {
+            "path": "/payload/timelineSteps"
+          }
+        },
+        {
+          "id": "store-badges",
+          "component": "BadgeGroup",
+          "items": {
+            "path": "/payload/storeBadges"
+          }
+        },
+        {
+          "id": "faq-accordion",
+          "component": "Accordion",
+          "defaultOpen": 0,
+          "panels": {
+            "path": "/payload/faqPanels"
+          }
         }
       ]
     }
