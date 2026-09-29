@@ -187,6 +187,96 @@ void main() {
       expect(result.source, LynxBundleSource.builtin);
       expect(result.bytes, builtin);
     });
+
+    test("灰度 100%：设备吃 gray 版本（network + gray 通道标记）", () async {
+      final realMd5 = md5HexDigest(bundleBytes);
+      servedManifest = {
+        "stable": {"version": "5", "url": bundleUrl, "md5": realMd5},
+        "gray": {
+          "version": "6",
+          "url": bundleUrl,
+          "md5": realMd5,
+          "percent": 100,
+        },
+      };
+      final updater = LynxBundleUpdater();
+      final result = await updater.resolve(
+        manifestUrl: manifestUrl,
+        builtinBytes: Uint8List.fromList([9]),
+        cacheDirectory: cacheDirectory,
+        deviceId: "device-abc",
+      );
+      expect(result.source, LynxBundleSource.network);
+      expect(result.version, "6");
+      expect(result.channel, "gray");
+    });
+
+    test("灰度 0%：所有设备吃 stable 版本", () async {
+      final realMd5 = md5HexDigest(bundleBytes);
+      servedManifest = {
+        "stable": {"version": "5", "url": bundleUrl, "md5": realMd5},
+        "gray": {
+          "version": "6",
+          "url": bundleUrl,
+          "md5": realMd5,
+          "percent": 0,
+        },
+      };
+      final updater = LynxBundleUpdater();
+      final result = await updater.resolve(
+        manifestUrl: manifestUrl,
+        builtinBytes: Uint8List.fromList([9]),
+        cacheDirectory: cacheDirectory,
+        deviceId: "device-abc",
+      );
+      expect(result.version, "5");
+      expect(result.channel, "stable");
+    });
+
+    test("设备分桶：同一 deviceId 结果恒定，值域 0-99", () {
+      final a = LynxBundleUpdater.deviceBucket("device-abc");
+      expect(a, LynxBundleUpdater.deviceBucket("device-abc"));
+      expect(a, inInclusiveRange(0, 99));
+      expect(
+        LynxBundleUpdater.deviceBucket("device-xyz"),
+        inInclusiveRange(0, 99),
+      );
+    });
+
+    test("装载失败熔断：markLoadFailed 后本机回退内置，新版本号放行", () async {
+      final realMd5 = md5HexDigest(bundleBytes);
+      servedManifest = {
+        "stable": {"version": "5", "url": bundleUrl, "md5": realMd5},
+      };
+      final updater = LynxBundleUpdater();
+      final builtin = Uint8List.fromList([9]);
+      final first = await updater.resolve(
+        manifestUrl: manifestUrl,
+        builtinBytes: builtin,
+        cacheDirectory: cacheDirectory,
+      );
+      expect(first.source, LynxBundleSource.network);
+      // 装载失败熔断 v5
+      await updater.markLoadFailed(cacheDirectory: cacheDirectory, version: "5");
+      final after = await updater.resolve(
+        manifestUrl: manifestUrl,
+        builtinBytes: builtin,
+        cacheDirectory: cacheDirectory,
+      );
+      expect(after.source, LynxBundleSource.builtin);
+      expect(after.bytes, builtin);
+      // OSS 发布新版本 v6：熔断名单不阻塞新版本
+      servedManifest = {
+        "stable": {"version": "6", "url": bundleUrl, "md5": realMd5},
+      };
+      final recovered = await updater.resolve(
+        manifestUrl: manifestUrl,
+        builtinBytes: builtin,
+        cacheDirectory: cacheDirectory,
+      );
+      expect(recovered.source, LynxBundleSource.network);
+      expect(recovered.version, "6");
+    });
   });
 }
 

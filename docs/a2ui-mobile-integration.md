@@ -179,6 +179,55 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 **禁用一切 SVG 表达**（宿主引擎不支持 SVG：模板不产出 svg 内容/属性，图表用 LineChart/BarChart/PieChart/ScatterChart/RadarChart/FunnelChart 承载）；
 Tabs 页签标题为字面量（`tabs[].title` 不做 path 绑定）；图表数据走 `labels`/`series`/`data` 顶层 prop 的 path 绑定。展示卡消息可包 a2ui 围栏（`a2ui，注意不是 `lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
 
+## 8.5 渲染 bundle 的 OSS 动态下发（LynxBundleUpdater）
+
+渲染 bundle 支持不发版热修（渲染层 bug / 间距调整等）；新增组件属白名单扩张仍走 App 版本评审。
+
+**OSS 布局**（产物按版本归档永不覆盖，`manifest.json` 只是指针，回滚/提升秒级生效）：
+
+```text
+oss://<bucket>/<prefix>/a2ui/
+  ├─ manifest.json
+  └─ <version>/a2ui-card.lynx.bundle   # version = git短SHA-时间戳，如 8008c75-20260929T1530
+```
+
+**manifest v2**（兼容 v1 扁平 `{version,url,md5}`，视为仅 stable）：
+
+```json
+{
+  "stable": {"version": "8008c75-…", "url": "oss://…/a2ui-card.lynx.bundle", "md5": "…"},
+  "gray":   {"version": "8c32b02-…", "url": "…", "md5": "…", "percent": 10}
+}
+```
+
+**客户端**（flutter_lynx 已导出 `LynxBundleUpdater`）：
+
+```dart
+final r = await LynxBundleUpdater().resolve(
+  manifestUrl: "https://<cdn>/a2ui/manifest.json",
+  builtinBytes: 内置资产bytes,   // 兜底
+  cacheDirectory: 缓存目录,
+  deviceId: 设备ID,             // 灰度分桶用，可空
+);
+// r.bytes / r.source(network|cache|builtin) / r.channel(stable|gray) / r.version
+// LynxView onLoadFail 时（source 非 builtin）：updater.markLoadFailed(cacheDirectory:…, version: r.version!)
+// → 本机熔断该版本回退内置，OSS 发新版本号后自动放行
+```
+
+行为要点：manifest 请求带 `t` 参数防 CDN 缓存；本地缓存 version+md5 双一致免下载；下载 MD5 校验失败清缓存回退内置；灰度按 deviceId FNV-1a 稳定分桶（同设备结果恒定，桶号 < percent 吃 gray）。
+
+**一键发布**（`lynx_miniapp_template/`，前置：本机 ossutil + `A2UI_OSS_BUCKET` 环境变量）：
+
+```bash
+npm run a2ui:release                                        # 发布 stable
+A2UI_CHANNEL=gray A2UI_GRAY_PERCENT=10 npm run a2ui:release # 灰度 10%
+npm run a2ui:promote -- <version>                           # 灰度转正
+A2UI_MD5=<发布时的md5> npm run a2ui:rollback -- <version>    # 回滚
+npm run a2ui:status                                         # 查看远端 manifest
+```
+
+URL 链路小程序不走本机制（`LynxMiniProgramManager` 既有下载/缓存/回退不变；两者底层共用 `BundleDownloader`）。
+
 ## 9. 已知坑与排查分流
 
 ### 9.1 生产压缩剥离组件函数名 → Lynx 1101 白屏（已修，2026-09-28）
