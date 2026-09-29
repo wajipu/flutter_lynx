@@ -2288,6 +2288,10 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
+    // 图表级 colors 覆写（同 LineChart；不传用 Koklam 色板）
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
     const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
     const dataValue = resolvedProps["data"];
     const slices = Array.isArray(dataValue)
@@ -2481,7 +2485,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         const color =
           typeof slice["color"] === "string"
             ? slice["color"]
-            : palette[sliceIndex % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
+            : (palette[sliceIndex % palette.length] ??
+              DEFAULT_CHART_COLORS[0]!);
         const dimmed = selectedSlice !== null && selectedSlice !== sliceIndex;
         const segments: Array<JSX.Element> = [];
         for (let i = 0; i < segCount; i += 1) {
@@ -2555,7 +2560,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             justifyContent: "space-between",
           }}
         >
-          <view style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <view
+            style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+          >
             <text
               style={{
                 fontSize: "16px",
@@ -2643,7 +2650,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             const color =
               typeof slice["color"] === "string"
                 ? slice["color"]
-                : palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
+                : (palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!);
             const dimmed = selectedSlice !== null && selectedSlice !== index;
             return (
               <view
@@ -2698,6 +2705,526 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             );
           })}
         </view>
+      </view>
+    );
+  }
+
+  // --- KPI 组件四件套：StatCard / RankList / ProgressRing / ComparisonRow。
+  // 宿主自有扩展组件（官方 basic catalog 无），全部 view 绘制 + 主题注入。
+  // 数据 prop 支持 path 绑定（渲染器解析）；颜色三级回滚与其他图表一致。 ---
+
+  const asText = (v: unknown): string =>
+    typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
+
+  function StatCard(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const label = asText(resolvedProps["label"]);
+    const value = asText(resolvedProps["value"]);
+    const delta = asText(resolvedProps["delta"]);
+    const trend = resolvedProps["trend"] === "down" ? "down" : "up";
+    const caption = asText(resolvedProps["caption"]);
+    const trendColor = trend === "down" ? "#d92d20" : theme.primary;
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "4px",
+          minWidth: 0,
+        }}
+      >
+        {label ? (
+          <text
+            style={{
+              fontSize: "12px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {label}
+          </text>
+        ) : null}
+        <text
+          style={{
+            fontSize: "28px",
+            lineHeight: "36px",
+            fontWeight: "700",
+            color: theme.onSurface,
+          }}
+        >
+          {value}
+        </text>
+        {delta || caption ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            {delta ? (
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  fontWeight: "600",
+                  color: trendColor,
+                }}
+              >
+                {`${trend === "down" ? "▼" : "▲"} ${delta}`}
+              </text>
+            ) : null}
+            {caption ? (
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  color: theme.onSurfaceMuted,
+                }}
+              >
+                {caption}
+              </text>
+            ) : null}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
+  function RankList(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const itemsValue = resolvedProps["items"];
+    const items = Array.isArray(itemsValue)
+      ? (itemsValue as Array<Record<string, unknown>>)
+      : [];
+    const title =
+      typeof resolvedProps["title"] === "string" && resolvedProps["title"]
+        ? resolvedProps["title"]
+        : "";
+    const showRank = resolvedProps["showRank"] !== false;
+    const maxValue = items.reduce(
+      (acc, item) => Math.max(acc, Number(item["value"]) || 0),
+      0,
+    );
+    // 名次徽章：金/银/铜，4 名及以后无徽章仅序号
+    const rankBadge = (rank: number) => {
+      const colors = ["#F2B66D", "#C9CDD4", "#B98E79"];
+      if (rank <= 3) {
+        return {
+          backgroundColor: colors[rank - 1]!,
+          color: "#ffffff",
+        };
+      }
+      return {
+        backgroundColor: theme.surfaceMuted,
+        color: theme.onSurfaceMuted,
+      };
+    };
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          minWidth: 0,
+        }}
+      >
+        {title ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {title}
+          </text>
+        ) : null}
+        {items.map((item, index) => {
+          const value = Number(item["value"]) || 0;
+          const ratio = maxValue > 0 ? value / maxValue : 0;
+          const label = asText(item["label"]) || formatValue(value);
+          const badge = rankBadge(index + 1);
+          return (
+            <view
+              key={`rank-${String(item["name"] ?? "")}-${index}`}
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
+              <view
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                {showRank ? (
+                  <view
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "10px",
+                      backgroundColor: badge.backgroundColor,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <text
+                      style={{
+                        fontSize: "11px",
+                        lineHeight: "14px",
+                        fontWeight: "600",
+                        color: badge.color,
+                      }}
+                    >
+                      {String(index + 1)}
+                    </text>
+                  </view>
+                ) : null}
+                <text
+                  style={{
+                    fontSize: "13px",
+                    lineHeight: "18px",
+                    color: theme.onSurface,
+                    flexShrink: 0,
+                  }}
+                >
+                  {String(item["name"] ?? "")}
+                </text>
+                <view
+                  style={{
+                    flex: "1 1 0%",
+                    height: "8px",
+                    borderRadius: "4px",
+                    backgroundColor: theme.surfaceMuted,
+                    minWidth: 0,
+                  }}
+                >
+                  <view
+                    style={{
+                      width: `${Math.min(100, ratio * 100)}%`,
+                      height: "8px",
+                      borderRadius: "4px",
+                      backgroundColor:
+                        typeof item["color"] === "string"
+                          ? item["color"]
+                          : theme.primary,
+                    }}
+                  />
+                </view>
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                    flexShrink: 0,
+                  }}
+                >
+                  {label}
+                </text>
+              </view>
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
+  function ProgressRing(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const valueValue = resolvedProps["value"];
+    const percent = Math.max(0, Math.min(100, Number(valueValue) || 0));
+    const label = asText(resolvedProps["label"]);
+    const caption = asText(resolvedProps["caption"]);
+    const color =
+      typeof resolvedProps["color"] === "string" && resolvedProps["color"]
+        ? resolvedProps["color"]
+        : theme.primary;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 180;
+    const outer = Math.min(150, height - 20);
+    const ringThickness = 14;
+    const ringMid = outer - ringThickness / 2;
+    const polarAt = (angleDeg: number, r: number) => {
+      const rad = ((angleDeg - 90) * Math.PI) / 180;
+      const cx2 = outer;
+      const cy2 = outer;
+      return {
+        x: cx2 + r * Math.cos(rad),
+        y: cy2 + r * Math.sin(rad),
+      };
+    };
+    // 底环：border 圆一个 view 搞定；进度弧：切线段自 12 点钟顺时针
+    const segStep = 6;
+    const sweep = (percent / 100) * 360;
+    const segCount = Math.floor(sweep / segStep);
+    const arcSegments: Array<JSX.Element> = [];
+    for (let i = 0; i < segCount; i += 1) {
+      const a1 = i * segStep;
+      const a2 = a1 + segStep;
+      const p1 = polarAt(a1, ringMid);
+      const p2 = polarAt(a2, ringMid);
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.sqrt(dx * dx + dy * dy) + 1;
+      const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+      arcSegments.push(
+        <view
+          key={`arc-${i}`}
+          className="a2ui-anim-fade"
+          style={{
+            position: "absolute",
+            left: `${(p1.x + p2.x) / 2 - len / 2}px`,
+            top: `${(p1.y + p2.y) / 2 - ringThickness / 2}px`,
+            width: `${len}px`,
+            height: `${ringThickness}px`,
+            backgroundColor: color,
+            transform: `rotate(${angleDeg}deg)`,
+            animationDelay: `${(a1 / 360) * 600}ms`,
+          }}
+        />,
+      );
+    }
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <view
+          style={{
+            width: `${outer * 2}px`,
+            height: `${outer * 2}px`,
+            position: "relative",
+          }}
+        >
+          <view
+            style={{
+              position: "absolute",
+              left: "0px",
+              top: "0px",
+              width: `${outer * 2}px`,
+              height: `${outer * 2}px`,
+              borderRadius: "50%",
+              borderWidth: `${ringThickness}px`,
+              borderColor: theme.surfaceMuted,
+            }}
+          />
+          {arcSegments}
+          <view
+            style={{
+              position: "absolute",
+              left: "0px",
+              top: "0px",
+              width: `${outer * 2}px`,
+              height: `${outer * 2}px`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <text
+              style={{
+                fontSize: "26px",
+                lineHeight: "32px",
+                fontWeight: "700",
+                color: theme.onSurface,
+              }}
+            >
+              {`${percent}%`}
+            </text>
+            {label ? (
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  color: theme.onSurfaceMuted,
+                }}
+              >
+                {label}
+              </text>
+            ) : null}
+          </view>
+        </view>
+        {caption ? (
+          <text
+            style={{
+              fontSize: "12px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {caption}
+          </text>
+        ) : null}
+      </view>
+    );
+  }
+
+  function ComparisonRow(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const label = asText(resolvedProps["label"]);
+    const currentValue = Number(resolvedProps["current"]) || 0;
+    const previousValue = Number(resolvedProps["previous"]) || 0;
+    const currentLabel = asText(resolvedProps["currentLabel"]) || "本期";
+    const previousLabel = asText(resolvedProps["previousLabel"]) || "上期";
+    const unit = asText(resolvedProps["unit"]);
+    const maxValue = Math.max(currentValue, previousValue, 1);
+    const diff = currentValue - previousValue;
+    const diffPct =
+      previousValue > 0 ? Math.round((diff / previousValue) * 100) : null;
+    const diffColor = diff >= 0 ? theme.primary : "#d92d20";
+    const diffText =
+      diffPct === null ? "" : `${diff >= 0 ? "▲ +" : "▼ "}${diffPct}%`;
+    const row = (
+      rowLabel: string,
+      value: number,
+      barColor: string,
+      valueColor: string,
+    ) => (
+      <view
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <text
+          style={{
+            width: "32px",
+            fontSize: "12px",
+            lineHeight: "16px",
+            color: theme.onSurfaceMuted,
+            flexShrink: 0,
+          }}
+        >
+          {rowLabel}
+        </text>
+        <view
+          style={{
+            flex: "1 1 0%",
+            height: "12px",
+            borderRadius: "6px",
+            backgroundColor: theme.surfaceMuted,
+            minWidth: 0,
+          }}
+        >
+          <view
+            style={{
+              width: `${(value / maxValue) * 100}%`,
+              height: "12px",
+              borderRadius: "6px",
+              backgroundColor: barColor,
+            }}
+          />
+        </view>
+        <text
+          style={{
+            fontSize: "13px",
+            lineHeight: "18px",
+            fontWeight: "600",
+            color: valueColor,
+            flexShrink: 0,
+          }}
+        >
+          {`${formatValue(value)}${unit}`}
+        </text>
+      </view>
+    );
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {label ? (
+          <view
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <text
+              style={{
+                fontSize: "15px",
+                lineHeight: "20px",
+                fontWeight: "600",
+                color: theme.onSurface,
+              }}
+            >
+              {label}
+            </text>
+            {diffText ? (
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  fontWeight: "600",
+                  color: diffColor,
+                }}
+              >
+                {`较${previousLabel} ${diffText}`}
+              </text>
+            ) : null}
+          </view>
+        ) : null}
+        {row(currentLabel, currentValue, theme.primary, theme.onSurface)}
+        {row(
+          previousLabel,
+          previousValue,
+          theme.onSurfaceMuted,
+          theme.onSurfaceMuted,
+        )}
       </view>
     );
   }
@@ -2760,5 +3287,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     ScatterChart,
     RadarChart,
     FunnelChart,
+    StatCard,
+    RankList,
+    ProgressRing,
+    ComparisonRow,
   };
 }

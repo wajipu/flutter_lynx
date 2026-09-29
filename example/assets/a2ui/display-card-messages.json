@@ -18,6 +18,10 @@
             "head-row",
             "revenue-row",
             "divider-1",
+            "kpi-card",
+            "compare-row",
+            "rank-list",
+            "progress-ring",
             "bar-chart",
             "tabs",
             "tabs-more"
@@ -76,6 +80,54 @@
         {
           "id": "divider-1",
           "component": "Divider"
+        },
+        {
+          "id": "divider-3",
+          "component": "Divider"
+        },
+        {
+          "id": "kpi-card",
+          "component": "StatCard",
+          "label": {
+            "path": "/label/kpiLabel"
+          },
+          "value": {
+            "path": "/payload/kpiValue"
+          },
+          "delta": {
+            "path": "/payload/kpiDelta"
+          },
+          "trend": "up"
+        },
+        {
+          "id": "compare-row",
+          "component": "ComparisonRow",
+          "label": "订单量对比",
+          "current": {
+            "path": "/payload/curOrders"
+          },
+          "previous": {
+            "path": "/payload/prevOrders"
+          },
+          "unit": " 单"
+        },
+        {
+          "id": "rank-list",
+          "component": "RankList",
+          "title": "菜品销量 Top5",
+          "items": {
+            "path": "/payload/rankItems"
+          }
+        },
+        {
+          "id": "progress-ring",
+          "component": "ProgressRing",
+          "value": {
+            "path": "/payload/progressValue"
+          },
+          "label": "日目标达成",
+          "caption": "目标 300 单",
+          "height": 180
         },
         {
           "id": "bar-chart",

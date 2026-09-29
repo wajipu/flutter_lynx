@@ -51,6 +51,10 @@ void main() {
       "ScatterChart",
       "RadarChart",
       "FunnelChart",
+      "StatCard",
+      "RankList",
+      "ProgressRing",
+      "ComparisonRow",
     };
     final components = (messages[1]["updateComponents"]
         as Map<dynamic, dynamic>)["components"] as List<dynamic>;
@@ -68,7 +72,8 @@ void main() {
         names,
         containsAll([
           "Tabs", "LineChart", "PieChart", "BarChart", "ScatterChart",
-          "RadarChart", "FunnelChart", "Icon",
+          "RadarChart", "FunnelChart", "StatCard", "RankList",
+          "ProgressRing", "ComparisonRow", "Icon",
         ]));
   });
 
