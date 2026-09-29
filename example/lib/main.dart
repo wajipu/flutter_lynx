@@ -878,6 +878,8 @@ class _DemoHomePageState extends State<DemoHomePage>
                 {"name": "轻食", "value": 642},
                 {"name": "烘焙", "value": 358},
               ],
+              "dayparts": ["早市", "午市", "下午茶", "晚市"],
+              "orders": [{"name": "订单", "values": [86, 214, 142, 268]}],
             },
           },
           "messages": messages,

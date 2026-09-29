@@ -1440,6 +1440,313 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     return `${Number(value.toFixed(1))}%`;
   }
 
+  // --- BarChart（柱状图）：宿主自有扩展组件（官方 basic catalog 无此组件），
+  // props 与 LineChart 对齐（labels + series），view 绘制：柱体为绝对定位
+  // 矩形 view，基线从 0 起（柱状图惯例，不做 min-max 截断）。支持点选整组
+  // 高亮 + 数值气泡，机制与 LineChart 一致。作为白名单扩展项写入 Skill 约束。 ---
+
+  function BarChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      : [];
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const showValues = resolvedProps["showValues"] === true;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 200;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string" ? resolvedProps["yLabel"] : "";
+
+    // 几何：300px 设计宽，组内并列柱体，柱宽自适应
+    const canvasW = 300;
+    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const plotW = canvasW - margin.left - margin.right;
+    const plotH = height - margin.top - margin.bottom;
+    const groupCount = labels.length;
+    const seriesCount = series.length || 1;
+    const groupW = groupCount > 0 ? plotW / groupCount : 0;
+    const groupPad = 6;
+    const barGap = seriesCount > 1 ? 2 : 0;
+    const barW = Math.max(
+      4,
+      Math.min(24, (groupW - groupPad * 2 - (seriesCount - 1) * barGap) / seriesCount),
+    );
+    const allValues = series.flatMap((item) => item.values.slice(0, groupCount));
+    const maxValue = allValues.reduce(
+      (acc, v) => (v > acc ? v : acc),
+      0,
+    );
+    const scaleMax = maxValue > 0 ? maxValue : 1;
+
+    const gridLines = 4;
+    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
+      const ratio = index / gridLines;
+      return (
+        <view
+          key={`bgrid-${index}`}
+          style={{
+            position: "absolute",
+            left: `${margin.left}px`,
+            top: `${margin.top + plotH - ratio * plotH}px`,
+            width: `${plotW}px`,
+            height: "1px",
+            backgroundColor: theme.border,
+          }}
+        />
+      );
+    });
+    const chartBaseline = (
+      <view
+        style={{
+          position: "absolute",
+          left: `${margin.left}px`,
+          top: `${margin.top + plotH}px`,
+          width: `${plotW}px`,
+          height: "1.5px",
+          backgroundColor: theme.onSurfaceMuted,
+        }}
+      />
+    );
+    // 柱体：值域 [0, scaleMax]，高度按占比；基线从 0 起
+    const chartBars = series.flatMap((item, seriesIndex) =>
+      item.values.slice(0, groupCount).map((value, groupIndex) => {
+        const h = Math.max(2, (Number(value) || 0) / scaleMax * plotH);
+        const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
+        const barX =
+          margin.left +
+          groupIndex * groupW +
+          groupPad +
+          seriesIndex * (barW + barGap);
+        return (
+          <view
+            key={`bar-${seriesIndex}-${groupIndex}`}
+            style={{
+              position: "absolute",
+              left: `${barX}px`,
+              top: `${margin.top + plotH - h}px`,
+              width: `${barW}px`,
+              height: `${h}px`,
+              borderTopLeftRadius: "4px",
+              borderTopRightRadius: "4px",
+              backgroundColor: item.color,
+              opacity: dimmed ? 0.35 : 1,
+            }}
+          />
+        );
+      }),
+    );
+    // 柱顶数值（showValues 时）
+    const chartValueLabels = showValues
+      ? series.flatMap((item, seriesIndex) =>
+          item.values.slice(0, groupCount).map((value, groupIndex) => {
+            const h = Math.max(2, (Number(value) || 0) / scaleMax * plotH);
+            const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
+            const barX =
+              margin.left +
+              groupIndex * groupW +
+              groupPad +
+              seriesIndex * (barW + barGap);
+            return (
+              <text
+                key={`bval-${seriesIndex}-${groupIndex}`}
+                style={{
+                  position: "absolute",
+                  left: `${barX - 6}px`,
+                  top: `${margin.top + plotH - h - 15}px`,
+                  width: `${barW + 12}px`,
+                  textAlign: "center",
+                  fontSize: "10px",
+                  lineHeight: "12px",
+                  color: dimmed ? theme.onSurfaceMuted : theme.onSurface,
+                }}
+              >
+                {formatValue(Number(value) || 0)}
+              </text>
+            );
+          }),
+        )
+      : [];
+    // 选中组的数值气泡
+    const guideX =
+      selectedGroup === null ? null : margin.left + selectedGroup * groupW + groupW / 2;
+    const selectedLabel =
+      selectedGroup === null ? "" : String(labels[selectedGroup] ?? "");
+    const selectedValues =
+      selectedGroup === null
+        ? []
+        : series.map((item) => ({
+            name: item.name,
+            value: item.values[selectedGroup] ?? 0,
+          }));
+    // 整组热区
+    const chartHitBoxes = groupCount
+      ? Array.from({ length: groupCount }, (_, index) => (
+          <view
+            key={`bhit-${index}`}
+            style={{
+              position: "absolute",
+              left: `${margin.left + index * groupW}px`,
+              top: "0px",
+              width: `${groupW}px`,
+              height: `${height}px`,
+              backgroundColor: "transparent",
+            }}
+            bindtap={() =>
+              setSelectedGroup(selectedGroup === index ? null : index)
+            }
+          />
+        ))
+      : [];
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {chartTitle ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+        ) : null}
+
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+            alignSelf: "center",
+          }}
+        >
+          {chartGrid}
+          {chartBaseline}
+          {chartBars}
+          {chartValueLabels}
+          {selectedGroup !== null && guideX !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${Math.min(
+                  Math.max(guideX - 55, 0),
+                  canvasW - 110,
+                )}px`,
+                top: "0px",
+                borderRadius: "6px",
+                backgroundColor: theme.onSurface,
+                paddingLeft: "8px",
+                paddingRight: "8px",
+                paddingTop: "4px",
+                paddingBottom: "4px",
+              }}
+            >
+              <text
+                style={{
+                  fontSize: "10px",
+                  lineHeight: "13px",
+                  color: theme.surface,
+                }}
+              >
+                {`${selectedLabel}　${selectedValues
+                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
+                  .join(" · ")}`}
+              </text>
+            </view>
+          ) : null}
+          {chartHitBoxes}
+        </view>
+
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "300px",
+            alignSelf: "center",
+          }}
+        >
+          {labels.map((label, index) => (
+            <text
+              key={`${index}-${label ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color:
+                  selectedGroup === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
+              }}
+            >
+              {label ?? ""}
+            </text>
+          ))}
+        </view>
+
+        {showLegend ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "8px 14px",
+              width: "100%",
+            }}
+          >
+            {series.map((item) => (
+              <view
+                key={item.name}
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "2px",
+                    backgroundColor: item.color,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {item.name}
+                </text>
+              </view>
+            ))}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
   function PieChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -1718,5 +2025,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     Tabs,
     LineChart,
     PieChart,
+    BarChart,
   };
 }

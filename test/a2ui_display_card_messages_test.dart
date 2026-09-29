@@ -47,6 +47,7 @@ void main() {
       "Tabs",
       "LineChart",
       "PieChart",
+      "BarChart",
     };
     final components = (messages[1]["updateComponents"]
         as Map<dynamic, dynamic>)["components"] as List<dynamic>;
@@ -60,7 +61,7 @@ void main() {
       ids.add(id);
     }
     final names = components.map((c) => c["component"]).toSet();
-    expect(names, containsAll(["Tabs", "LineChart", "PieChart", "Icon"]));
+    expect(names, containsAll(["Tabs", "LineChart", "PieChart", "BarChart", "Icon"]));
   });
 
   test("展示卡绑定 只允许 path 绑定，无函数调用，path 须以 / 开头", () {
