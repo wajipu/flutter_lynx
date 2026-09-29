@@ -206,7 +206,14 @@ export function A2UICard() {
     });
   };
 
+  // 根节点用 scroll-view（Lynx 内置滚动原语，竖向）：内容超过可视高度时
+  // 卡内自滚动（LynxView 本体不带滚动）。内层容器 minHeight 100% 保证
+  // 短内容（确认卡）时衬底色仍铺满视口。
   return (
+    <scroll-view
+      style={{ width: "100%", height: "100%" }}
+      scroll-orientation="vertical"
+    >
     <view
       style={{
         width: "100%",
@@ -226,7 +233,7 @@ export function A2UICard() {
             className={
               answered && theme.exitAnimation !== "none"
                 ? "a2ui-light a2ui-card-exit"
-                : "a2ui-light"
+                : "a2ui-light a2ui-anim-rise"
             }
             style={
               answered
@@ -252,5 +259,6 @@ export function A2UICard() {
         )}
       />
     </view>
+    </scroll-view>
   );
 }

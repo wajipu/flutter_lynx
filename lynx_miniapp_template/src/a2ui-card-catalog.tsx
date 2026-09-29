@@ -17,10 +17,7 @@ import type {
   ResourceInfo,
   Surface,
 } from "@lynx-js/genui/a2ui";
-import {
-  ICON_CODEPOINTS,
-  ICON_FONT_FAMILY,
-} from "./a2ui-card-icon-font";
+import { ICON_CODEPOINTS, ICON_FONT_FAMILY } from "./a2ui-card-icon-font";
 
 /**
  * A2UI 目录组件的实现层美化（呈现层）。
@@ -828,8 +825,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
   // 未映射的名字静默渲染空。
   function Icon(props: StyledIconProps) {
     const { id, name, size = "md", color = "inherit" } = props;
-    const glyph =
-      typeof name === "string" ? ICON_CODEPOINTS[name] : undefined;
+    const glyph = typeof name === "string" ? ICON_CODEPOINTS[name] : undefined;
     if (!glyph) return null;
     // 尺寸对齐 AppIconSize：sm 16 / md 20 / lg 24。
     const px = size === "sm" ? "16px" : size === "lg" ? "24px" : "20px";
@@ -1106,9 +1102,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         y:
           canvasMargin.top +
           plotH -
-          (plotRange === 0
-            ? 0.5
-            : (value - plotMin) / plotRange) * plotH,
+          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
         color: item.color,
       })),
     );
@@ -1190,9 +1184,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
     // 选中列的参考线与数值气泡
     const guideX =
-      selectedDot === null
-        ? null
-        : canvasMargin.left + xStep * selectedDot;
+      selectedDot === null ? null : canvasMargin.left + xStep * selectedDot;
     const selectedLabel =
       selectedDot === null ? "" : String(labels[selectedDot] ?? "");
     const selectedValues =
@@ -1465,7 +1457,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const heightValue = resolvedProps["height"];
     const height = typeof heightValue === "number" ? heightValue : 200;
     const chartTitle =
-      typeof resolvedProps["yLabel"] === "string" ? resolvedProps["yLabel"] : "";
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
 
     // 几何：300px 设计宽，组内并列柱体，柱宽自适应；顶部预留 18px 给
     // 柱顶数值标签（showValues 时最高的柱标签也不能越界被裁）。
@@ -1480,13 +1474,15 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const barGap = seriesCount > 1 ? 2 : 0;
     const barW = Math.max(
       4,
-      Math.min(24, (groupW - groupPad * 2 - (seriesCount - 1) * barGap) / seriesCount),
+      Math.min(
+        24,
+        (groupW - groupPad * 2 - (seriesCount - 1) * barGap) / seriesCount,
+      ),
     );
-    const allValues = series.flatMap((item) => item.values.slice(0, groupCount));
-    const maxValue = allValues.reduce(
-      (acc, v) => (v > acc ? v : acc),
-      0,
+    const allValues = series.flatMap((item) =>
+      item.values.slice(0, groupCount),
     );
+    const maxValue = allValues.reduce((acc, v) => (v > acc ? v : acc), 0);
     const scaleMax = maxValue > 0 ? maxValue : 1;
 
     const gridLines = 4;
@@ -1521,7 +1517,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     // 柱体：值域 [0, scaleMax]，高度按占比；基线从 0 起
     const chartBars = series.flatMap((item, seriesIndex) =>
       item.values.slice(0, groupCount).map((value, groupIndex) => {
-        const h = Math.max(2, (Number(value) || 0) / scaleMax * plotH);
+        const h = Math.max(2, ((Number(value) || 0) / scaleMax) * plotH);
         const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
         const barX =
           margin.left +
@@ -1550,8 +1546,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const chartValueLabels = showValues
       ? series.flatMap((item, seriesIndex) =>
           item.values.slice(0, groupCount).map((value, groupIndex) => {
-            const h = Math.max(2, (Number(value) || 0) / scaleMax * plotH);
-            const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
+            const h = Math.max(2, ((Number(value) || 0) / scaleMax) * plotH);
+            const dimmed =
+              selectedGroup !== null && selectedGroup !== groupIndex;
             const barX =
               margin.left +
               groupIndex * groupW +
@@ -1579,7 +1576,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       : [];
     // 选中组的数值气泡
     const guideX =
-      selectedGroup === null ? null : margin.left + selectedGroup * groupW + groupW / 2;
+      selectedGroup === null
+        ? null
+        : margin.left + selectedGroup * groupW + groupW / 2;
     const selectedLabel =
       selectedGroup === null ? "" : String(labels[selectedGroup] ?? "");
     const selectedValues =
@@ -1636,10 +1635,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             <view
               style={{
                 position: "absolute",
-                left: `${Math.min(
-                  Math.max(guideX - 55, 0),
-                  canvasW - 110,
-                )}px`,
+                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
                 top: "0px",
                 borderRadius: "6px",
                 backgroundColor: theme.onSurface,
@@ -1859,9 +1855,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               height: `${height}px`,
               backgroundColor: "transparent",
             }}
-            bindtap={() =>
-              setSelectedDot(selectedDot === index ? null : index)
-            }
+            bindtap={() => setSelectedDot(selectedDot === index ? null : index)}
           />
         ))
       : [];
@@ -2097,7 +2091,10 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     });
     // 数据多边形：顶点相连的线段 + 顶点圆点（未选系列淡化）
     const vertexAt = (seriesIndex: number, axisIndex: number) => {
-      const indicator = (indicators[axisIndex] ?? {}) as Record<string, unknown>;
+      const indicator = (indicators[axisIndex] ?? {}) as Record<
+        string,
+        unknown
+      >;
       const maxV = Number(indicator["max"]) || 1;
       const item = series[seriesIndex]!;
       const raw = Number(item.values[axisIndex]) || 0;
@@ -2136,26 +2133,24 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           />,
         );
       }
-      const dots = item.values
-        .slice(0, count)
-        .map((_, axisIndex) => {
-          const v = vertexAt(seriesIndex, axisIndex);
-          return (
-            <view
-              key={`rdot-${seriesIndex}-${axisIndex}`}
-              style={{
-                position: "absolute",
-                left: `${v.x - 3}px`,
-                top: `${v.y - 3}px`,
-                width: "6px",
-                height: "6px",
-                borderRadius: "3px",
-                backgroundColor: item.color,
-                opacity: dimmed ? 0.25 : 1,
-              }}
-            />
-          );
-        });
+      const dots = item.values.slice(0, count).map((_, axisIndex) => {
+        const v = vertexAt(seriesIndex, axisIndex);
+        return (
+          <view
+            key={`rdot-${seriesIndex}-${axisIndex}`}
+            style={{
+              position: "absolute",
+              left: `${v.x - 3}px`,
+              top: `${v.y - 3}px`,
+              width: "6px",
+              height: "6px",
+              borderRadius: "3px",
+              backgroundColor: item.color,
+              opacity: dimmed ? 0.25 : 1,
+            }}
+          />
+        );
+      });
       return [...segments, ...dots];
     });
     // 图例行可点选系列
@@ -2180,9 +2175,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               gap: "6px",
             }}
             bindtap={() =>
-              setSelectedSeries(
-                selectedSeries === index ? null : index,
-              )
+              setSelectedSeries(selectedSeries === index ? null : index)
             }
           >
             <view
@@ -2192,7 +2185,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 borderRadius: "5px",
                 backgroundColor: item.color,
                 opacity:
-                  selectedSeries === null || selectedSeries === index ? 1 : 0.35,
+                  selectedSeries === null || selectedSeries === index
+                    ? 1
+                    : 0.35,
               }}
             />
             <text
@@ -2299,10 +2294,11 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           const color =
             typeof slice["color"] === "string"
               ? slice["color"]
-              : palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
+              : (palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!);
           return (
             <view
               key={`funnel-${String(slice["name"] ?? "")}-${index}`}
+              className="a2ui-anim-rise"
               style={{
                 width: "100%",
                 display: "flex",
@@ -2310,6 +2306,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 alignItems: "center",
                 gap: "8px",
                 opacity: dimmed ? 0.4 : 1,
+                animationDelay: `${index * 70}ms`,
               }}
               bindtap={() =>
                 setSelectedSlice(selectedSlice === index ? null : index)
@@ -2359,9 +2356,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                     color: theme.onSurfaceMuted,
                   }}
                 >
-                  {firstRatio > 0
-                    ? `${formatPercent(firstRatio * 100)}`
-                    : ""}
+                  {firstRatio > 0 ? `${formatPercent(firstRatio * 100)}` : ""}
                 </text>
               ) : null}
             </view>
@@ -2500,9 +2495,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             const barColor =
               typeof slice["color"] === "string"
                 ? slice["color"]
-                : palette[index % palette.length] ??
+                : (palette[index % palette.length] ??
                   DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length] ??
-                  DEFAULT_CHART_COLORS[0]!;
+                  DEFAULT_CHART_COLORS[0]!);
             const dimmed = selectedSlice !== null && selectedSlice !== index;
             return (
               <view
@@ -2590,7 +2585,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             );
           })}
         </view>
-
       </view>
     );
   }
