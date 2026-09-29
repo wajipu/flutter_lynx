@@ -6,6 +6,7 @@ import "dart:typed_data";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart" show rootBundle;
 import "package:flutter_lynx/flutter_lynx.dart";
+import "package:path_provider/path_provider.dart";
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -189,6 +190,102 @@ class _DemoHomePageState extends State<DemoHomePage>
   List<dynamic>? _a2uiMessages;
   bool _a2uiDisplayMode = false;
 
+  // --- OSS 热更演示（LynxBundleUpdater）---
+  /// `--dart-define=A2UI_OSS_MANIFEST=<url>` 预填并自动检查（演示用）；
+  /// 无 OSS 时本机 `python3 -m http.server` 托管 manifest+bundle 即可体验。
+  static const String _ossManifestEnv = String.fromEnvironment(
+    "A2UI_OSS_MANIFEST",
+  );
+  final _ossManifestCtrl = TextEditingController();
+  final _ossDeviceCtrl = TextEditingController(text: "demo-device-001");
+  LynxBundleResolved? _ossResult;
+
+  /// 非空时装载用 OSS 下发字节（覆盖内置资产）；装载失败自动熔断清空。
+  Uint8List? _a2uiOssOverride;
+  String? _a2uiOssVersion;
+  LynxBundleUpdater? _ossUpdater;
+  String? _ossCacheDir;
+
+  Future<LynxBundleUpdater> _ossEnsure() async {
+    if (_ossUpdater == null) {
+      _ossCacheDir ??= "${(await getApplicationCacheDirectory()).path}/a2ui-ota";
+      _ossUpdater = LynxBundleUpdater();
+    }
+    return _ossUpdater!;
+  }
+
+  Future<Uint8List> _builtinBundleBytes() async {
+    final data = await rootBundle.load(_a2uiBundleAsset);
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  }
+
+  Future<void> _ossCheck() async {
+    final url = _ossManifestCtrl.text.trim();
+    if (url.isEmpty) {
+      _addLog("OSS >> 请先填 manifest 地址（发布：npm run a2ui:release，见 docs §8.5）");
+      return;
+    }
+    final updater = await _ossEnsure();
+    final deviceId = _ossDeviceCtrl.text.trim();
+    _addLog("OSS >> 检查更新: $url${deviceId.isEmpty ? "" : " (deviceId=$deviceId)"}");
+    final result = await updater.resolve(
+      manifestUrl: url,
+      builtinBytes: await _builtinBundleBytes(),
+      cacheDirectory: _ossCacheDir!,
+      deviceId: deviceId.isEmpty ? null : deviceId,
+    );
+    setState(() => _ossResult = result);
+    _addLog(
+        "OSS >> 结果: ${result.source.name}${result.channel != null ? "/${result.channel}" : ""} v${result.version ?? "-"}（${result.bytes.length} 字节）${result.error != null ? " · ${result.error}" : ""}");
+  }
+
+  Future<void> _ossApply({bool display = true}) async {
+    final result = _ossResult;
+    if (result == null) return;
+    final isBuiltin = result.source == LynxBundleSource.builtin;
+    setState(() {
+      // builtin 结果本身是兜底字节，应用它等于保持内置
+      _a2uiOssOverride = isBuiltin ? null : result.bytes;
+      _a2uiOssVersion = result.version;
+    });
+    _addLog("OSS >> 应用 ${isBuiltin ? "内置兜底（不覆盖）" : "v${result.version} 下发字节"}并装载");
+    await _loadA2uiConfirmCard(display: display);
+  }
+
+  Future<void> _ossTripBreaker() async {
+    final version = _a2uiOssVersion ?? _ossResult?.version;
+    if (version == null) {
+      _addLog("OSS >> 无已装载的 OSS 版本可熔断");
+      return;
+    }
+    final updater = await _ossEnsure();
+    await updater.markLoadFailed(cacheDirectory: _ossCacheDir!, version: version);
+    setState(() => _a2uiOssOverride = null);
+    _addLog("OSS >> 已熔断 v$version——本机后续检查更新回退内置，直至 OSS 发新版本号");
+  }
+
+  Future<void> _ossRestoreBuiltin() async {
+    setState(() {
+      _a2uiOssOverride = null;
+      _a2uiOssVersion = null;
+    });
+    _addLog("OSS >> 恢复内置版本装载");
+    await _loadA2uiConfirmCard(display: true);
+  }
+
+  /// OSS 版本装载失败的自动止损：熔断该版本并自动回退内置重新装载（热更自愈）。
+  Future<void> _ossSelfHealOnLoadFail() async {
+    if (_a2uiOssOverride == null || _a2uiOssVersion == null) return;
+    final version = _a2uiOssVersion!;
+    _addLog("OSS >> 装载失败自动熔断 v$version 并回退内置（热更自愈）");
+    setState(() => _a2uiOssOverride = null);
+    try {
+      final updater = await _ossEnsure();
+      await updater.markLoadFailed(cacheDirectory: _ossCacheDir!, version: version);
+    } catch (_) {}
+    await _loadA2uiConfirmCard(display: _a2uiDisplayMode);
+  }
+
   /// 装载 A2UI 卡片：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
   /// [display] 为 true 时装载「展示卡」消息（Tabs/图表演示）并注入展示卡的
   /// label/payload 命名空间，实证同一 bundle 不同 JSON 出不同卡。
@@ -201,11 +298,13 @@ class _DemoHomePageState extends State<DemoHomePage>
         : _a2uiMessagesAsset;
     final messagesText = await rootBundle.loadString(messagesAsset);
     final messages = jsonDecode(messagesText) as List<dynamic>;
-    final bytes = await rootBundle.load(_a2uiBundleAsset);
-    final bundleBytes = bytes.buffer
-        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    final rootData =
+        _a2uiOssOverride == null ? await rootBundle.load(_a2uiBundleAsset) : null;
+    final bundleBytes = _a2uiOssOverride ??
+        rootData!.buffer.asUint8List(rootData.offsetInBytes, rootData.lengthInBytes);
     _addLog("Host >> A2UI 消息装载 ${messages.length} 条（v0.9 协议数组）");
-    _addLog("Host >> A2UI 宿主 bundle 装载 ${bundleBytes.length} 字节");
+    _addLog(
+        "Host >> A2UI 宿主 bundle 装载 ${bundleBytes.length} 字节（${_a2uiOssOverride != null ? "OSS v$_a2uiOssVersion" : "内置"}）");
     setState(() {
       _a2uiMessages = messages;
       _a2uiBundleBytes = bundleBytes;
@@ -294,13 +393,20 @@ class _DemoHomePageState extends State<DemoHomePage>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _addLog("Host system initialized. LynxBridge ready.");
+    if (_ossManifestEnv.isNotEmpty) {
+      _ossManifestCtrl.text = _ossManifestEnv;
+    }
     if (_a2uiAutoload) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         _tabController.animateTo(2);
-        _loadA2uiConfirmCard(
+        await _loadA2uiConfirmCard(
           display: _a2uiAutoloadMode == "display",
         );
+        // 演示钩子：预填了 manifest 地址时自动检查一次更新
+        if (_ossManifestEnv.isNotEmpty) {
+          await _ossCheck();
+        }
       });
       return;
     }
@@ -781,6 +887,102 @@ class _DemoHomePageState extends State<DemoHomePage>
             ),
           ],
         ),
+
+        // --- OSS 热更演示（LynxBundleUpdater 全流程）---
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "OSS 热更演示",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "填 manifest 地址体验热更闭环：检查→应用→装载失败自动熔断回退内置"
+                "（发布用 npm run a2ui:release，无 OSS 时任意静态服务器亦可）",
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _ossManifestCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "https://…/a2ui/manifest.json",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _ossDeviceCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "设备ID（灰度分桶）",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  OutlinedButton(
+                    onPressed: _ossCheck,
+                    child:
+                        const Text("检查更新", style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed:
+                        _ossResult == null ? null : () => _ossApply(),
+                    child:
+                        const Text("应用并装载", style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed: _ossTripBreaker,
+                    child: const Text("模拟装载失败(熔断)",
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed: _ossRestoreBuiltin,
+                    child: const Text("恢复内置", style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (_ossResult != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  "上次检查: ${_ossResult!.source.name}"
+                  "${_ossResult!.channel != null ? " / ${_ossResult!.channel}" : ""}"
+                  "${_ossResult!.version != null ? " / v${_ossResult!.version}" : ""}"
+                  "（${_ossResult!.bytes.length} 字节）"
+                  "${_ossResult!.error != null ? " · ${_ossResult!.error}" : ""}",
+                  style:
+                      TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                _a2uiOssOverride != null
+                    ? "当前装载: OSS v$_a2uiOssVersion（装载失败自动熔断回退）"
+                    : "当前装载: 内置版本",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _a2uiOssOverride != null
+                      ? const Color(0xFF126652)
+                      : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           height: 440,
@@ -955,6 +1157,8 @@ class _DemoHomePageState extends State<DemoHomePage>
         },
         onLoadFail: (error) {
           _addLog("A2UI LynxView load error: $error");
+          // OSS 版本装载失败 → 自动熔断 + 回退内置重新装载（热更自愈演示）
+          _ossSelfHealOnLoadFail();
         },
       ),
     );
@@ -1052,6 +1256,8 @@ class _DemoHomePageState extends State<DemoHomePage>
   @override
   void dispose() {
     _tabController.dispose();
+    _ossManifestCtrl.dispose();
+    _ossDeviceCtrl.dispose();
     _customUrlController.dispose();
     super.dispose();
   }
