@@ -440,7 +440,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
+          gap: "10px",
           minWidth: 0,
           justifyContent: toJustify(justify),
           alignItems: toAlign(align),
@@ -2322,7 +2322,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          gap: "10px",
+          gap: "8px",
           minWidth: 0,
         }}
       >
@@ -2970,17 +2970,17 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         ? resolvedProps["color"]
         : theme.primary;
     const heightValue = resolvedProps["height"];
-    const height = typeof heightValue === "number" ? heightValue : 180;
-    const outer = Math.min(150, height - 20);
+    // height 即环形直径（默认 180，120–240 夹取），不再固定 300 占满卡宽
+    const diameter = Math.max(120, Math.min(heightValue === "number"
+      ? (heightValue as number)
+      : 180, 240));
     const ringThickness = 14;
-    const ringMid = outer - ringThickness / 2;
+    const ringMid = diameter / 2 - ringThickness / 2;
     const polarAt = (angleDeg: number, r: number) => {
       const rad = ((angleDeg - 90) * Math.PI) / 180;
-      const cx2 = outer;
-      const cy2 = outer;
       return {
-        x: cx2 + r * Math.cos(rad),
-        y: cy2 + r * Math.sin(rad),
+        x: diameter / 2 + r * Math.cos(rad),
+        y: diameter / 2 + r * Math.sin(rad),
       };
     };
     // 底环：border 圆一个 view 搞定；进度弧：切线段自 12 点钟顺时针
@@ -3027,8 +3027,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       >
         <view
           style={{
-            width: `${outer * 2}px`,
-            height: `${outer * 2}px`,
+            width: `${diameter}px`,
+            height: `${diameter}px`,
             position: "relative",
           }}
         >
@@ -3037,8 +3037,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               position: "absolute",
               left: "0px",
               top: "0px",
-              width: `${outer * 2}px`,
-              height: `${outer * 2}px`,
+              width: `${diameter}px`,
+              height: `${diameter}px`,
               borderRadius: "50%",
               borderWidth: `${ringThickness}px`,
               borderColor: theme.surfaceMuted,
@@ -3050,8 +3050,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               position: "absolute",
               left: "0px",
               top: "0px",
-              width: `${outer * 2}px`,
-              height: `${outer * 2}px`,
+              width: `${diameter}px`,
+              height: `${diameter}px`,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
