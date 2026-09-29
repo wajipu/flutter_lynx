@@ -2475,7 +2475,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           const dx = p2.x - p1.x;
           const dy = p2.y - p1.y;
           const len =
-            Math.sqrt(dx * dx + dy * dy) + ringThickness * 0.35 + 1;
+            Math.sqrt(dx * dx + dy * dy) + 0.25;
           const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
           ringSegments.push(
             <view
