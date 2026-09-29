@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   useSyncExternalStore,
 } from "@lynx-js/react";
@@ -3550,6 +3551,737 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- C 组：AreaChart / StackedBar / DataTable / Gauge / CountUp。
+  // 宿主自有扩展组件，全部 view 绘制 + 主题注入 + 颜色三级回滚。 ---
+
+  function AreaChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, chartPalette)
+      : [];
+    const showGrid = resolvedProps["showGrid"] !== false;
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 200;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+
+    const canvasW = 300;
+    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const plotW = canvasW - margin.left - margin.right;
+    const plotH = height - margin.top - margin.bottom;
+    const maxPoints = labels.length;
+    const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
+    const { min: plotMin, max: plotMax } = minMax(allValues);
+    const plotRange = plotMax - plotMin;
+    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
+    const seriesPoints = series.map((item) =>
+      item.values.slice(0, maxPoints).map((value, index) => ({
+        x: margin.left + xStep * index,
+        y:
+          margin.top +
+          plotH -
+          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
+        color: item.color,
+      })),
+    );
+    // 面积填充：每个 x 步进一列矩形，从折线中点落到基线（低透明度叠出面积观感）
+    const fillColumns = seriesPoints.map((points, seriesIndex) =>
+      points.slice(0, -1).map((point, index) => {
+        const next = points[index + 1]!;
+        const top = Math.min(point.y, next.y);
+        return (
+          <view
+            key={`afill-${seriesIndex}-${index}`}
+            style={{
+              position: "absolute",
+              left: `${point.x}px`,
+              top: `${top}px`,
+              width: `${next.x - point.x + 0.5}px`,
+              height: `${margin.top + plotH - top}px`,
+              backgroundColor: point.color,
+              opacity: 0.14,
+            }}
+          />
+        );
+      }),
+    );
+    const lineDots = seriesPoints.map((points, seriesIndex) =>
+      points.map((point, index) => (
+        <view
+          key={`adot-${seriesIndex}-${index}`}
+          style={{
+            position: "absolute",
+            left: `${point.x - 3}px`,
+            top: `${point.y - 3}px`,
+            width: "6px",
+            height: "6px",
+            borderRadius: "3px",
+            backgroundColor: point.color,
+          }}
+        />
+      )),
+    );
+    const gridLines = 4;
+    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
+      const ratio = index / gridLines;
+      return (
+        <view
+          key={`agrid-${index}`}
+          style={{
+            position: "absolute",
+            left: `${margin.left}px`,
+            top: `${margin.top + plotH - ratio * plotH}px`,
+            width: `${plotW}px`,
+            height: "1px",
+            backgroundColor: theme.border,
+          }}
+        />
+      );
+    });
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {chartTitle ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+            alignSelf: "center",
+          }}
+        >
+          {chartGrid}
+          {fillColumns}
+          {lineDots}
+        </view>
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "300px",
+            alignSelf: "center",
+          }}
+        >
+          {labels.map((label, index) => (
+            <text
+              key={`alax-${index}-${label ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {label ?? ""}
+            </text>
+          ))}
+        </view>
+        {showLegend ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "8px 14px",
+              width: "100%",
+            }}
+          >
+            {series.map((item) => (
+              <view
+                key={item.name}
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "2px",
+                    backgroundColor: item.color,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {item.name}
+                </text>
+              </view>
+            ))}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
+  function StackedBar(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, chartPalette)
+      : [];
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 200;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+
+    const canvasW = 300;
+    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const plotW = canvasW - margin.left - margin.right;
+    const plotH = height - margin.top - margin.bottom;
+    const groupCount = labels.length;
+    const groupW = groupCount > 0 ? plotW / groupCount : 0;
+    const barW = Math.max(8, Math.min(36, groupW - 12));
+    // 堆叠：每组各系列自下而上累加，总量基准 = 组内合计的最大值
+    const groupTotals = labels.map((_, g) =>
+      series.reduce(
+        (sum, item) => sum + Math.max(0, Number(item.values[g]) || 0),
+        0,
+      ),
+    );
+    const scaleMax = Math.max(1, ...groupTotals);
+    const gridLines = 4;
+    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
+      const ratio = index / gridLines;
+      return (
+        <view
+          key={`sbgrid-${index}`}
+          style={{
+            position: "absolute",
+            left: `${margin.left}px`,
+            top: `${margin.top + plotH - ratio * plotH}px`,
+            width: `${plotW}px`,
+            height: "1px",
+            backgroundColor: theme.border,
+          }}
+        />
+      );
+    });
+    const stackedBars = series.map((item, seriesIndex) =>
+      labels.map((_, groupIndex) => {
+        const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
+        // 自下而上：先累加本系列之前各组分的和
+        const below = series
+          .slice(0, seriesIndex)
+          .reduce(
+            (sum, s) => sum + Math.max(0, Number(s.values[groupIndex]) || 0),
+            0,
+          );
+        const v = Math.max(0, Number(item.values[groupIndex]) || 0);
+        const segH = (v / scaleMax) * plotH;
+        const belowH = (below / scaleMax) * plotH;
+        return (
+          <view
+            key={`sb-${seriesIndex}-${groupIndex}`}
+            style={{
+              position: "absolute",
+              left: `${margin.left + groupIndex * groupW + (groupW - barW) / 2}px`,
+              top: `${margin.top + plotH - belowH - segH}px`,
+              width: `${barW}px`,
+              height: `${segH}px`,
+              backgroundColor: item.color,
+              opacity: dimmed ? 0.35 : 1,
+            }}
+          />
+        );
+      }),
+    );
+    const groupHitBoxes = groupCount
+      ? labels.map((_, groupIndex) => (
+          <view
+            key={`sbhit-${groupIndex}`}
+            style={{
+              position: "absolute",
+              left: `${margin.left + groupIndex * groupW}px`,
+              top: "0px",
+              width: `${groupW}px`,
+              height: `${height}px`,
+              backgroundColor: "transparent",
+            }}
+            bindtap={() =>
+              setSelectedGroup(
+                selectedGroup === groupIndex ? null : groupIndex,
+              )
+            }
+          />
+        ))
+      : [];
+    const bubbleValues =
+      selectedGroup === null
+        ? []
+        : series.map((item) => ({
+            name: item.name,
+            value: item.values[selectedGroup] ?? 0,
+          }));
+    const bubbleTotal =
+      selectedGroup === null
+        ? 0
+        : series.reduce(
+            (sum, s) =>
+              sum + Math.max(0, Number(s.values[selectedGroup]) || 0),
+            0,
+          );
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {chartTitle ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+            alignSelf: "center",
+          }}
+        >
+          {chartGrid}
+          {stackedBars}
+          {selectedGroup !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${Math.min(
+                  Math.max(
+                    margin.left + selectedGroup * groupW + groupW / 2 - 60,
+                    0,
+                  ),
+                  canvasW - 120,
+                )}px`,
+                top: "0px",
+                borderRadius: "6px",
+                backgroundColor: theme.onSurface,
+                paddingLeft: "8px",
+                paddingRight: "8px",
+                paddingTop: "4px",
+                paddingBottom: "4px",
+              }}
+            >
+              <text
+                style={{
+                  fontSize: "10px",
+                  lineHeight: "13px",
+                  color: theme.surface,
+                }}
+              >
+                {`${labels[selectedGroup] ?? ""}　合计 ${formatValue(bubbleTotal)}　${bubbleValues
+                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
+                  .join(" · ")}`}
+              </text>
+            </view>
+          ) : null}
+          {groupHitBoxes}
+        </view>
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "300px",
+            alignSelf: "center",
+          }}
+        >
+          {labels.map((label, index) => (
+            <text
+              key={`sbax-${index}-${label ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {label ?? ""}
+            </text>
+          ))}
+        </view>
+        {showLegend ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "8px 14px",
+              width: "100%",
+            }}
+          >
+            {series.map((item) => (
+              <view
+                key={item.name}
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "2px",
+                    backgroundColor: item.color,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {item.name}
+                </text>
+              </view>
+            ))}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
+  function DataTable(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedRow, setSelectedRow] = useState<number | null>(null);
+    const headersValue = resolvedProps["headers"];
+    const headers = Array.isArray(headersValue)
+      ? (headersValue as string[])
+      : [];
+    const rowsValue = resolvedProps["rows"];
+    const rows = Array.isArray(rowsValue)
+      ? (rowsValue as string[][])
+      : [];
+    const title =
+      typeof resolvedProps["title"] === "string" && resolvedProps["title"]
+        ? resolvedProps["title"]
+        : "";
+    const cell = (text: string, last: boolean, head: boolean) => (
+      <text
+        style={{
+          flex: "1 1 0%",
+          fontSize: head ? "12px" : "13px",
+          lineHeight: head ? "16px" : "18px",
+          fontWeight: head ? "600" : "400",
+          textAlign: last ? "right" : "left",
+          color: head ? theme.onSurfaceMuted : theme.onSurface,
+        }}
+      >
+        {text}
+      </text>
+    );
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {title ? (
+          <text
+            style={{
+              fontSize: "15px",
+              lineHeight: "20px",
+              fontWeight: "600",
+              marginBottom: "8px",
+              color: theme.onSurface,
+            }}
+          >
+            {title}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "row",
+            gap: "10px",
+            paddingBottom: "6px",
+            borderBottom: `1.5px solid ${theme.onSurfaceMuted}`,
+          }}
+        >
+          {headers.map((h, i) => cell(String(h), i === headers.length - 1, true))}
+        </view>
+        {rows.map((row, r) => (
+          <view
+            key={`drow-${r}`}
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "row",
+              gap: "10px",
+              paddingTop: "8px",
+              paddingBottom: "8px",
+              borderBottom: `1px solid ${theme.divider}`,
+              opacity: selectedRow === null || selectedRow === r ? 1 : 0.45,
+            }}
+            bindtap={() => setSelectedRow(selectedRow === r ? null : r)}
+          >
+            {row.map((cellText, c) => cell(String(cellText), c === row.length - 1, false))}
+          </view>
+        ))}
+      </view>
+    );
+  }
+
+  function Gauge(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const valueValue = resolvedProps["value"];
+    const percent = Math.max(0, Math.min(100, Number(valueValue) || 0));
+    const label = asText(resolvedProps["label"]);
+    const color =
+      typeof resolvedProps["color"] === "string" && resolvedProps["color"]
+        ? resolvedProps["color"]
+        : theme.primary;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 160;
+    // 半圆仪表：圆心在画布底部中央，弧自 9 点钟（270°）顺时针到 3 点钟（90°）
+    const radius = 110;
+    const thickness = 14;
+    const ringMid = radius - thickness / 2;
+    const canvasW = radius * 2 + 8;
+    const canvasH = radius + 12;
+    const polarAt = (angleDeg: number, r: number) => {
+      const rad = ((angleDeg - 90) * Math.PI) / 180;
+      return {
+        x: canvasW / 2 + r * Math.cos(rad),
+        y: canvasH - 6 + r * Math.sin(rad),
+      };
+    };
+    // 底弧 + 值弧：切线段，4° 步进（更平滑），范围 [270, 270+180]
+    const segStep = 4;
+    const sweep = (percent / 100) * 180;
+    const segCount = Math.floor(sweep / segStep);
+    const arcSegments: Array<JSX.Element> = [];
+    const arcTotal = Math.ceil(180 / segStep);
+    for (let i = 0; i < arcTotal; i += 1) {
+      const a1 = 270 + i * segStep;
+      const a2 = a1 + segStep;
+      const p1 = polarAt(a1, ringMid);
+      const p2 = polarAt(a2, ringMid);
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.sqrt(dx * dx + dy * dy) + 1;
+      const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const filled = i < segCount;
+      arcSegments.push(
+        <view
+          key={`garc-${i}`}
+          style={{
+            position: "absolute",
+            left: `${(p1.x + p2.x) / 2 - len / 2}px`,
+            top: `${(p1.y + p2.y) / 2 - thickness / 2}px`,
+            width: `${len}px`,
+            height: `${thickness}px`,
+            borderRadius: "2px",
+            backgroundColor: filled ? color : theme.surfaceMuted,
+          }}
+        />,
+      );
+    }
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <view
+          style={{
+            width: `${canvasW}px`,
+            height: `${canvasH}px`,
+            position: "relative",
+          }}
+        >
+          {arcSegments}
+          <view
+            style={{
+              position: "absolute",
+              left: `${canvasW / 2 - 40}px`,
+              top: `${canvasH - 46}px`,
+              width: "80px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <text
+              style={{
+                fontSize: "24px",
+                lineHeight: "30px",
+                fontWeight: "700",
+                color: theme.onSurface,
+              }}
+            >
+              {`${percent}%`}
+            </text>
+            {label ? (
+              <text
+                style={{
+                  fontSize: "11px",
+                  lineHeight: "16px",
+                  color: theme.onSurfaceMuted,
+                }}
+              >
+                {label}
+              </text>
+            ) : null}
+          </view>
+        </view>
+      </view>
+    );
+  }
+
+  function CountUp(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const target = Number(resolvedProps["value"]) || 0;
+    const label = asText(resolvedProps["label"]);
+    const prefix = asText(resolvedProps["prefix"]);
+    const suffix = asText(resolvedProps["suffix"]);
+    const duration = 900;
+    const [display, setDisplay] = useState(0);
+    useEffect(() => {
+      const startedAt = Date.now();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const tick = () => {
+        const t = Math.min(1, (Date.now() - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setDisplay(Math.round(target * eased));
+        if (t < 1) {
+          timer = setTimeout(tick, 30);
+        }
+      };
+      timer = setTimeout(tick, 30);
+      return () => timer !== undefined && clearTimeout(timer);
+    }, [target]);
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+        }}
+      >
+        {label ? (
+          <text
+            style={{
+              fontSize: "12px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {label}
+          </text>
+        ) : null}
+        <text
+          style={{
+            fontSize: "28px",
+            lineHeight: "36px",
+            fontWeight: "700",
+            color: theme.onSurface,
+          }}
+        >
+          {`${prefix}${formatValue(display)}${suffix}`}
+        </text>
+      </view>
+    );
+  }
+
   // 官方 Button 用内部导出的 A2UIRenderer 渲染子组件资源（该导出不对包外
   // 开放）。这里用公开 API 逐行为复刻：useSyncExternalStore 订阅资源快照，
   // pending 显示骨架（官方默认兜底）、error 显示文本、surfaceUpdate 交给
@@ -3615,5 +4347,10 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     Timeline,
     BadgeGroup,
     Accordion,
+    AreaChart,
+    StackedBar,
+    DataTable,
+    Gauge,
+    CountUp,
   };
 }

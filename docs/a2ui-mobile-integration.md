@@ -77,7 +77,7 @@ LynxBridge.invoke(
 ## 4. Catalog = 组件白名单（沙箱边界）
 
 Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲染器 fail-soft（告警一次、渲染 null），不崩宿主。
-当前白名单（以 `src/a2ui-card.tsx` 实际注册为准）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ `Text / Row / Column / Card / Divider / Button / Icon / Image / List / Loading / Tabs / LineChart / PieChart`（确认卡与展示卡所需子集）。
+当前白名单（以 `src/a2ui-card.tsx` 实际注册为准，共 29 组件）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ 官方移植 `Text / Row / Column / Card / Divider / Button / Icon / Image / List / Loading / Tabs` + 图表 `LineChart / BarChart / PieChart / ScatterChart / RadarChart / FunnelChart / AreaChart / StackedBar / Gauge` + KPI 与流程 `StatCard / RankList / ProgressRing / ComparisonRow / Timeline / BadgeGroup / Accordion / DataTable / CountUp`（确认卡与展示卡所需子集）。
 十三个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单语义边界不变**。视觉规范对齐宿主 Koklam 设计系统（kmanager `lib/theme/app_theme.dart`：Spring Green `#126652` 品牌主色、Paper `#FAFAFA`、Ink `#171D1F`、Apple HIG 字阶、卡片圆角 14、图标尺寸 16/20/24），并以 `A2UICardTheme` 键暴露；宿主明暗切换时经 `initData.theme` 注入 `darkA2UICardTheme` 同源色板即可。
 
 **引擎图形能力实测（2026-09-28，iOS 模拟器）**：本引擎 `image` 不支持 SVG data URI（base64/URL 编码均空白）、`<svg>` 元素不渲染，`@font-face` base64 可用。据此：

@@ -28,7 +28,13 @@
             "divider-4",
             "order-timeline",
             "store-badges",
-            "faq-accordion"
+            "faq-accordion",
+            "divider-5",
+            "area-section",
+            "stacked-section",
+            "table-section",
+            "gauge-section",
+            "countup-section"
           ]
         },
         {
@@ -263,6 +269,63 @@
           "panels": {
             "path": "/payload/faqPanels"
           }
+        },
+        {
+          "id": "divider-5",
+          "component": "Divider"
+        },
+        {
+          "id": "area-section",
+          "component": "AreaChart",
+          "title": "营收趋势",
+          "labels": {
+            "path": "/payload/days"
+          },
+          "series": {
+            "path": "/payload/areaSeries"
+          },
+          "height": 180
+        },
+        {
+          "id": "stacked-section",
+          "component": "StackedBar",
+          "title": "渠道构成",
+          "labels": {
+            "path": "/payload/channelDays"
+          },
+          "series": {
+            "path": "/payload/channelSeries"
+          },
+          "height": 180
+        },
+        {
+          "id": "table-section",
+          "component": "DataTable",
+          "title": "菜品明细",
+          "headers": {
+            "path": "/payload/tableHeaders"
+          },
+          "rows": {
+            "path": "/payload/tableRows"
+          }
+        },
+        {
+          "id": "gauge-section",
+          "component": "Gauge",
+          "value": {
+            "path": "/payload/gaugeValue"
+          },
+          "label": "周目标达成",
+          "height": 160
+        },
+        {
+          "id": "countup-section",
+          "component": "CountUp",
+          "value": {
+            "path": "/payload/countUpTarget"
+          },
+          "label": "本月累计营业额",
+          "suffix": " 元"
         }
       ]
     }

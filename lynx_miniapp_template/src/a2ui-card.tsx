@@ -185,6 +185,11 @@ export function A2UICard() {
         catalogEntry(components.Timeline),
         catalogEntry(components.BadgeGroup),
         catalogEntry(components.Accordion),
+        catalogEntry(components.AreaChart),
+        catalogEntry(components.StackedBar),
+        catalogEntry(components.DataTable),
+        catalogEntry(components.Gauge),
+        catalogEntry(components.CountUp),
       ] as readonly CatalogInput[],
       components,
     };

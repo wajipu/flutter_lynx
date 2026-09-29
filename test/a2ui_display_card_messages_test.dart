@@ -58,6 +58,11 @@ void main() {
       "Timeline",
       "BadgeGroup",
       "Accordion",
+      "AreaChart",
+      "StackedBar",
+      "DataTable",
+      "Gauge",
+      "CountUp",
     };
     final components = (messages[1]["updateComponents"]
         as Map<dynamic, dynamic>)["components"] as List<dynamic>;
