@@ -58,3 +58,37 @@
   animation-timing-function: ease-out;
   animation-fill-mode: backwards;
 }
+
+/* 数据生长动效（0 → 100）：柱体自基线向上生长（scaleY + origin bottom），
+   条形自左向右展开（scaleX + origin left）。依赖 transform-origin 支持。 */
+@keyframes a2ui-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes a2ui-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.a2ui-anim-grow-y {
+  animation-name: a2ui-grow-y;
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: backwards;
+}
+
+.a2ui-anim-grow-x {
+  animation-name: a2ui-grow-x;
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: backwards;
+}

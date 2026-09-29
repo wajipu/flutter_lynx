@@ -1147,6 +1147,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return (
           <view
             key={`seg-${seriesIndex}-${index}`}
+            className="a2ui-anim-fade"
             style={{
               position: "absolute",
               left: `${(point.x + next.x) / 2 - len / 2}px`,
@@ -1156,6 +1157,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               borderRadius: "2px",
               backgroundColor: point.color,
               transform: `rotate(${angleDeg}deg)`,
+              animationDelay: `${index * 70}ms`,
             }}
           />
         );
@@ -1168,6 +1170,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return (
           <view
             key={`dot-${seriesIndex}-${index}`}
+            className="a2ui-anim-fade"
             style={{
               position: "absolute",
               left: `${point.x - dotOffset}px`,
@@ -1177,6 +1180,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               borderRadius: `${selected ? 4.5 : 3.5}px`,
               backgroundColor: point.color,
               border: `1.5px solid ${selected ? theme.primary : theme.surface}`,
+              animationDelay: `${index * 70 + 240}ms`,
             }}
           />
         );
@@ -1527,6 +1531,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return (
           <view
             key={`bar-${seriesIndex}-${groupIndex}`}
+            className="a2ui-anim-grow-y"
             style={{
               position: "absolute",
               left: `${barX}px`,
@@ -1537,6 +1542,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               borderTopRightRadius: "4px",
               backgroundColor: item.color,
               opacity: dimmed ? 0.35 : 1,
+              transformOrigin: "50% 100%",
+              animationDelay: `${groupIndex * 60}ms`,
             }}
           />
         );
@@ -2324,6 +2331,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 {String(slice["name"] ?? "")}
               </text>
               <view
+                className="a2ui-anim-grow-x"
                 style={{
                   width: `${Math.max(8, ratio * 170)}px`,
                   height: "26px",
@@ -2333,6 +2341,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
+                  animationDelay: `${index * 90}ms`,
                 }}
               >
                 {showValues ? (
@@ -2573,11 +2582,14 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                   }}
                 >
                   <view
+                    className="a2ui-anim-grow-x"
                     style={{
                       width: `${Math.min(100, percent)}%`,
                       height: "8px",
                       borderRadius: "4px",
                       backgroundColor: barColor,
+                      transformOrigin: "0% 50%",
+                      animationDelay: `${index * 80}ms`,
                     }}
                   />
                 </view>
