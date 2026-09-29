@@ -1460,15 +1460,17 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
       : [];
     const showLegend = resolvedProps["showLegend"] !== false;
-    const showValues = resolvedProps["showValues"] === true;
+    // 协议层把布尔字面量序列化为数字（实测 true → 1），按真值归一判断。
+    const showValues = Boolean(resolvedProps["showValues"]);
     const heightValue = resolvedProps["height"];
     const height = typeof heightValue === "number" ? heightValue : 200;
     const chartTitle =
       typeof resolvedProps["yLabel"] === "string" ? resolvedProps["yLabel"] : "";
 
-    // 几何：300px 设计宽，组内并列柱体，柱宽自适应
+    // 几何：300px 设计宽，组内并列柱体，柱宽自适应；顶部预留 18px 给
+    // 柱顶数值标签（showValues 时最高的柱标签也不能越界被裁）。
     const canvasW = 300;
-    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const margin = { top: 26, right: 12, bottom: 8, left: 12 };
     const plotW = canvasW - margin.left - margin.right;
     const plotH = height - margin.top - margin.bottom;
     const groupCount = labels.length;
@@ -1618,19 +1620,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           minWidth: 0,
         }}
       >
-        {chartTitle ? (
-          <text
-            style={{
-              fontSize: "16px",
-              lineHeight: "22px",
-              fontWeight: "600",
-              color: theme.onSurface,
-            }}
-          >
-            {chartTitle}
-          </text>
-        ) : null}
-
         <view
           style={{
             width: "300px",
@@ -1678,10 +1667,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
 
         <view
           style={{
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-between",
             width: "300px",
+            height: "16px",
+            position: "relative",
             alignSelf: "center",
           }}
         >
@@ -1689,6 +1677,11 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             <text
               key={`${index}-${label ?? index}`}
               style={{
+                position: "absolute",
+                left: `${margin.left + index * groupW}px`,
+                top: "0px",
+                width: `${groupW}px`,
+                textAlign: "center",
                 fontSize: "11px",
                 lineHeight: "16px",
                 color:
