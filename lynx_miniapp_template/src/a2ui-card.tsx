@@ -214,51 +214,51 @@ export function A2UICard() {
       style={{ width: "100%", height: "100%" }}
       scroll-orientation="vertical"
     >
-    <view
-      style={{
-        width: "100%",
-        minHeight: "100%",
-        backgroundColor: theme.background,
-        display: "flex",
-        flexDirection: "column",
-        padding: "12px",
-      }}
-    >
-      <A2UI
-        messageStore={store}
-        catalogs={catalog}
-        onAction={handleAction}
-        wrapSurface={(children, _ctx) => (
-          <view
-            className={
-              answered && theme.exitAnimation !== "none"
-                ? "a2ui-light a2ui-card-exit"
-                : "a2ui-light a2ui-anim-rise"
-            }
-            style={
-              answered
-                ? { ...cardShellStyle(theme), opacity: 0.5 }
-                : cardShellStyle(theme)
-            }
-          >
-            {children}
-          </view>
-        )}
-        renderEmpty={() => (
-          <text style={placeholderStyle(theme)}>正在加载卡片内容…</text>
-        )}
-        renderError={() => (
-          <text style={placeholderStyle(theme)}>
-            卡片内容加载失败，请退出后重试。
-          </text>
-        )}
-        renderUnsupported={(info) => (
-          <text style={placeholderStyle(theme)}>
-            {`暂不支持的卡片元素：${info.tag}（${info.kind}）`}
-          </text>
-        )}
-      />
-    </view>
+      <view
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          backgroundColor: theme.background,
+          display: "flex",
+          flexDirection: "column",
+          padding: "12px",
+        }}
+      >
+        <A2UI
+          messageStore={store}
+          catalogs={catalog}
+          onAction={handleAction}
+          wrapSurface={(children, _ctx) => (
+            <view
+              className={
+                answered && theme.exitAnimation !== "none"
+                  ? "a2ui-light a2ui-card-exit"
+                  : "a2ui-light a2ui-anim-rise"
+              }
+              style={
+                answered
+                  ? { ...cardShellStyle(theme), opacity: 0.5 }
+                  : cardShellStyle(theme)
+              }
+            >
+              {children}
+            </view>
+          )}
+          renderEmpty={() => (
+            <text style={placeholderStyle(theme)}>正在加载卡片内容…</text>
+          )}
+          renderError={() => (
+            <text style={placeholderStyle(theme)}>
+              卡片内容加载失败，请退出后重试。
+            </text>
+          )}
+          renderUnsupported={(info) => (
+            <text style={placeholderStyle(theme)}>
+              {`暂不支持的卡片元素：${info.tag}（${info.kind}）`}
+            </text>
+          )}
+        />
+      </view>
     </scroll-view>
   );
 }

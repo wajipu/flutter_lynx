@@ -2406,6 +2406,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
+    // 点选态：tap 扇形/图例 → 该扇形保持高亮、其余淡化；再 tap 取消。
+    const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
+
     const dataValue = resolvedProps["data"];
     const slices = Array.isArray(dataValue)
       ? (dataValue as Array<Record<string, unknown>>)
@@ -2430,23 +2433,19 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           : "暂无数据";
     const showPercentages = resolvedProps["showPercentages"] !== false;
     const heightValue = resolvedProps["height"];
-    const height =
-      typeof heightValue === "number" ? heightValue : PIE_SVG_HEIGHT;
-    const paddingAngleValue = resolvedProps["paddingAngle"];
-    const paddingAngle =
-      typeof paddingAngleValue === "number" ? paddingAngleValue : 2;
+    const height = typeof heightValue === "number" ? heightValue : 220;
     const palette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
+
+    // 环形几何（切线线段逼近）：外径 84；donut 内径 52 / pie 小孔 14；
+    // 每 3° 一段 +1px 重叠补隙，静态实心平滑。段全程不透明（透明淡入会让
+    // 重叠区显双份深斑——用户实测反馈），生长动效在扇形包裹层上做 scale。
     const outerRadius = 84;
     const innerRadius = variant === "donut" ? 52 : 14;
     const ringMid = (outerRadius + innerRadius) / 2;
     const ringThickness = outerRadius - innerRadius;
-    const segStep = 6;
-    const totalValue = slices.reduce(
-      (acc, slice) => acc + Math.max(0, Number(slice["value"]) || 0),
-      0,
-    );
+    const segStep = 3;
     const polarAt = (angleDeg: number, r: number) => {
       const rad = ((angleDeg - 90) * Math.PI) / 180;
       return {
@@ -2454,19 +2453,20 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         y: PIE_CENTER_Y + r * Math.sin(rad),
       };
     };
-    const ringSegments: Array<JSX.Element> = [];
-    if (totalValue > 0) {
+    const ringGroups: Array<JSX.Element> = [];
+    if (total > 0) {
       let cursor = 0; // 自 12 点钟顺时针累计角度
       slices.forEach((slice, sliceIndex) => {
         const value = Math.max(0, Number(slice["value"]) || 0);
         if (value <= 0) return;
-        const sliceAngle = (value / totalValue) * 360;
+        const sliceAngle = (value / total) * 360;
         const segCount = Math.max(1, Math.round(sliceAngle / segStep));
         const color =
           typeof slice["color"] === "string"
             ? slice["color"]
             : palette[sliceIndex % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
         const dimmed = selectedSlice !== null && selectedSlice !== sliceIndex;
+        const segments: Array<JSX.Element> = [];
         for (let i = 0; i < segCount; i += 1) {
           const a1 = cursor + (i * sliceAngle) / segCount;
           const a2 = cursor + ((i + 1) * sliceAngle) / segCount;
@@ -2474,10 +2474,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           const p2 = polarAt(a2, ringMid);
           const dx = p2.x - p1.x;
           const dy = p2.y - p1.y;
-          const len =
-            Math.sqrt(dx * dx + dy * dy) + 0.25;
+          const len = Math.sqrt(dx * dx + dy * dy) + 1;
           const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-          ringSegments.push(
+          segments.push(
             <view
               key={`rseg-${sliceIndex}-${i}`}
               style={{
@@ -2489,7 +2488,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 backgroundColor: color,
                 opacity: dimmed ? 0.3 : 1,
                 transform: `rotate(${angleDeg}deg)`,
-                animationDelay: `${(a1 / 360) * 600}ms`,
               }}
               bindtap={() =>
                 setSelectedSlice(
@@ -2499,11 +2497,27 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             />,
           );
         }
+        // 扇形整体包 scale 包裹层：从圆心向外生长（0→100），逐扇形错峰
+        ringGroups.push(
+          <view
+            key={`rgrp-${sliceIndex}`}
+            className="a2ui-anim-grow"
+            style={{
+              position: "absolute",
+              left: "0px",
+              top: "0px",
+              width: "100%",
+              height: "100%",
+              animationDelay: `${sliceIndex * 130}ms`,
+            }}
+          >
+            {segments}
+          </view>,
+        );
         cursor += sliceAngle;
       });
     }
-    // 点选态：tap 某行 → 该行保持高亮、其余淡化；再 tap 取消。
-    const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
+
     return (
       <view
         key={id}
@@ -2517,16 +2531,14 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       >
         <view
           style={{
+            width: "100%",
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            width: "100%",
           }}
         >
-          <view
-            style={{ display: "flex", flexDirection: "column", gap: "2px" }}
-          >
+          <view style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             <text
               style={{
                 fontSize: "16px",
@@ -2576,9 +2588,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           </view>
         </view>
 
-        {/* 真·环形/饼图：把圆环拆成每 6° 一段的切线旋转矩形（与折线/雷达同款
-            线段技术），仅用已验证的原语；每段按角度错峰延迟 = 顺时针 0→100
-            扫描动效。variant "pie" 用小孔近似实心饼。 */}
         <view
           style={{
             width: "300px",
@@ -2587,7 +2596,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             alignSelf: "center",
           }}
         >
-          {ringSegments}
+          {ringGroups}
           {total > 0 ? (
             <view
               style={{
@@ -2601,6 +2610,76 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               }}
             />
           ) : null}
+        </view>
+
+        <view
+          style={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {slices.map((slice, index) => {
+            const value = Math.max(0, Number(slice["value"]) || 0);
+            const percent = total > 0 ? (value / total) * 100 : 0;
+            const color =
+              typeof slice["color"] === "string"
+                ? slice["color"]
+                : palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
+            const dimmed = selectedSlice !== null && selectedSlice !== index;
+            return (
+              <view
+                key={`legend-${String(slice["name"] ?? "")}-${index}`}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "8px",
+                  opacity: dimmed ? 0.4 : 1,
+                }}
+                bindtap={() =>
+                  setSelectedSlice(selectedSlice === index ? null : index)
+                }
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "2px",
+                    backgroundColor: color,
+                    flexShrink: 0,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "13px",
+                    lineHeight: "18px",
+                    color: theme.onSurface,
+                  }}
+                >
+                  {String(slice["name"] ?? "")}
+                </text>
+                <text
+                  style={{
+                    fontSize: "13px",
+                    lineHeight: "18px",
+                    fontWeight: selectedSlice === index ? "600" : "400",
+                    color:
+                      selectedSlice === index
+                        ? theme.primary
+                        : theme.onSurfaceMuted,
+                    marginLeft: "auto",
+                  }}
+                >
+                  {showPercentages
+                    ? `${formatValue(value)}（${formatPercent(percent)}）`
+                    : formatValue(value)}
+                </text>
+              </view>
+            );
+          })}
         </view>
       </view>
     );
