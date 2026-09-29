@@ -923,12 +923,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
   }
 
   const DEFAULT_CHART_COLORS = [
-    "#126652",
-    "#0a8f8f",
-    "#8a5cf6",
-    "#d92d20",
-    "#2d6a4f",
-    "#b26a00",
+    "#126652", // brandGreen
+    "#F2B66D", // springWarm（暖琥珀）
+    "#B98E79", // segmentDot（陶土）
+    "#C5E1D4", // lightLime（浅青柠）
+    "#145743", // tabActive（深绿）
+    "#059669", // brandBright（翠绿）
   ];
   function escapeXml(value: string): string {
     return value
@@ -2474,7 +2474,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           const p2 = polarAt(a2, ringMid);
           const dx = p2.x - p1.x;
           const dy = p2.y - p1.y;
-          const len = Math.sqrt(dx * dx + dy * dy) + ringThickness * 0.35;
+          const len =
+            Math.sqrt(dx * dx + dy * dy) + ringThickness * 0.35 + 1;
           const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
           ringSegments.push(
             <view
@@ -2485,7 +2486,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 top: `${(p1.y + p2.y) / 2 - ringThickness / 2}px`,
                 width: `${len}px`,
                 height: `${ringThickness}px`,
-                borderRadius: "2px",
                 backgroundColor: color,
                 opacity: dimmed ? 0.3 : 1,
                 transform: `rotate(${angleDeg}deg)`,
