@@ -228,6 +228,24 @@ npm run a2ui:status                                         # 查看远端 manif
 
 URL 链路小程序不走本机制（`LynxMiniProgramManager` 既有下载/缓存/回退不变；两者底层共用 `BundleDownloader`）。
 
+**轻量管理页**（`npm run a2ui:admin`，浏览器操作 OSS 上的 manifest/发布记录）：
+
+```bash
+A2UI_OSS_BUCKET=oss://<bucket>/<prefix>/a2ui \
+A2UI_PUBLIC_BASE=https://<bucket>.oss-cn-x.aliyuncs.com/<prefix>/a2ui \
+npm run a2ui:admin          # 打开 http://127.0.0.1:8788
+A2UI_OSS_STUB_DIR=/tmp/stub npm run a2ui:admin   # 无 OSS 本地演示模式
+```
+
+页面能力：查看 stable/gray 当前生效版本与发布记录（含备注/时间/大小）、
+调整灰度比例、灰度转正、一键回滚历史版本（md5 自动取自发布记录索引
+`releases/index.json`，每次 release 自动追加）、暂停下发（kill switch——
+manifest 写 `{paused:true}`，客户端校验不过全量回退内置）。默认仅绑定
+127.0.0.1；对外暴露（`A2UI_ADMIN_BIND=0.0.0.0`）必须配 `A2UI_ADMIN_TOKEN`。
+
+注意：release 需同时设 `A2UI_PUBLIC_BASE`（manifest 里的 url 是客户端
+dio 直接下载的 HTTPS 地址，不是 ossutil 的 oss:// 路径）。
+
 ## 9. 已知坑与排查分流
 
 ### 9.1 生产压缩剥离组件函数名 → Lynx 1101 白屏（已修，2026-09-28）

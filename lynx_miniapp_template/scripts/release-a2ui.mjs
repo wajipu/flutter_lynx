@@ -3,7 +3,9 @@
 //
 // 前置（一次性）：
 //   1. 本机安装 ossutil（macOS: brew install aliyun-ossutil 或官方二进制）并配好 AK
-//   2. export A2UI_OSS_BUCKET=oss://<bucket>/<prefix>/a2ui   （不带尾斜杠）
+//   2. export A2UI_OSS_BUCKET=oss://<bucket>/<prefix>/a2ui   （ossutil 操作路径，不带尾斜杠）
+//   3. export A2UI_PUBLIC_BASE=https://<bucket>.oss-cn-x.aliyuncs.com/<prefix>/a2ui
+//      （客户端可见的公网 HTTPS 基址——manifest 里的 url 用它拼接，App 端 dio 可直接下载）
 //
 // 常用命令：
 //   npm run a2ui:release                                  # 发布 stable
@@ -27,6 +29,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const BUCKET = process.env.A2UI_OSS_BUCKET;
+const PUBLIC_BASE = (process.env.A2UI_PUBLIC_BASE ?? "").replace(/\/$/, "");
 const OSSUTIL = process.env.A2UI_OSSUTIL ?? "ossutil";
 const CHANNEL = process.env.A2UI_CHANNEL ?? "stable"; // stable | gray
 const GRAY_PERCENT = Number.parseInt(process.env.A2UI_GRAY_PERCENT ?? "0", 10);
@@ -48,6 +51,29 @@ function run(cmd, opts = {}) {
 
 function requireBucket() {
   if (!BUCKET) fail("缺少 A2UI_OSS_BUCKET（例如 oss://my-bucket/cards/a2ui）");
+  if (!PUBLIC_BASE) {
+    fail("缺少 A2UI_PUBLIC_BASE（客户端可见的 HTTPS 基址，如 https://bucket.oss-cn-hangzhou.aliyuncs.com/cards/a2ui）");
+  }
+}
+
+/// 发布记录索引（releases/index.json）：每次 release 追加一条，回滚/管理页查 md5 用。
+function fetchReleaseIndex() {
+  const tmp = mkdtempSync(path.join(tmpdir(), "a2ui-idx-"));
+  try {
+    run(`${OSSUTIL} cp ${BUCKET}/releases/index.json ${path.join(tmp, "i.json")} -f`);
+    const list = JSON.parse(readFileSync(path.join(tmp, "i.json"), "utf8"));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+function pushReleaseIndex(list) {
+  const tmp = path.join(distDir, "releases-index.json");
+  writeFileSync(tmp, JSON.stringify(list, null, 2));
+  run(`${OSSUTIL} cp ${tmp} ${BUCKET}/releases/index.json -f`);
 }
 
 function fetchRemoteManifest() {
@@ -108,16 +134,17 @@ async function main() {
       console.log(`提升 gray v${entry.version} → stable（灰度关闭）`);
     } else {
       // 回滚：产物按版本归档永不覆盖，stable 重指历史版本即可。
-      // 历史版本的 md5 需显式提供（发布日志/记录里有），防误指错产物。
-      const md5 = process.env.A2UI_MD5;
+      // md5 优先取发布记录索引，查不到再要求显式提供（防误指错产物）。
+      const record = fetchReleaseIndex().find((r) => r.version === version);
+      const md5 = process.env.A2UI_MD5 ?? record?.md5;
       if (!md5 || md5.length !== 32) {
         fail(
-          `回滚需提供发布时的 md5：A2UI_MD5=<32位> npm run a2ui:rollback -- ${version}`,
+          `发布记录中无 v${version} 的 md5，请显式提供：A2UI_MD5=<32位> npm run a2ui:rollback -- ${version}`,
         );
       }
       entry = {
         version,
-        url: `${BUCKET}/${version}/a2ui-card.lynx.bundle`,
+        url: `${PUBLIC_BASE}/${version}/a2ui-card.lynx.bundle`,
         md5,
       };
       console.log(`stable 回滚 → v${version}`);
@@ -156,10 +183,22 @@ async function main() {
   console.log(`▸ 上传产物 v${version}（${size} 字节, md5=${md5}）…`);
   const remoteBundle = `${BUCKET}/${version}/a2ui-card.lynx.bundle`;
   run(`${OSSUTIL} cp ${bundlePath} ${remoteBundle} -f`);
+  // 发布记录（管理页/回滚查 md5 的数据源）
+  const index = fetchReleaseIndex();
+  index.unshift({
+    version,
+    md5,
+    bytes: size,
+    channel: CHANNEL,
+    percent: CHANNEL === "gray" ? GRAY_PERCENT : 0,
+    note: process.env.A2UI_NOTE ?? "",
+    date: new Date().toISOString(),
+  });
+  pushReleaseIndex(index);
 
   // 4. 更新 manifest（保留另一通道）
   const current = fetchRemoteManifest() ?? {};
-  const entry = { version, url: remoteBundle, md5 };
+  const entry = { version, url: `${PUBLIC_BASE}/${version}/a2ui-card.lynx.bundle`, md5 };
   const next = { ...current };
   if (CHANNEL === "stable") {
     next.stable = entry;
