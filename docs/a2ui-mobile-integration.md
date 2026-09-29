@@ -171,6 +171,8 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 
 宿主须随 initData 注入契约命名空间：`payload`（候选字段）、`confirmationId`、`statusText`、`label`（`title/description/product/stock/quantity/confirm/cancel` 等，按三语注入）。
 
+**图表颜色契约（防报错）**：所有图表的颜色三级回滚——数据项级 `color`（如 `series[].color`、`data[].color`）→ 图表级 `colors` 数组（任意图表可传，覆盖系列色板）→ Koklam 默认色板自动轮转。三级全部可省略：不传任何颜色时自动按默认色板生成，**不传不报错、非法值（非字符串/空串）忽略并回滚**，渲染永不因颜色失败。
+
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
 业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）；

@@ -1072,8 +1072,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
+    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
     const series = Array.isArray(seriesValue)
-      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      ? normalizeSeries(seriesValue, chartPalette)
       : [];
     const variant =
       typeof resolvedProps["variant"] === "string"
@@ -1452,8 +1456,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
+    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
     const series = Array.isArray(seriesValue)
-      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      ? normalizeSeries(seriesValue, chartPalette)
       : [];
     const showLegend = resolvedProps["showLegend"] !== false;
     // 协议层把布尔字面量序列化为数字（实测 true → 1），按真值归一判断。
@@ -1757,8 +1765,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
+    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
     const series = Array.isArray(seriesValue)
-      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      ? normalizeSeries(seriesValue, chartPalette)
       : [];
     const showLegend = resolvedProps["showLegend"] !== false;
     const heightValue = resolvedProps["height"];
@@ -2025,8 +2037,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       ? (indicatorsValue as Array<Record<string, unknown>>)
       : [];
     const seriesValue = resolvedProps["series"];
+    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
     const series = Array.isArray(seriesValue)
-      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      ? normalizeSeries(seriesValue, chartPalette)
       : [];
     const showLegend = resolvedProps["showLegend"] !== false;
     const heightValue = resolvedProps["height"];
@@ -2326,7 +2342,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           const color =
             typeof slice["color"] === "string"
               ? slice["color"]
-              : (palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!);
+              : (chartPalette[index % chartPalette.length] ??
+                DEFAULT_CHART_COLORS[0]!);
           return (
             <view
               key={`funnel-${String(slice["name"] ?? "")}-${index}`}
