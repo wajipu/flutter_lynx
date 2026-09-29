@@ -85,7 +85,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 - **Icon** 用 Lucide 图标字体子集渲染（`src/a2ui-card-icon-font.ts` + `a2ui-card-font.css`，fontTools.subset 裁剪到白名单 29 个码点仅 5.5KB；数据源 lucide-static/ISC），码点字形颜色随主题文本色；未映射名静默渲染空。
 - **LineChart** 用纯 view 绘制（网格/轴线为 1px view，折线为「中心点定位 + rotate」的线段 view，数据点为圆 view），画布固定 300px 设计宽；支持点选列——tap 整列热区出参考线 + 放大数据点 + 数值气泡，再 tap 取消。
 - **PieChart 占比条**支持点选行——选中行数值转主色加粗、其余行淡化，再 tap 取消。
-- **PieChart** 以横向占比条呈现同一数据（名称/数值/百分比/相对大小）；弧形图形需引擎矢量能力，升级后再切回。
+- **PieChart** 为真·环形/饼图：圆环拆成每 6° 一段的切线旋转矩形逼近（与折线/雷达同款线段技术），`donut` 内径 52 / `pie` 小孔 14，图例含数值与百分比，点选扇形高亮；进场为顺时针 0→100 扫描（每段按角度错峰）。
 - **BarChart**（柱状图）为宿主自有扩展组件（官方 basic catalog 无此组件，Skill 约束需显式教给模型）：props 与 LineChart 对齐（labels + series），基线从 0 起，`showValues: true` 显示柱顶数值，支持点选整组高亮 + 数值气泡。
 - **ScatterChart**（散点图）/ **RadarChart**（雷达图）/ **FunnelChart**（漏斗图，居中递减条画法）均为宿主自有扩展组件，view 绘制：散点支持点选列（参考线 + 数值气泡），雷达支持图例点选系列高亮，漏斗支持点选行（转化率显示为相对首行的百分比）。
 - Tabs 页签标题为字面量（官方 Tabs 直读 props.tabs，页签标题不做 path 绑定）；图表 labels/series/data 为顶层 prop 的 path 绑定（渲染器解析）。展示卡演示消息见 `example/assets/a2ui/display-card-messages.json`（守护测试 `test/a2ui_display_card_messages_test.dart`）。
@@ -174,7 +174,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
 业务值/ID 全字符串（禁数值转换）；文案零硬编码（一律 `/label/*` 绑定）；
-**禁用一切 SVG 表达**（宿主引擎不支持 SVG：模板不产出 svg 内容/属性，图表用 LineChart/BarChart/PieChart/ScatterChart/RadarChart/FunnelChart 承载，PieChart 呈现为占比条）；
+**禁用一切 SVG 表达**（宿主引擎不支持 SVG：模板不产出 svg 内容/属性，图表用 LineChart/BarChart/PieChart/ScatterChart/RadarChart/FunnelChart 承载）；
 Tabs 页签标题为字面量（`tabs[].title` 不做 path 绑定）；图表数据走 `labels`/`series`/`data` 顶层 prop 的 path 绑定。展示卡消息可包 a2ui 围栏（`a2ui，注意不是 `lynx），解析分段器需支持该标记。弹窗/浮层不进模板（属宿主能力）：需弹出呈现只发 action 事件回传，由宿主用原生弹窗/半屏/页面承载。
 
 ## 9. 已知坑与排查分流
