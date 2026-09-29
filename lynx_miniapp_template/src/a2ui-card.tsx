@@ -237,6 +237,7 @@ export function A2UICard() {
           padding: "12px",
         }}
       >
+        </view>
         <A2UI
           messageStore={store}
           catalogs={catalog}

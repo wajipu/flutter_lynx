@@ -4132,8 +4132,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         y: canvasH - 6 + r * Math.sin(rad),
       };
     };
-    // 底弧 + 值弧：切线段，4° 步进（更平滑），范围 [270, 270+180]
-    const segStep = 4;
+    // 底弧 + 值弧：切线段，2° 步进（90 段，弧面平滑），范围 [270, 270+180]
+    const segStep = 2;
     const sweep = (percent / 100) * 180;
     const segCount = Math.floor(sweep / segStep);
     const arcSegments: Array<JSX.Element> = [];
