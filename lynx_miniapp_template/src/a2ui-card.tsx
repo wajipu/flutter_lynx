@@ -110,7 +110,8 @@ function placeholderStyle(
  * 渲染宿主经 Dart 侧 initialData 注入的 A2UI v0.9 消息流。
  *
  * catalog 即组件白名单（沙箱边界）：展示类组件 Text/Row/Column/Card/
- * Divider/Button/Icon/Image/List/Loading/Tabs/LineChart/PieChart/BarChart，全部为
+ * Divider/Button/Icon/Image/List/Loading/Tabs/LineChart/PieChart/BarChart/
+ * ScatterChart/RadarChart/FunnelChart，全部为
  * 本地美化实现；输入类组件（TextField/RadioGroup/...）仍刻意排除（docs §4）。
  * Icon 用内置 Lucide 矢量数据渲染（原字体方案真机乱码，故排除；改矢量后解除）。
  */
@@ -173,6 +174,9 @@ export function A2UICard() {
         catalogEntry(components.LineChart),
         catalogEntry(components.PieChart),
         catalogEntry(components.BarChart),
+        catalogEntry(components.ScatterChart),
+        catalogEntry(components.RadarChart),
+        catalogEntry(components.FunnelChart),
       ] as readonly CatalogInput[],
       components,
     };

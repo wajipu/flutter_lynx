@@ -880,6 +880,28 @@ class _DemoHomePageState extends State<DemoHomePage>
               ],
               "dayparts": ["早市", "午市", "下午茶", "晚市"],
               "orders": [{"name": "订单", "values": [86, 214, 142, 268]}],
+              "scatterMonths": ["一月", "二月", "三月", "四月", "五月"],
+              "scatterSeries": [
+                {"name": "新客", "values": [12, 19, 8, 22, 15]},
+                {"name": "老客", "values": [28, 24, 30, 18, 26]},
+              ],
+              "radarIndicators": [
+                {"name": "销量", "max": 100},
+                {"name": "利润", "max": 100},
+                {"name": "复购", "max": 100},
+                {"name": "客流", "max": 100},
+                {"name": "口碑", "max": 100},
+              ],
+              "radarSeries": [
+                {"name": "本店", "values": [80, 65, 90, 70, 85]},
+                {"name": "均值", "values": [60, 50, 55, 60, 65]},
+              ],
+              "funnelStages": [
+                {"name": "进店", "value": 500},
+                {"name": "浏览", "value": 380},
+                {"name": "下单", "value": 210},
+                {"name": "复购", "value": 90},
+              ],
             },
           },
           "messages": messages,

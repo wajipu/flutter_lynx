@@ -19,7 +19,8 @@
             "revenue-row",
             "divider-1",
             "bar-chart",
-            "tabs"
+            "tabs",
+            "tabs-more"
           ]
         },
         {
@@ -125,6 +126,60 @@
           "variant": "donut",
           "title": "品类销售占比",
           "height": 220
+        },
+        {
+          "id": "tab-funnel",
+          "component": "FunnelChart",
+          "data": {
+            "path": "/payload/funnelStages"
+          },
+          "title": "点单转化漏斗",
+          "height": 220
+        },
+        {
+          "id": "tab-radar",
+          "component": "RadarChart",
+          "indicators": {
+            "path": "/payload/radarIndicators"
+          },
+          "series": {
+            "path": "/payload/radarSeries"
+          },
+          "height": 250
+        },
+        {
+          "id": "tab-scatter",
+          "component": "ScatterChart",
+          "labels": {
+            "path": "/payload/scatterMonths"
+          },
+          "series": {
+            "path": "/payload/scatterSeries"
+          },
+          "yLabel": "客流构成（人）",
+          "height": 200
+        },
+        {
+          "id": "tabs-more",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": "散点图",
+              "child": "tab-scatter"
+            },
+            {
+              "title": "雷达图",
+              "child": "tab-radar"
+            },
+            {
+              "title": "漏斗图",
+              "child": "tab-funnel"
+            }
+          ]
+        },
+        {
+          "id": "divider-2",
+          "component": "Divider"
         }
       ]
     }

@@ -1747,6 +1747,637 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- ScatterChart（散点图）/ RadarChart（雷达图）/ FunnelChart（漏斗图）：
+  // 宿主自有扩展组件（官方 basic catalog 无），全部纯 view 绘制。 ---
+
+  function ScatterChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedDot, setSelectedDot] = useState<number | null>(null);
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      : [];
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 200;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+
+    const canvasW = 300;
+    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
+    const plotW = canvasW - margin.left - margin.right;
+    const plotH = height - margin.top - margin.bottom;
+    const maxPoints = labels.length;
+    const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
+    const { min: plotMin, max: plotMax } = minMax(allValues);
+    const plotRange = plotMax - plotMin;
+    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
+    const seriesPoints = series.map((item) =>
+      item.values.slice(0, maxPoints).map((value, index) => ({
+        x: margin.left + xStep * index,
+        y:
+          margin.top +
+          plotH -
+          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
+        color: item.color,
+      })),
+    );
+    const gridLines = 4;
+    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
+      const ratio = index / gridLines;
+      return (
+        <view
+          key={`sgrid-${index}`}
+          style={{
+            position: "absolute",
+            left: `${margin.left}px`,
+            top: `${margin.top + plotH - ratio * plotH}px`,
+            width: `${plotW}px`,
+            height: "1px",
+            backgroundColor: theme.border,
+          }}
+        />
+      );
+    });
+    const chartBaseline = (
+      <view
+        style={{
+          position: "absolute",
+          left: `${margin.left}px`,
+          top: `${margin.top + plotH}px`,
+          width: `${plotW}px`,
+          height: "1.5px",
+          backgroundColor: theme.onSurfaceMuted,
+        }}
+      />
+    );
+    // 散点：9px 圆点（散点是主数据，比折线的数据点大）
+    const chartDots = seriesPoints.map((points, seriesIndex) =>
+      points.map((point, index) => {
+        const selected = selectedDot === index;
+        const dotSize = selected ? "11px" : "9px";
+        const dotOffset = selected ? 5.5 : 4.5;
+        return (
+          <view
+            key={`sdot-${seriesIndex}-${index}`}
+            style={{
+              position: "absolute",
+              left: `${point.x - dotOffset}px`,
+              top: `${point.y - dotOffset}px`,
+              width: dotSize,
+              height: dotSize,
+              borderRadius: `${dotOffset}px`,
+              backgroundColor: point.color,
+              opacity: selected || selectedDot === null ? 1 : 0.45,
+            }}
+          />
+        );
+      }),
+    );
+    const guideX =
+      selectedDot === null ? null : margin.left + xStep * selectedDot;
+    const selectedLabel =
+      selectedDot === null ? "" : String(labels[selectedDot] ?? "");
+    const selectedValues =
+      selectedDot === null
+        ? []
+        : series.map((item) => ({
+            name: item.name,
+            value: item.values[selectedDot] ?? 0,
+          }));
+    const chartHitBoxes = maxPoints
+      ? Array.from({ length: maxPoints }, (_, index) => (
+          <view
+            key={`shit-${index}`}
+            style={{
+              position: "absolute",
+              left: `${margin.left + xStep * index - 15}px`,
+              top: "0px",
+              width: "30px",
+              height: `${height}px`,
+              backgroundColor: "transparent",
+            }}
+            bindtap={() =>
+              setSelectedDot(selectedDot === index ? null : index)
+            }
+          />
+        ))
+      : [];
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {chartTitle ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+            alignSelf: "center",
+          }}
+        >
+          {chartGrid}
+          {chartBaseline}
+          {chartDots}
+          {selectedDot !== null && guideX !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${guideX}px`,
+                top: `${margin.top}px`,
+                width: "1px",
+                height: `${plotH}px`,
+                backgroundColor: theme.primary,
+                opacity: 0.35,
+              }}
+            />
+          ) : null}
+          {selectedDot !== null && guideX !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
+                top: "2px",
+                borderRadius: "6px",
+                backgroundColor: theme.onSurface,
+                paddingLeft: "8px",
+                paddingRight: "8px",
+                paddingTop: "4px",
+                paddingBottom: "4px",
+              }}
+            >
+              <text
+                style={{
+                  fontSize: "10px",
+                  lineHeight: "13px",
+                  color: theme.surface,
+                }}
+              >
+                {`${selectedLabel}　${selectedValues
+                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
+                  .join(" · ")}`}
+              </text>
+            </view>
+          ) : null}
+          {chartHitBoxes}
+        </view>
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "300px",
+            alignSelf: "center",
+          }}
+        >
+          {labels.map((label, index) => (
+            <text
+              key={`sax-${index}-${label ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color: theme.onSurfaceMuted,
+              }}
+            >
+              {label ?? ""}
+            </text>
+          ))}
+        </view>
+        {showLegend ? (
+          <view
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: "8px 14px",
+              width: "100%",
+            }}
+          >
+            {series.map((item) => (
+              <view
+                key={item.name}
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <view
+                  style={{
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "5px",
+                    backgroundColor: item.color,
+                  }}
+                />
+                <text
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {item.name}
+                </text>
+              </view>
+            ))}
+          </view>
+        ) : null}
+      </view>
+    );
+  }
+
+  function RadarChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedSeries, setSelectedSeries] = useState<number | null>(null);
+    const indicatorsValue = resolvedProps["indicators"];
+    const indicators = Array.isArray(indicatorsValue)
+      ? (indicatorsValue as Array<Record<string, unknown>>)
+      : [];
+    const seriesValue = resolvedProps["series"];
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, DEFAULT_CHART_COLORS)
+      : [];
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 250;
+
+    // 画布：300×height，圆心居中，半径留出标签空间
+    const canvasW = 300;
+    const cx = canvasW / 2;
+    const cy = height / 2;
+    const radius = Math.min(110, height / 2 - 26);
+    const axisCount = indicators.length;
+    const rings = 4;
+    const ringElements = Array.from({ length: rings }, (_, index) => {
+      const r = (radius * (index + 1)) / rings;
+      return (
+        <view
+          key={`rring-${index}`}
+          style={{
+            position: "absolute",
+            left: `${cx - r}px`,
+            top: `${cy - r}px`,
+            width: `${r * 2}px`,
+            height: `${r * 2}px`,
+            borderRadius: "50%",
+            border: `1px solid ${theme.border}`,
+          }}
+        />
+      );
+    });
+    // 辐条：中心到外圈的细线（中心点定位 + 旋转）
+    const spokeElements = indicators.map((_, index) => {
+      const angleDeg = -90 + (index * 360) / Math.max(1, axisCount);
+      return (
+        <view
+          key={`rspoke-${index}`}
+          style={{
+            position: "absolute",
+            left: `${cx - 0.5}px`,
+            top: `${cy - radius / 2}px`,
+            width: "1px",
+            height: `${radius}px`,
+            backgroundColor: theme.border,
+            transform: `rotate(${angleDeg + 90}deg)`,
+          }}
+        />
+      );
+    });
+    // 指标标签：外圈外围 60px 宽居中文本
+    const labelElements = indicators.map((indicator, index) => {
+      const angleDeg = -90 + (index * 360) / Math.max(1, axisCount);
+      const rad = (angleDeg * Math.PI) / 180;
+      const lx = cx + (radius + 18) * Math.cos(rad);
+      const ly = cy + (radius + 18) * Math.sin(rad);
+      return (
+        <text
+          key={`rlabel-${index}`}
+          style={{
+            position: "absolute",
+            left: `${lx - 30}px`,
+            top: `${ly - 8}px`,
+            width: "60px",
+            textAlign: "center",
+            fontSize: "11px",
+            lineHeight: "16px",
+            color: theme.onSurfaceMuted,
+          }}
+        >
+          {String(indicator["name"] ?? "")}
+        </text>
+      );
+    });
+    // 数据多边形：顶点相连的线段 + 顶点圆点（未选系列淡化）
+    const vertexAt = (seriesIndex: number, axisIndex: number) => {
+      const indicator = (indicators[axisIndex] ?? {}) as Record<string, unknown>;
+      const maxV = Number(indicator["max"]) || 1;
+      const item = series[seriesIndex]!;
+      const raw = Number(item.values[axisIndex]) || 0;
+      const ratio = Math.max(0, Math.min(1, raw / maxV));
+      const angleDeg = -90 + (axisIndex * 360) / Math.max(1, axisCount);
+      const rad = (angleDeg * Math.PI) / 180;
+      return {
+        x: cx + radius * ratio * Math.cos(rad),
+        y: cy + radius * ratio * Math.sin(rad),
+      };
+    };
+    const polygonElements = series.flatMap((item, seriesIndex) => {
+      const dimmed = selectedSeries !== null && selectedSeries !== seriesIndex;
+      const count = Math.min(axisCount, item.values.length);
+      const segments: Array<JSX.Element> = [];
+      for (let index = 0; index < count; index += 1) {
+        const a = vertexAt(seriesIndex, index);
+        const b = vertexAt(seriesIndex, (index + 1) % count);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+        segments.push(
+          <view
+            key={`rpoly-${seriesIndex}-${index}`}
+            style={{
+              position: "absolute",
+              left: `${(a.x + b.x) / 2 - len / 2}px`,
+              top: `${(a.y + b.y) / 2 - 1.25}px`,
+              width: `${len}px`,
+              height: "2.5px",
+              backgroundColor: item.color,
+              opacity: dimmed ? 0.25 : 1,
+              transform: `rotate(${angleDeg}deg)`,
+            }}
+          />,
+        );
+      }
+      const dots = item.values
+        .slice(0, count)
+        .map((_, axisIndex) => {
+          const v = vertexAt(seriesIndex, axisIndex);
+          return (
+            <view
+              key={`rdot-${seriesIndex}-${axisIndex}`}
+              style={{
+                position: "absolute",
+                left: `${v.x - 3}px`,
+                top: `${v.y - 3}px`,
+                width: "6px",
+                height: "6px",
+                borderRadius: "3px",
+                backgroundColor: item.color,
+                opacity: dimmed ? 0.25 : 1,
+              }}
+            />
+          );
+        });
+      return [...segments, ...dots];
+    });
+    // 图例行可点选系列
+    const legend = showLegend ? (
+      <view
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: "8px 14px",
+          width: "100%",
+          justifyContent: "center",
+        }}
+      >
+        {series.map((item, index) => (
+          <view
+            key={`rlegend-${item.name}`}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: "6px",
+            }}
+            bindtap={() =>
+              setSelectedSeries(
+                selectedSeries === index ? null : index,
+              )
+            }
+          >
+            <view
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "5px",
+                backgroundColor: item.color,
+                opacity:
+                  selectedSeries === null || selectedSeries === index ? 1 : 0.35,
+              }}
+            />
+            <text
+              style={{
+                fontSize: "12px",
+                lineHeight: "16px",
+                color:
+                  selectedSeries === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
+              }}
+            >
+              {item.name}
+            </text>
+          </view>
+        ))}
+      </view>
+    ) : null;
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+          alignItems: "center",
+        }}
+      >
+        <view
+          style={{
+            width: "300px",
+            height: `${height}px`,
+            position: "relative",
+          }}
+        >
+          {ringElements}
+          {spokeElements}
+          {polygonElements}
+          {labelElements}
+        </view>
+        {legend}
+      </view>
+    );
+  }
+
+  function FunnelChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
+    const dataValue = resolvedProps["data"];
+    const slices = Array.isArray(dataValue)
+      ? (dataValue as Array<Record<string, unknown>>)
+      : [];
+    const title =
+      typeof resolvedProps["title"] === "string" && resolvedProps["title"]
+        ? resolvedProps["title"]
+        : "";
+    const showValues = resolvedProps["showValues"] !== false;
+    const palette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
+
+    const maxValue = slices.reduce(
+      (acc, slice) => Math.max(acc, Number(slice["value"]) || 0),
+      0,
+    );
+    const firstValue = Number(slices[0]?.["value"]) || 0;
+
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          minWidth: 0,
+        }}
+      >
+        {title ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {title}
+          </text>
+        ) : null}
+        {slices.map((slice, index) => {
+          const value = Math.max(0, Number(slice["value"]) || 0);
+          const ratio = maxValue > 0 ? value / maxValue : 0;
+          const firstRatio = firstValue > 0 ? value / firstValue : 0;
+          const dimmed = selectedSlice !== null && selectedSlice !== index;
+          const color =
+            typeof slice["color"] === "string"
+              ? slice["color"]
+              : palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!;
+          return (
+            <view
+              key={`funnel-${String(slice["name"] ?? "")}-${index}`}
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: "8px",
+                opacity: dimmed ? 0.4 : 1,
+              }}
+              bindtap={() =>
+                setSelectedSlice(selectedSlice === index ? null : index)
+              }
+            >
+              <text
+                style={{
+                  width: "64px",
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  color: theme.onSurfaceMuted,
+                  flexShrink: 0,
+                }}
+              >
+                {String(slice["name"] ?? "")}
+              </text>
+              <view
+                style={{
+                  width: `${Math.max(8, ratio * 170)}px`,
+                  height: "26px",
+                  borderRadius: "4px",
+                  backgroundColor: color,
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {showValues ? (
+                  <text
+                    style={{
+                      fontSize: "11px",
+                      lineHeight: "14px",
+                      fontWeight: "600",
+                      color: theme.surface,
+                    }}
+                  >
+                    {formatValue(value)}
+                  </text>
+                ) : null}
+              </view>
+              {index > 0 ? (
+                <text
+                  style={{
+                    fontSize: "11px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
+                  }}
+                >
+                  {firstRatio > 0
+                    ? `${formatPercent(firstRatio * 100)}`
+                    : ""}
+                </text>
+              ) : null}
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
   function PieChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -2026,5 +2657,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     LineChart,
     PieChart,
     BarChart,
+    ScatterChart,
+    RadarChart,
+    FunnelChart,
   };
 }
