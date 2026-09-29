@@ -1825,6 +1825,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         return (
           <view
             key={`sdot-${seriesIndex}-${index}`}
+            className="a2ui-anim-pop"
             style={{
               position: "absolute",
               left: `${point.x - dotOffset}px`,
@@ -1834,6 +1835,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               borderRadius: `${dotOffset}px`,
               backgroundColor: point.color,
               opacity: selected || selectedDot === null ? 1 : 0.45,
+              animationDelay: `${index * 70 + seriesIndex * 35}ms`,
             }}
           />
         );
@@ -2042,6 +2044,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       return (
         <view
           key={`rring-${index}`}
+          className="a2ui-anim-pop"
           style={{
             position: "absolute",
             left: `${cx - r}px`,
@@ -2050,6 +2053,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             height: `${r * 2}px`,
             borderRadius: "50%",
             border: `1px solid ${theme.border}`,
+            animationDelay: `${index * 70}ms`,
           }}
         />
       );
@@ -2158,7 +2162,25 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           />
         );
       });
-      return [...segments, ...dots];
+      // 整个多边形包在 scale 包裹层里从圆心向外撑开（子元素的内联
+      // rotate/定位不受影响）；多系列依次进场
+      return (
+        <view
+          key={`rpoly-${seriesIndex}`}
+          className="a2ui-anim-grow"
+          style={{
+            position: "absolute",
+            left: "0px",
+            top: "0px",
+            width: "100%",
+            height: "100%",
+            animationDelay: `${seriesIndex * 150}ms`,
+          }}
+        >
+          {segments}
+          {dots}
+        </view>
+      );
     });
     // 图例行可点选系列
     const legend = showLegend ? (
@@ -2305,7 +2327,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           return (
             <view
               key={`funnel-${String(slice["name"] ?? "")}-${index}`}
-              className="a2ui-anim-rise"
               style={{
                 width: "100%",
                 display: "flex",
