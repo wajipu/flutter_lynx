@@ -83,7 +83,8 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 **引擎图形能力实测（2026-09-28，iOS 模拟器）**：本引擎 `image` 不支持 SVG data URI（base64/URL 编码均空白）、`<svg>` 元素不渲染，`@font-face` base64 可用。据此：
 
 - **Icon** 用 Lucide 图标字体子集渲染（`src/a2ui-card-icon-font.ts` + `a2ui-card-font.css`，fontTools.subset 裁剪到白名单 29 个码点仅 5.5KB；数据源 lucide-static/ISC），码点字形颜色随主题文本色；未映射名静默渲染空。
-- **LineChart** 用纯 view 绘制（网格/轴线为 1px view，折线为「中心点定位 + rotate」的线段 view，数据点为圆 view），画布固定 300px 设计宽。
+- **LineChart** 用纯 view 绘制（网格/轴线为 1px view，折线为「中心点定位 + rotate」的线段 view，数据点为圆 view），画布固定 300px 设计宽；支持点选列——tap 整列热区出参考线 + 放大数据点 + 数值气泡，再 tap 取消。
+- **PieChart 占比条**支持点选行——选中行数值转主色加粗、其余行淡化，再 tap 取消。
 - **PieChart** 以横向占比条呈现同一数据（名称/数值/百分比/相对大小）；弧形图形需引擎矢量能力，升级后再切回。
 - Tabs 页签标题为字面量（官方 Tabs 直读 props.tabs，页签标题不做 path 绑定）；图表 labels/series/data 为顶层 prop 的 path 绑定（渲染器解析）。展示卡演示消息见 `example/assets/a2ui/display-card-messages.json`（守护测试 `test/a2ui_display_card_messages_test.dart`）。
   白名单扩充 = 数组加一个内置组件，消息面与渲染面同步收敛；禁止全量引入 22 个内置组件中的输入类组件

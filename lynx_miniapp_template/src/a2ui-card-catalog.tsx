@@ -1071,6 +1071,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
+    // 点选态：tap 某列热区 → 参考线 + 数据点放大 + 数值气泡；再 tap 取消。
+    const [selectedDot, setSelectedDot] = useState<number | null>(null);
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
@@ -1166,22 +1168,62 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       }),
     );
     const chartDots = seriesPoints.map((points, seriesIndex) =>
-      points.map((point, index) => (
-        <view
-          key={`dot-${seriesIndex}-${index}`}
-          style={{
-            position: "absolute",
-            left: `${point.x - 3.5}px`,
-            top: `${point.y - 3.5}px`,
-            width: "7px",
-            height: "7px",
-            borderRadius: "3.5px",
-            backgroundColor: point.color,
-            border: `1.5px solid ${theme.surface}`,
-          }}
-        />
-      )),
+      points.map((point, index) => {
+        const selected = selectedDot === index;
+        const dotOffset = selected ? 4.5 : 3.5;
+        return (
+          <view
+            key={`dot-${seriesIndex}-${index}`}
+            style={{
+              position: "absolute",
+              left: `${point.x - dotOffset}px`,
+              top: `${point.y - dotOffset}px`,
+              width: `${selected ? 9 : 7}px`,
+              height: `${selected ? 9 : 7}px`,
+              borderRadius: `${selected ? 4.5 : 3.5}px`,
+              backgroundColor: point.color,
+              border: `1.5px solid ${selected ? theme.primary : theme.surface}`,
+            }}
+          />
+        );
+      }),
     );
+    // 选中列的参考线与数值气泡
+    const guideX =
+      selectedDot === null
+        ? null
+        : canvasMargin.left + xStep * selectedDot;
+    const selectedLabel =
+      selectedDot === null ? "" : String(labels[selectedDot] ?? "");
+    const selectedValues =
+      selectedDot === null
+        ? []
+        : series.map((item) => ({
+            name: item.name,
+            value: item.values[selectedDot] ?? 0,
+          }));
+    // 整列热区（30px 宽、全画布高），置于最上层保证可点
+    const chartHitBoxes = maxPoints
+      ? Array.from({ length: maxPoints }, (_, index) => {
+          const hitX = canvasMargin.left + xStep * index;
+          return (
+            <view
+              key={`hit-${index}`}
+              style={{
+                position: "absolute",
+                left: `${hitX - 15}px`,
+                top: "0px",
+                width: "30px",
+                height: `${height}px`,
+                backgroundColor: "transparent",
+              }}
+              bindtap={() =>
+                setSelectedDot(selectedDot === index ? null : index)
+              }
+            />
+          );
+        })
+      : [];
     const visibleLabelIndices = sampleIndices(labels.length, 8);
     const { min, max } = minMax(
       series.flatMap((item) => item.values.slice(0, labels.length)),
@@ -1276,6 +1318,47 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           {chartBaseline}
           {chartSegments}
           {chartDots}
+          {selectedDot !== null && guideX !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${guideX}px`,
+                top: `${canvasMargin.top}px`,
+                width: "1px",
+                height: `${plotH}px`,
+                backgroundColor: theme.primary,
+                opacity: 0.35,
+              }}
+            />
+          ) : null}
+          {selectedDot !== null && guideX !== null ? (
+            <view
+              style={{
+                position: "absolute",
+                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
+                top: "2px",
+                borderRadius: "6px",
+                backgroundColor: theme.onSurface,
+                paddingLeft: "8px",
+                paddingRight: "8px",
+                paddingTop: "4px",
+                paddingBottom: "4px",
+              }}
+            >
+              <text
+                style={{
+                  fontSize: "10px",
+                  lineHeight: "13px",
+                  color: theme.surface,
+                }}
+              >
+                {`${selectedLabel}　${selectedValues
+                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
+                  .join(" · ")}`}
+              </text>
+            </view>
+          ) : null}
+          {chartHitBoxes}
         </view>
 
         <view
@@ -1396,6 +1479,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const palette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
+    // 点选态：tap 某行 → 该行保持高亮、其余淡化；再 tap 取消。
+    const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
     return (
       <view
         key={id}
@@ -1487,6 +1572,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                 : palette[index % palette.length] ??
                   DEFAULT_CHART_COLORS[index % DEFAULT_CHART_COLORS.length] ??
                   DEFAULT_CHART_COLORS[0]!;
+            const dimmed = selectedSlice !== null && selectedSlice !== index;
             return (
               <view
                 key={`bar-${String(slice["name"] ?? "")}-${index}`}
@@ -1495,7 +1581,11 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                   display: "flex",
                   flexDirection: "column",
                   gap: "4px",
+                  opacity: dimmed ? 0.4 : 1,
                 }}
+                bindtap={() =>
+                  setSelectedSlice(selectedSlice === index ? null : index)
+                }
               >
                 <view
                   style={{
@@ -1536,7 +1626,11 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                     style={{
                       fontSize: "13px",
                       lineHeight: "18px",
-                      color: theme.onSurfaceMuted,
+                      fontWeight: selectedSlice === index ? "600" : "400",
+                      color:
+                        selectedSlice === index
+                          ? theme.primary
+                          : theme.onSurfaceMuted,
                     }}
                   >
                     {showPercentages
