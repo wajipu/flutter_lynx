@@ -12,7 +12,8 @@ import type {
 } from "@lynx-js/genui/a2ui";
 // A2UIRenderer 内部兜底渲染（默认 unsupported/loading 兜底）仍引用 --a2ui-*
 // CSS 变量；白名单组件已全部换成美化实现，这里保留官方 theme.css 与
-// a2ui-light 包裹类，让兜底路径有变量可用。
+// a2ui-light/a2ui-dark 包裹类，让兜底路径有变量可用——宿主按 App 明暗经
+// initData.appearance（"dark"/"light"）注入，内部组件与兜底渲染同步换肤。
 import "@lynx-js/genui/a2ui/styles/theme.css";
 // 提交离场动效（上滑淡出）：@keyframes 只能走样式表，见 a2ui-card-exit.css。
 import "./a2ui-card-exit.css";
@@ -237,7 +238,6 @@ export function A2UICard() {
           padding: "12px",
         }}
       >
-        </view>
         <A2UI
           messageStore={store}
           catalogs={catalog}
@@ -245,9 +245,10 @@ export function A2UICard() {
           wrapSurface={(children, _ctx) => (
             <view
               className={
-                answered && theme.exitAnimation !== "none"
-                  ? "a2ui-light a2ui-card-exit"
-                  : "a2ui-light a2ui-anim-rise"
+                (initData?.appearance === "dark" ? "a2ui-dark " : "a2ui-light ") +
+                (answered && theme.exitAnimation !== "none"
+                  ? "a2ui-card-exit"
+                  : "a2ui-anim-rise")
               }
               style={
                 answered
