@@ -3,13 +3,16 @@
 
 @implementation LynxBridgeBinding {
   NSSet<NSString *> *_allowedModules;
+  FlutterMethodChannel *_bridgeChannel;
   BOOL _active;
 }
 
-- (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules {
+- (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules
+                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel {
   self = [super init];
   if (self) {
     _allowedModules = [allowedModules copy];
+    _bridgeChannel = bridgeChannel;
     _active = YES;
   }
   return self;
@@ -44,6 +47,7 @@
                            method:method
                            params:params
                            callId:callId
+                          channel:self->_bridgeChannel
                        completion:^(NSDictionary *response) {
                          if (self->_active && callback) {
                            callback(response);

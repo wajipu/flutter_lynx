@@ -3,10 +3,13 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class FlutterMethodChannel;
+
 /// One binding belongs to one native view; reload/disposal invalidates pending host callbacks.
 @interface LynxBridgeBinding : NSObject
 @property(nonatomic, readonly) BOOL isActive;
-- (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules;
+- (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules
+                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel;
 - (void)invalidate;
 - (void)callModule:(NSString *)module
             method:(NSString *)method
