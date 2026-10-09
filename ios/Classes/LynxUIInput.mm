@@ -7,9 +7,16 @@
 }
 @end
 
+@implementation LynxUIInput
+
 LYNX_REGISTER_UI("input")
 
-@implementation LynxUIInput
+// 群组宏只生成有方法体的 props 配置类方法，实例 setter 自由实现；
+// 逐条 LYNX_PROP_SETTER 展开以无分号声明收尾，紧贴实现会被 clang 拒绝。
+LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("default-value", setDefaultValue, NSString*),
+                         LYNX_PROP_DECLARE("placeholder", setPlaceholder, NSString*),
+                         LYNX_PROP_DECLARE("maxlength", setMaxlength, NSInteger),
+                         LYNX_PROP_DECLARE("confirm-type", setConfirmType, NSString*))
 
 - (instancetype)initWithView:(UITextField*)view {
   if (self = [super initWithView:view]) {
@@ -48,9 +55,6 @@ LYNX_REGISTER_UI("input")
   [self.context.eventEmitter sendCustomEvent:event];
 }
 
-#pragma mark - Props
-
-LYNX_PROP_SETTER("default-value", setDefaultValue, NSString*)
 - (void)setDefaultValue:(NSString*)value requestReset:(BOOL)requestReset {
   self.view.text = value;
   if (requestReset) {
@@ -58,17 +62,14 @@ LYNX_PROP_SETTER("default-value", setDefaultValue, NSString*)
   }
 }
 
-LYNX_PROP_SETTER("placeholder", setPlaceholder, NSString*)
 - (void)setPlaceholder:(NSString*)value requestReset:(BOOL)requestReset {
   self.view.placeholder = value;
 }
 
-LYNX_PROP_SETTER("maxlength", setMaxlength, NSInteger)
 - (void)setMaxlength:(NSInteger)value requestReset:(BOOL)requestReset {
   _maxLength = value;
 }
 
-LYNX_PROP_SETTER("confirm-type", setConfirmType, NSString*)
 - (void)setConfirmType:(NSString*)value requestReset:(BOOL)requestReset {
   NSDictionary* mapping = @{
     @"search" : @(UIReturnKeySearch),
@@ -78,7 +79,8 @@ LYNX_PROP_SETTER("confirm-type", setConfirmType, NSString*)
     @"done" : @(UIReturnKeyDone),
   };
   NSNumber* key = mapping[value.lowercaseString];
-  self.view.returnKeyType = key ? (UIReturnKeyType)key.integerValue : UIReturnKeyDefault;
+  self.view.returnKeyType =
+      key ? (UIReturnKeyType)key.integerValue : UIReturnKeyDefault;
 }
 
 #pragma mark - UITextFieldDelegate
