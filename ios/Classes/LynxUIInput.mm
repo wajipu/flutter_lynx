@@ -18,6 +18,10 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("default-value", setDefaultValue, NSS
                          LYNX_PROP_DECLARE("maxlength", setMaxlength, NSInteger),
                          LYNX_PROP_DECLARE("confirm-type", setConfirmType, NSString*))
 
+- (UITextField *)createView {
+  return [[UITextField alloc] init];
+}
+
 - (instancetype)initWithView:(UITextField*)view {
   if (self = [super initWithView:view]) {
     view.delegate = self;

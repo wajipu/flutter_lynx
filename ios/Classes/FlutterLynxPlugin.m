@@ -6,10 +6,9 @@
 
 @implementation FlutterLynxPlugin {
   FlutterMethodChannel *_pluginChannel;
+  FlutterMethodChannel *_bridgeChannel;
   FlutterMethodChannel *_hostCapsuleChannel;
 }
-
-static FlutterMethodChannel *kBridgeChannel;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FlutterLynxPlugin *instance = [[FlutterLynxPlugin alloc] init];
@@ -19,9 +18,11 @@ static FlutterMethodChannel *kBridgeChannel;
   [registrar addMethodCallDelegate:instance channel:pluginChannel];
   instance->_pluginChannel = pluginChannel;
 
-  kBridgeChannel = [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
-                                               binaryMessenger:[registrar messenger]];
-  [registrar addMethodCallDelegate:instance channel:kBridgeChannel];
+  FlutterMethodChannel *bridgeChannel =
+      [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
+                                  binaryMessenger:[registrar messenger]];
+  [registrar addMethodCallDelegate:instance channel:bridgeChannel];
+  instance->_bridgeChannel = bridgeChannel;
 
   FlutterMethodChannel *hostCapsuleChannel =
       [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/host_capsule"
@@ -39,8 +40,8 @@ static FlutterMethodChannel *kBridgeChannel;
             method:(NSString *)method
             params:(NSDictionary *)params
             callId:(NSString *)callId
+           channel:(FlutterMethodChannel *)channel
         completion:(void (^)(NSDictionary *response))completion {
-  FlutterMethodChannel *channel = kBridgeChannel;
   if (channel == nil) {
     completion(@{
       @"callId" : callId ?: @"",
@@ -128,8 +129,8 @@ static FlutterMethodChannel *kBridgeChannel;
   _pluginChannel = nil;
   [_hostCapsuleChannel setMethodCallHandler:nil];
   _hostCapsuleChannel = nil;
-  [kBridgeChannel setMethodCallHandler:nil];
-  kBridgeChannel = nil;
+  [_bridgeChannel setMethodCallHandler:nil];
+  _bridgeChannel = nil;
 }
 
 @end

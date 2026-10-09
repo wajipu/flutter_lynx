@@ -48,6 +48,14 @@ class LynxView extends StatefulWidget {
   /// [autoHeight] 开启时，原生测得的内容高度回调（逻辑像素）。
   final ValueChanged<double>? onHeightChanged;
 
+  /// Overrides native-view gesture arbitration; null keeps eager ownership.
+  /// An empty set lets parent scrollables claim drags while native still receives
+  /// touch sequences that no competing recognizer claims.
+  ///
+  /// 空集合让父滚动参与手势竞争，无竞争的触摸仍交给原生；null 保持原策略，
+  /// 需要原生内部滚动的卡片可沿用默认值。
+  final Set<Factory<OneSequenceGestureRecognizer>>? gestureRecognizers;
+
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
 
@@ -74,6 +82,7 @@ class LynxView extends StatefulWidget {
     this.templateBytes,
     this.autoHeight = false,
     this.onHeightChanged,
+    this.gestureRecognizers,
     this.initialData,
     this.allowedModules = const {
       "system",
@@ -214,7 +223,8 @@ class _LynxViewState extends State<LynxView> {
         surfaceFactory: (context, controller) {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
-            gestureRecognizers: lynxPlatformViewGestures(),
+            gestureRecognizers:
+                widget.gestureRecognizers ?? lynxPlatformViewGestures(),
             hitTestBehavior: PlatformViewHitTestBehavior.opaque,
           );
         },
@@ -241,7 +251,8 @@ class _LynxViewState extends State<LynxView> {
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
-        gestureRecognizers: lynxPlatformViewGestures(),
+        gestureRecognizers:
+            widget.gestureRecognizers ?? lynxPlatformViewGestures(),
         hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         onPlatformViewCreated: (id) => _onPlatformViewCreated(id, generation),
       );

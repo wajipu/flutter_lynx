@@ -225,6 +225,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
   FlutterLynxRootView *_rootView;
   FlutterMethodChannel *_methodChannel;
   FlutterMethodChannel *_eventChannel;
+  FlutterMethodChannel *_bridgeChannel;
   BOOL _autoHeight;
   double _reportedContentHeight;
   int64_t _viewId;
@@ -270,6 +271,10 @@ static NSData *DecodeTemplateBytesParam(id value) {
     _eventChannel = [FlutterMethodChannel
         methodChannelWithName:[NSString stringWithFormat:@"com.kmanager.flutter_lynx/lynx_view_%lld_events", viewId]
               binaryMessenger:messenger];
+    // 后台 Flutter 引擎也会注册插件；回调始终走当前视图所属引擎的 messenger。
+    _bridgeChannel = [FlutterMethodChannel
+        methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
+              binaryMessenger:messenger];
     __weak typeof(self) weakSelf = self;
     [_methodChannel setMethodCallHandler:^(FlutterMethodCall *call, FlutterResult result) {
       [weakSelf handleMethodCall:call result:result];
@@ -299,7 +304,9 @@ static NSData *DecodeTemplateBytesParam(id value) {
   dispatch_once(&onceToken, ^{
     [[SDImageCodersManager sharedManager] addCoder:[SDImageWebPCoder sharedCoder]];
   });
-  LynxBridgeBinding *binding = [[LynxBridgeBinding alloc] initWithAllowedModules:_allowedModules];
+  LynxBridgeBinding *binding = [[LynxBridgeBinding alloc]
+      initWithAllowedModules:_allowedModules
+               bridgeChannel:_bridgeChannel];
   _bridgeBinding = binding;
   FlutterLynxLifecycleClient *lifecycle = [[FlutterLynxLifecycleClient alloc] init];
   __weak typeof(self) weakSelf = self;
