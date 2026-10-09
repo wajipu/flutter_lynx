@@ -2,10 +2,10 @@
 // 缺失时报 LynxCreateUIException（input ui not found）导致整个页面加载失败。
 // 覆盖工作台小程序模板用到的能力：default-value/placeholder/maxlength/confirm-type
 // 与 bindinput/bindconfirm 事件。
-#import <Lynx/LynxComponentRegistry.h>
-#import <Lynx/LynxEvent.h>
-#import <Lynx/LynxPropsProcessor.h>
+#import <Lynx/LynxDefines.h>
 #import <Lynx/LynxUI.h>
+#import <Lynx/LynxComponentRegistry.h>
+#import <Lynx/LynxPropsProcessor.h>
 #import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
