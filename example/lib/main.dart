@@ -6,6 +6,7 @@ import "dart:typed_data";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart" show rootBundle;
 import "package:flutter_lynx/flutter_lynx.dart";
+import "package:path_provider/path_provider.dart";
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,10 +23,19 @@ final StreamController<List<String>> _logStreamController =
 
 void _addLog(String msg) {
   final timestamp = DateTime.now().toIso8601String().substring(11, 19);
+  // ignore: avoid_print
+  print("[demo] $msg");
   _bridgeLogs.insert(0, "[$timestamp] $msg");
   if (_bridgeLogs.length > 50) _bridgeLogs.removeLast();
   _logStreamController.add(List.from(_bridgeLogs));
 }
+
+/// A2UI 确认卡回执状态：true 表示已收到 ui.confirmResult。演示容器据此把
+/// 卡片区切换成「已提交」占位，衔接卡片自身的上滑淡出离场动效（卡片播完
+/// 320ms 动画后宿主占位顶上，模拟真实宿主关闭半屏前的过渡）。真实宿主在
+/// 收到回执后关闭半屏即可，无需关心此通知器。
+final ValueNotifier<bool> a2uiSubmittedNotifier = ValueNotifier(false);
+int a2uiSubmitToken = 0;
 
 /// Initialize host capabilities and register with Lynx JSBridge
 void _initLynxHostCapabilities() {
@@ -99,10 +109,17 @@ void _initLynxHostCapabilities() {
     };
   }, module: "report");
 
-  // 5. A2UI 确认卡回传：卡片内确认/取消按钮点击经 ui.confirmResult 通知宿主，
-  // payload 形如 {action: "confirm"|"cancel", confirmationId, quantity, ...}。
+  // 5. A2UI 确认卡回执：收到 ui.confirmResult 后延迟 450ms 再切换占位，给
+  // 卡片自身的 320ms 上滑淡出离场动效留出播放窗口（真实宿主同样建议延迟
+  // ~350ms 再关半屏）。token 防重装载竞态。
   bridge.register("confirmResult", (params) async {
     _addLog("JSB >> ui.confirmResult 回传: ${jsonEncode(params)}");
+    final token = ++a2uiSubmitToken;
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (a2uiSubmitToken == token) {
+        a2uiSubmittedNotifier.value = true;
+      }
+    });
     return {"received": true};
   }, module: "ui");
 
@@ -171,19 +188,127 @@ class _DemoHomePageState extends State<DemoHomePage>
       "assets/a2ui/confirm-card-messages.json";
   Uint8List? _a2uiBundleBytes;
   List<dynamic>? _a2uiMessages;
+  bool _a2uiDisplayMode = false;
 
-  /// 装载 A2UI 确认卡：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
-  Future<void> _loadA2uiConfirmCard() async {
-    final messagesText = await rootBundle.loadString(_a2uiMessagesAsset);
+  // --- OSS 热更演示（LynxBundleUpdater）---
+  /// `--dart-define=A2UI_OSS_MANIFEST=<url>` 预填并自动检查（演示用）；
+  /// 无 OSS 时本机 `python3 -m http.server` 托管 manifest+bundle 即可体验。
+  static const String _ossManifestEnv = String.fromEnvironment(
+    "A2UI_OSS_MANIFEST",
+  );
+  final _ossManifestCtrl = TextEditingController();
+  final _ossDeviceCtrl = TextEditingController(text: "demo-device-001");
+  LynxBundleResolved? _ossResult;
+
+  /// 非空时装载用 OSS 下发字节（覆盖内置资产）；装载失败自动熔断清空。
+  Uint8List? _a2uiOssOverride;
+  String? _a2uiOssVersion;
+  LynxBundleUpdater? _ossUpdater;
+  String? _ossCacheDir;
+
+  Future<LynxBundleUpdater> _ossEnsure() async {
+    if (_ossUpdater == null) {
+      _ossCacheDir ??= "${(await getApplicationCacheDirectory()).path}/a2ui-ota";
+      _ossUpdater = LynxBundleUpdater();
+    }
+    return _ossUpdater!;
+  }
+
+  Future<Uint8List> _builtinBundleBytes() async {
+    final data = await rootBundle.load(_a2uiBundleAsset);
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  }
+
+  Future<void> _ossCheck() async {
+    final url = _ossManifestCtrl.text.trim();
+    if (url.isEmpty) {
+      _addLog("OSS >> 请先填 manifest 地址（发布：npm run a2ui:release，见 docs §8.5）");
+      return;
+    }
+    final updater = await _ossEnsure();
+    final deviceId = _ossDeviceCtrl.text.trim();
+    _addLog("OSS >> 检查更新: $url${deviceId.isEmpty ? "" : " (deviceId=$deviceId)"}");
+    final result = await updater.resolve(
+      manifestUrl: url,
+      builtinBytes: await _builtinBundleBytes(),
+      cacheDirectory: _ossCacheDir!,
+      deviceId: deviceId.isEmpty ? null : deviceId,
+    );
+    setState(() => _ossResult = result);
+    _addLog(
+        "OSS >> 结果: ${result.source.name}${result.channel != null ? "/${result.channel}" : ""} v${result.version ?? "-"}（${result.bytes.length} 字节）${result.error != null ? " · ${result.error}" : ""}");
+  }
+
+  Future<void> _ossApply({bool display = true}) async {
+    final result = _ossResult;
+    if (result == null) return;
+    final isBuiltin = result.source == LynxBundleSource.builtin;
+    setState(() {
+      // builtin 结果本身是兜底字节，应用它等于保持内置
+      _a2uiOssOverride = isBuiltin ? null : result.bytes;
+      _a2uiOssVersion = result.version;
+    });
+    _addLog("OSS >> 应用 ${isBuiltin ? "内置兜底（不覆盖）" : "v${result.version} 下发字节"}并装载");
+    await _loadA2uiConfirmCard(display: display);
+  }
+
+  Future<void> _ossTripBreaker() async {
+    final version = _a2uiOssVersion ?? _ossResult?.version;
+    if (version == null) {
+      _addLog("OSS >> 无已装载的 OSS 版本可熔断");
+      return;
+    }
+    final updater = await _ossEnsure();
+    await updater.markLoadFailed(cacheDirectory: _ossCacheDir!, version: version);
+    setState(() => _a2uiOssOverride = null);
+    _addLog("OSS >> 已熔断 v$version——本机后续检查更新回退内置，直至 OSS 发新版本号");
+  }
+
+  Future<void> _ossRestoreBuiltin() async {
+    setState(() {
+      _a2uiOssOverride = null;
+      _a2uiOssVersion = null;
+    });
+    _addLog("OSS >> 恢复内置版本装载");
+    await _loadA2uiConfirmCard(display: true);
+  }
+
+  /// OSS 版本装载失败的自动止损：熔断该版本并自动回退内置重新装载（热更自愈）。
+  Future<void> _ossSelfHealOnLoadFail() async {
+    if (_a2uiOssOverride == null || _a2uiOssVersion == null) return;
+    final version = _a2uiOssVersion!;
+    _addLog("OSS >> 装载失败自动熔断 v$version 并回退内置（热更自愈）");
+    setState(() => _a2uiOssOverride = null);
+    try {
+      final updater = await _ossEnsure();
+      await updater.markLoadFailed(cacheDirectory: _ossCacheDir!, version: version);
+    } catch (_) {}
+    await _loadA2uiConfirmCard(display: _a2uiDisplayMode);
+  }
+
+  /// 装载 A2UI 卡片：读协议消息数组 + 宿主渲染 bundle bytes，一并 setState。
+  /// [display] 为 true 时装载「展示卡」消息（Tabs/图表演示）并注入展示卡的
+  /// label/payload 命名空间，实证同一 bundle 不同 JSON 出不同卡。
+  Future<void> _loadA2uiConfirmCard({bool display = false}) async {
+    // 重新装载时作废在途的「已提交」占位切换，并复位回执状态。
+    a2uiSubmitToken++;
+    a2uiSubmittedNotifier.value = false;
+    final messagesAsset = display
+        ? "assets/a2ui/display-card-messages.json"
+        : _a2uiMessagesAsset;
+    final messagesText = await rootBundle.loadString(messagesAsset);
     final messages = jsonDecode(messagesText) as List<dynamic>;
-    final bytes = await rootBundle.load(_a2uiBundleAsset);
-    final bundleBytes = bytes.buffer
-        .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    final rootData =
+        _a2uiOssOverride == null ? await rootBundle.load(_a2uiBundleAsset) : null;
+    final bundleBytes = _a2uiOssOverride ??
+        rootData!.buffer.asUint8List(rootData.offsetInBytes, rootData.lengthInBytes);
     _addLog("Host >> A2UI 消息装载 ${messages.length} 条（v0.9 协议数组）");
-    _addLog("Host >> A2UI 宿主 bundle 装载 ${bundleBytes.length} 字节");
+    _addLog(
+        "Host >> A2UI 宿主 bundle 装载 ${bundleBytes.length} 字节（${_a2uiOssOverride != null ? "OSS v$_a2uiOssVersion" : "内置"}）");
     setState(() {
       _a2uiMessages = messages;
       _a2uiBundleBytes = bundleBytes;
+      _a2uiDisplayMode = display;
     });
   }
 
@@ -255,11 +380,36 @@ class _DemoHomePageState extends State<DemoHomePage>
     ),
   ];
 
+  /// 自动化演示钩子：`--dart-define=A2UI_AUTOLOAD=true` 时跳过演示小程序自启，
+  /// 直接切到「A2UI 确认卡」页签并装载（`A2UI_AUTOLOAD_MODE=display` 时装载
+  /// 展示卡），供无交互自动化验证使用；默认关闭，不改变任何既有行为。
+  static const bool _a2uiAutoload = bool.fromEnvironment("A2UI_AUTOLOAD");
+  static const String _a2uiAutoloadMode = String.fromEnvironment(
+    "A2UI_AUTOLOAD_MODE",
+  );
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _addLog("Host system initialized. LynxBridge ready.");
+    if (_ossManifestEnv.isNotEmpty) {
+      _ossManifestCtrl.text = _ossManifestEnv;
+    }
+    if (_a2uiAutoload) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        _tabController.animateTo(2);
+        await _loadA2uiConfirmCard(
+          display: _a2uiAutoloadMode == "display",
+        );
+        // 演示钩子：预填了 manifest 地址时自动检查一次更新
+        if (_ossManifestEnv.isNotEmpty) {
+          await _ossCheck();
+        }
+      });
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_presetMiniPrograms.isNotEmpty && mounted) {
         _launchMiniProgram(_presetMiniPrograms.first);
@@ -700,16 +850,137 @@ class _DemoHomePageState extends State<DemoHomePage>
           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
         const SizedBox(height: 12),
-        ElevatedButton.icon(
-          onPressed: _loadA2uiConfirmCard,
-          icon: const Icon(Icons.fact_check, size: 18),
-          label: Text(
-            _a2uiBundleBytes == null ? "装载 A2UI 确认卡" : "重新装载 A2UI 确认卡",
-            style: const TextStyle(fontSize: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _loadA2uiConfirmCard(),
+                icon: const Icon(Icons.fact_check, size: 18),
+                label: Text(
+                  _a2uiBundleBytes == null
+                      ? "装载 A2UI 确认卡"
+                      : "重新装载确认卡",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1677FF),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _loadA2uiConfirmCard(display: true),
+                icon: const Icon(Icons.insert_chart, size: 18),
+                label: Text(
+                  _a2uiDisplayMode
+                      ? "重新装载展示卡"
+                      : "装载展示卡（Tabs/图表）",
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF126652),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // --- OSS 热更演示（LynxBundleUpdater 全流程）---
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1677FF),
-            foregroundColor: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "OSS 热更演示",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "填 manifest 地址体验热更闭环：检查→应用→装载失败自动熔断回退内置"
+                "（发布用 npm run a2ui:release，无 OSS 时任意静态服务器亦可）",
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _ossManifestCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "https://…/a2ui/manifest.json",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _ossDeviceCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "设备ID（灰度分桶）",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  OutlinedButton(
+                    onPressed: _ossCheck,
+                    child:
+                        const Text("检查更新", style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed:
+                        _ossResult == null ? null : () => _ossApply(),
+                    child:
+                        const Text("应用并装载", style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed: _ossTripBreaker,
+                    child: const Text("模拟装载失败(熔断)",
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed: _ossRestoreBuiltin,
+                    child: const Text("恢复内置", style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (_ossResult != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  "上次检查: ${_ossResult!.source.name}"
+                  "${_ossResult!.channel != null ? " / ${_ossResult!.channel}" : ""}"
+                  "${_ossResult!.version != null ? " / v${_ossResult!.version}" : ""}"
+                  "（${_ossResult!.bytes.length} 字节）"
+                  "${_ossResult!.error != null ? " · ${_ossResult!.error}" : ""}",
+                  style:
+                      TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                _a2uiOssOverride != null
+                    ? "当前装载: OSS v$_a2uiOssVersion（装载失败自动熔断回退）"
+                    : "当前装载: 内置版本",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _a2uiOssOverride != null
+                      ? const Color(0xFF126652)
+                      : Colors.grey.shade600,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -727,7 +998,9 @@ class _DemoHomePageState extends State<DemoHomePage>
   }
 
   /// A2UI 确认卡展示区：未装载时提示，装载后以 templateBytes 直喂官方 `<A2UI>` 渲染
-  /// bundle，A2UI 消息数组随 initialData 注入。
+  /// bundle，A2UI 消息数组随 initialData 注入。收到 ui.confirmResult 后（延迟
+  /// 450ms 等卡片播完上滑淡出离场动效）切换为「已提交」占位，模拟真实宿主
+  /// 关闭半屏前的衔接。
   Widget _buildA2uiCardBody() {
     final bytes = _a2uiBundleBytes;
     final messages = _a2uiMessages;
@@ -740,43 +1013,154 @@ class _DemoHomePageState extends State<DemoHomePage>
         ),
       );
     }
-    return LynxView(
-      key: const ValueKey("a2ui-card"),
-      templateBytes: bytes,
-      allowedModules: const {"system", "ui"},
-      initialData: LynxTemplateData({
-        "token": "bearer_jwt_token_demo_2026",
-        "confirmationId": "cf_demo_20260928_001",
-        "title": "A2UI 确认卡",
-        // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
-        // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
-        "statusText": "待确认",
-        "label": {
-          "title": "确认补货？",
-          "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
-          "product": "商品",
-          "stock": "当前库存",
-          "quantity": "补货数量",
-          "confirm": "确认补货",
-          "cancel": "再想想",
+    return ValueListenableBuilder<bool>(
+      valueListenable: a2uiSubmittedNotifier,
+      builder: (context, submitted, child) {
+        if (submitted) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle,
+                    color: Color(0xFF126652), size: 40),
+                const SizedBox(height: 8),
+                Text(
+                  "已提交（真实宿主在此关闭半屏）",
+                  style:
+                      TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ],
+            ),
+          );
+        }
+        return child!;
+      },
+      child: LynxView(
+        key: const ValueKey("a2ui-card"),
+        templateBytes: bytes,
+        allowedModules: const {"system", "ui"},
+        initialData: LynxTemplateData({
+          "token": "bearer_jwt_token_demo_2026",
+          if (!_a2uiDisplayMode) ...{
+            "confirmationId": "cf_demo_20260928_001",
+            "title": "A2UI 确认卡",
+            // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
+            // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
+            "statusText": "待确认",
+            "label": {
+              "title": "确认补货？",
+              "description": "当前库存已低于安全阈值，请确认以下补货明细后提交。",
+              "product": "商品",
+              "stock": "当前库存",
+              "quantity": "补货数量",
+              "confirm": "确认补货",
+              "cancel": "再想想",
+            },
+            "payload": {
+              "product": "冰鲜柠檬茶（大杯）",
+              "stock": "3",
+              "threshold": "10",
+              "quantity": "25",
+            },
+          } else ...{
+            // 展示卡命名空间：同一 bundle、不同 JSON 与数据，演示布局词汇表。
+            "label": {
+              "title": "今日经营概览",
+              "revenueLabel": "今日营业额",
+            },
+            "payload": {
+              "todayRevenue": "¥8,432",
+              "days": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+              "salesSeries": [
+                {"name": "饮品", "values": [120, 132, 101, 134, 90, 158, 176]},
+                {"name": "轻食", "values": [80, 92, 71, 95, 66, 110, 128]},
+              ],
+              "categoryShare": [
+                {"name": "饮品", "value": 866},
+                {"name": "轻食", "value": 642},
+                {"name": "烘焙", "value": 358},
+              ],
+              "dayparts": ["早市", "午市", "下午茶", "晚市"],
+              "orders": [{"name": "订单", "values": [86, 214, 142, 268]}],
+              "scatterMonths": ["一月", "二月", "三月", "四月", "五月"],
+              "scatterSeries": [
+                {"name": "新客", "values": [12, 19, 8, 22, 15]},
+                {"name": "老客", "values": [28, 24, 30, 18, 26]},
+              ],
+              "radarIndicators": [
+                {"name": "销量", "max": 100},
+                {"name": "利润", "max": 100},
+                {"name": "复购", "max": 100},
+                {"name": "客流", "max": 100},
+                {"name": "口碑", "max": 100},
+              ],
+              "radarSeries": [
+                {"name": "本店", "values": [80, 65, 90, 70, 85]},
+                {"name": "均值", "values": [60, 50, 55, 60, 65]},
+              ],
+              "funnelStages": [
+                {"name": "进店", "value": 500},
+                {"name": "浏览", "value": 380},
+                {"name": "下单", "value": 210},
+                {"name": "复购", "value": 90},
+              ],
+              "kpiLabel": "日目标达成",
+              "kpiValue": "87%",
+              "kpiDelta": "+12% 较昨日",
+              "rankItems": [
+                {"name": "招牌柠檬茶", "value": 1024, "label": "1,024 杯"},
+                {"name": "多肉葡萄", "value": 866, "label": "866 杯"},
+                {"name": "杨枝甘露", "value": 642, "label": "642 杯"},
+                {"name": "珍珠奶茶", "value": 512, "label": "512 杯"},
+                {"name": "红豆双皮奶", "value": 358, "label": "358 杯"},
+              ],
+              "progressValue": 87,
+              "curOrders": 638,
+              "prevOrders": 519,
+              "timelineSteps": [
+                {"title": "订单已提交", "time": "10:21", "status": "done"},
+                {"title": "制作中", "desc": "预计 8 分钟", "status": "current"},
+                {"title": "待取餐", "status": "pending"},
+              ],
+              "storeBadges": [
+                {"text": "营业中", "tone": "primary"},
+                {"text": "排队 12 桌", "tone": "warning"},
+                {"text": "可外送", "tone": "neutral"},
+              ],
+              "faqPanels": [
+                {"title": "如何修改订单？", "content": "在订单详情页点击「修改」即可调整口味与数量。"},
+                {"title": "支持退款吗？", "content": "出餐前 5 分钟以上可免费取消。"},
+              ],
+              "areaSeries": [{"name": "营收", "values": [120, 132, 101, 134, 90, 158, 176]}],
+              "channelDays": ["周五", "周六", "周日"],
+              "channelSeries": [
+                {"name": "堂食", "values": [320, 450, 380]},
+                {"name": "外带", "values": [150, 210, 180]},
+              ],
+              "tableHeaders": ["菜品", "销量", "占比"],
+              "tableRows": [
+                ["招牌柠檬茶", "1,024", "46%"],
+                ["多肉葡萄", "866", "34%"],
+                ["杨枝甘露", "642", "19%"],
+              ],
+              "gaugeValue": 73,
+              "countUpTarget": 8432,
+            },
+          },
+          "messages": messages,
+        }),
+        onLynxCreated: (controller) {
+          _addLog("A2UI LynxView created (templateBytes 模式).");
         },
-        "payload": {
-          "product": "冰鲜柠檬茶（大杯）",
-          "stock": "3",
-          "threshold": "10",
-          "quantity": "25",
+        onLoadSuccess: () {
+          _addLog("A2UI LynxView loaded (确认卡首屏成功).");
         },
-        "messages": messages,
-      }),
-      onLynxCreated: (controller) {
-        _addLog("A2UI LynxView created (templateBytes 模式).");
-      },
-      onLoadSuccess: () {
-        _addLog("A2UI LynxView loaded (确认卡首屏成功).");
-      },
-      onLoadFail: (error) {
-        _addLog("A2UI LynxView load error: $error");
-      },
+        onLoadFail: (error) {
+          _addLog("A2UI LynxView load error: $error");
+          // OSS 版本装载失败 → 自动熔断 + 回退内置重新装载（热更自愈演示）
+          _ossSelfHealOnLoadFail();
+        },
+      ),
     );
   }
 
@@ -872,6 +1256,8 @@ class _DemoHomePageState extends State<DemoHomePage>
   @override
   void dispose() {
     _tabController.dispose();
+    _ossManifestCtrl.dispose();
+    _ossDeviceCtrl.dispose();
     _customUrlController.dispose();
     super.dispose();
   }

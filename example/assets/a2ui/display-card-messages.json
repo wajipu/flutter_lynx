@@ -1,0 +1,333 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "xiaoke-display-card",
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "xiaoke-display-card",
+      "components": [
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "head-row",
+            "revenue-row",
+            "divider-1",
+            "kpi-card",
+            "compare-row",
+            "rank-list",
+            "progress-ring",
+            "bar-chart",
+            "tabs",
+            "tabs-more",
+            "divider-4",
+            "order-timeline",
+            "store-badges",
+            "faq-accordion",
+            "divider-5",
+            "area-section",
+            "stacked-section",
+            "table-section",
+            "gauge-section",
+            "countup-section"
+          ]
+        },
+        {
+          "id": "head-row",
+          "component": "Row",
+          "align": "center",
+          "children": [
+            "head-icon",
+            "head-title"
+          ]
+        },
+        {
+          "id": "head-icon",
+          "component": "Icon",
+          "name": "star",
+          "size": "md",
+          "color": "primary"
+        },
+        {
+          "id": "head-title",
+          "component": "Text",
+          "variant": "h3",
+          "text": {
+            "path": "/label/title"
+          }
+        },
+        {
+          "id": "revenue-row",
+          "component": "Row",
+          "justify": "spaceBetween",
+          "align": "center",
+          "children": [
+            "revenue-label",
+            "revenue-value"
+          ]
+        },
+        {
+          "id": "revenue-label",
+          "component": "Text",
+          "variant": "caption",
+          "text": {
+            "path": "/label/revenueLabel"
+          }
+        },
+        {
+          "id": "revenue-value",
+          "component": "Text",
+          "variant": "h3",
+          "text": {
+            "path": "/payload/todayRevenue"
+          }
+        },
+        {
+          "id": "divider-1",
+          "component": "Divider"
+        },
+        {
+          "id": "divider-3",
+          "component": "Divider"
+        },
+        {
+          "id": "kpi-card",
+          "component": "StatCard",
+          "label": {
+            "path": "/label/kpiLabel"
+          },
+          "value": {
+            "path": "/payload/kpiValue"
+          },
+          "delta": {
+            "path": "/payload/kpiDelta"
+          },
+          "trend": "up"
+        },
+        {
+          "id": "compare-row",
+          "component": "ComparisonRow",
+          "label": "订单量对比",
+          "current": {
+            "path": "/payload/curOrders"
+          },
+          "previous": {
+            "path": "/payload/prevOrders"
+          },
+          "unit": " 单"
+        },
+        {
+          "id": "rank-list",
+          "component": "RankList",
+          "title": "菜品销量 Top5",
+          "items": {
+            "path": "/payload/rankItems"
+          }
+        },
+        {
+          "id": "progress-ring",
+          "component": "ProgressRing",
+          "value": {
+            "path": "/payload/progressValue"
+          },
+          "label": "日目标达成",
+          "caption": "目标 300 单",
+          "height": 180
+        },
+        {
+          "id": "bar-chart",
+          "component": "BarChart",
+          "labels": {
+            "path": "/payload/dayparts"
+          },
+          "series": {
+            "path": "/payload/orders"
+          },
+          "yLabel": "时段订单量（单）",
+          "showValues": true,
+          "height": 180
+        },
+        {
+          "id": "tabs",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": "销量趋势",
+              "child": "tab-line"
+            },
+            {
+              "title": "品类占比",
+              "child": "tab-pie"
+            }
+          ]
+        },
+        {
+          "id": "tab-line",
+          "component": "LineChart",
+          "labels": {
+            "path": "/payload/days"
+          },
+          "series": {
+            "path": "/payload/salesSeries"
+          },
+          "yLabel": "本周销量（杯）",
+          "xLabel": "按日",
+          "height": 200
+        },
+        {
+          "id": "tab-pie",
+          "component": "PieChart",
+          "data": {
+            "path": "/payload/categoryShare"
+          },
+          "variant": "donut",
+          "title": "品类销售占比",
+          "height": 220
+        },
+        {
+          "id": "tab-funnel",
+          "component": "FunnelChart",
+          "data": {
+            "path": "/payload/funnelStages"
+          },
+          "title": "点单转化漏斗",
+          "height": 220
+        },
+        {
+          "id": "tab-radar",
+          "component": "RadarChart",
+          "indicators": {
+            "path": "/payload/radarIndicators"
+          },
+          "series": {
+            "path": "/payload/radarSeries"
+          },
+          "height": 250
+        },
+        {
+          "id": "tab-scatter",
+          "component": "ScatterChart",
+          "labels": {
+            "path": "/payload/scatterMonths"
+          },
+          "series": {
+            "path": "/payload/scatterSeries"
+          },
+          "yLabel": "客流构成（人）",
+          "height": 200
+        },
+        {
+          "id": "tabs-more",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": "散点图",
+              "child": "tab-scatter"
+            },
+            {
+              "title": "雷达图",
+              "child": "tab-radar"
+            },
+            {
+              "title": "漏斗图",
+              "child": "tab-funnel"
+            }
+          ]
+        },
+        {
+          "id": "divider-2",
+          "component": "Divider"
+        },
+        {
+          "id": "divider-4",
+          "component": "Divider"
+        },
+        {
+          "id": "order-timeline",
+          "component": "Timeline",
+          "title": "订单进度",
+          "steps": {
+            "path": "/payload/timelineSteps"
+          }
+        },
+        {
+          "id": "store-badges",
+          "component": "BadgeGroup",
+          "items": {
+            "path": "/payload/storeBadges"
+          }
+        },
+        {
+          "id": "faq-accordion",
+          "component": "Accordion",
+          "defaultOpen": 0,
+          "panels": {
+            "path": "/payload/faqPanels"
+          }
+        },
+        {
+          "id": "divider-5",
+          "component": "Divider"
+        },
+        {
+          "id": "area-section",
+          "component": "AreaChart",
+          "title": "营收趋势",
+          "labels": {
+            "path": "/payload/days"
+          },
+          "series": {
+            "path": "/payload/areaSeries"
+          },
+          "height": 180
+        },
+        {
+          "id": "stacked-section",
+          "component": "StackedBar",
+          "title": "渠道构成",
+          "labels": {
+            "path": "/payload/channelDays"
+          },
+          "series": {
+            "path": "/payload/channelSeries"
+          },
+          "height": 180
+        },
+        {
+          "id": "table-section",
+          "component": "DataTable",
+          "title": "菜品明细",
+          "headers": {
+            "path": "/payload/tableHeaders"
+          },
+          "rows": {
+            "path": "/payload/tableRows"
+          }
+        },
+        {
+          "id": "gauge-section",
+          "component": "Gauge",
+          "value": {
+            "path": "/payload/gaugeValue"
+          },
+          "label": "周目标达成",
+          "height": 160
+        },
+        {
+          "id": "countup-section",
+          "component": "CountUp",
+          "value": {
+            "path": "/payload/countUpTarget"
+          },
+          "label": "本月累计营业额",
+          "suffix": " 元"
+        }
+      ]
+    }
+  }
+]

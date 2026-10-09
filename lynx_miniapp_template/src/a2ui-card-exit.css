@@ -1,0 +1,132 @@
+/* 确认卡离场动效（轻量版）：确认/取消提交后整卡上滑淡出。
+   走样式表因为 Lynx 的 @keyframes 动画只能经 CSS 声明（内联样式不支持）；
+   fill-mode: forwards 保持离场终态，失败重试（类被移除）时元素回到基础
+   样式恢复可见，动画天然可逆。宿主建议在收到 ui.confirmResult 后延迟
+   ~350ms 再关闭半屏，与动画衔接。 */
+@keyframes a2ui-card-exit-up {
+  from {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+.a2ui-card-exit {
+  animation-name: a2ui-card-exit-up;
+  animation-duration: 320ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+/* 入场动效：fill-mode: backwards 让带 animation-delay 的元素在等待期保持
+   「from」态（不可见），实现依次进场（柱体逐组升起、折线段从左到右浮现）。
+   注意：带内联 rotate 的元素（折线段/雷达多边形）只做纯 opacity 动画——
+   关键帧里的 transform 会覆盖内联 rotate。 */
+@keyframes a2ui-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+@keyframes a2ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.a2ui-anim-rise {
+  animation-name: a2ui-rise-in;
+  animation-duration: 360ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: backwards;
+}
+
+.a2ui-anim-fade {
+  animation-name: a2ui-fade-in;
+  animation-duration: 300ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: backwards;
+}
+
+/* 数据生长动效（0 → 100）：柱体自基线向上生长（scaleY + origin bottom），
+   条形自左向右展开（scaleX + origin left）。依赖 transform-origin 支持。 */
+@keyframes a2ui-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes a2ui-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.a2ui-anim-grow-y {
+  animation-name: a2ui-grow-y;
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: backwards;
+}
+
+.a2ui-anim-grow-x {
+  animation-name: a2ui-grow-x;
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: backwards;
+}
+
+@keyframes a2ui-pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes a2ui-grow {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 散点数据点弹出 */
+.a2ui-anim-pop {
+  animation-name: a2ui-pop;
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: backwards;
+}
+
+/* 雷达数据多边形从圆心撑开（包裹层 scale，子元素内联 transform 不受影响） */
+.a2ui-anim-grow {
+  animation-name: a2ui-grow;
+  animation-duration: 480ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: backwards;
+}
