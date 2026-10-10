@@ -115,6 +115,7 @@ NS_ASSUME_NONNULL_END
 }
 
 - (LynxView *)createLynxViewWithInitialData:(NSDictionary *)initialData {
+  NSLog(@"[MiniAppPageStackView] init params keys=%@ bundlePath='%@'", params.allKeys, _bundlePath);
   NSLog(@"[MiniAppPageStackView] createLynxView holderPath=%@ paramPath=%@",
         [MiniAppLynxHolder shared].preparedBundlePath, _bundlePath);
   if (_bundlePath.length == 0) {
