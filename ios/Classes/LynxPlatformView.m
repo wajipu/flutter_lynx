@@ -1,5 +1,8 @@
 #import "LynxPlatformView.h"
 #import "LynxBridgeModule.h"
+#import "MiniAppLynxHolder.h"
+#import <Lynx/NavigationModule.h>
+#import <Lynx/LynxNavigator.h>
 
 #import <UIKit/UIKit.h>
 
@@ -56,6 +59,8 @@ static NSData *DecodeTemplateBytesParam(id value) {
   }
   NSError *error = nil;
   NSData *data = [NSData dataWithContentsOfURL:fileURL options:0 error:&error];
+  // 页面栈容器需要知道当前 bundle：导航出的新页面复用同一文件。
+  [MiniAppLynxHolder shared].preparedBundlePath = fileURL.path;
   if (error || data.length == 0 || data.length > kMaxBundleBytes) {
     callback(nil, error ?: [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
                                                code:400
@@ -332,6 +337,8 @@ static NSData *DecodeTemplateBytesParam(id value) {
 
   LynxConfig *config = [[LynxConfig alloc] initWithProvider:[[FlutterLynxPreparedFileProvider alloc] init]];
   [config registerModule:[LynxBridgeModule class] param:binding];
+  // Lynx navigator 模块：模板 JS 的页面栈导航（navigateTo/replace/goBack）。
+  [config registerModule:[NavigationModule class]];
   LynxView *nativeView = [[LynxView alloc] initWithBuilderBlock:^(LynxViewBuilder *builder) {
     builder.config = config;
     builder.screenSize = UIScreen.mainScreen.bounds.size;
@@ -355,6 +362,9 @@ static NSData *DecodeTemplateBytesParam(id value) {
   nativeView.preferredLayoutWidth = CGRectGetWidth(_rootView.bounds);
   nativeView.preferredLayoutHeight = CGRectGetHeight(_rootView.bounds);
   [nativeView addLifecycleClient:lifecycle];
+  // 页面栈容器注册：LynxNavigator 的 navigate/goBack 回调进入 MiniAppLynxHolder。
+  [[LynxNavigator sharedInstance] registerLynxHolder:[MiniAppLynxHolder shared]
+                                        initLynxView:nativeView];
   _lynxView = nativeView;
   _rootView.lynxView = nativeView;
   _rootView.lastViewport = CGSizeZero;
