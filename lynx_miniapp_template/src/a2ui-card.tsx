@@ -34,8 +34,14 @@ interface A2UICardInitData {
   messages?: unknown[];
   /** 候选字段（生产模板经 {"path": "/payload/..."} 绑定）。 */
   payload?: unknown;
-  /** 卡片状态文案（如「待确认」）。 */
+  /** 卡片状态文案（如「待确认」）。终态卡宿主改置空串，由 terminalBadge 承担。 */
   statusText?: unknown;
+  /**
+   * 终态徽章文案（Elements 对齐）：非空时壳层顶部渲染 zinc muted 徽章，
+   * 卡内 /statusText 标题位由宿主置空 + 目录 Text 空折叠配合。挂载期
+   * 常量——壳层徽章以它为准，不依赖 answered 瞬态（宿主终态会重挂载）。
+   */
+  terminalBadge?: unknown;
   /** 三语文案命名空间（label.confirm/cancel/...，模板零硬编码文案）。 */
   label?: unknown;
   /**
@@ -120,6 +126,10 @@ function placeholderStyle(
 export function A2UICard() {
   const initData = useInitData() as A2UICardInitData | undefined;
   const [answered, setAnswered] = useState(false);
+
+  /** 终态徽章：非空字符串时壳层顶部渲染 muted 徽章。 */
+  const terminalBadge =
+    typeof initData?.terminalBadge === "string" ? initData.terminalBadge : "";
 
   // 主题挂载期固定：initData 与 messages 一样视为挂载期常量。
   const theme = useMemo(() => mergeA2UICardTheme(initData?.theme), []);
@@ -256,6 +266,35 @@ export function A2UICard() {
                   : cardShellStyle(theme)
               }
             >
+              {terminalBadge ? (
+                /* 终态徽章（zinc muted 口径）：surfaceMuted 面 + onSurfaceMuted
+                   文字，胶囊形；挂载期常量驱动，宿主终态重挂载后稳定呈现，
+                   不随 answered 瞬态闪烁。 */
+                <view
+                  className="a2ui-anim-fade"
+                  style={{
+                    alignSelf: "flex-start",
+                    backgroundColor: theme.surfaceMuted,
+                    borderRadius: "999px",
+                    paddingLeft: "10px",
+                    paddingRight: "10px",
+                    paddingTop: "4px",
+                    paddingBottom: "4px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <text
+                    style={{
+                      fontSize: "12px",
+                      lineHeight: "16px",
+                      fontWeight: "500",
+                      color: theme.onSurfaceMuted,
+                    }}
+                  >
+                    {terminalBadge}
+                  </text>
+                </view>
+              ) : null}
               {children}
             </view>
           )}
