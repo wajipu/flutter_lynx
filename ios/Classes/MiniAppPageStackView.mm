@@ -115,6 +115,12 @@ NS_ASSUME_NONNULL_END
 }
 
 - (LynxView *)createLynxViewWithInitialData:(NSDictionary *)initialData {
+  NSLog(@"[MiniAppPageStackView] createLynxView holderPath=%@ paramPath=%@",
+        [MiniAppLynxHolder shared].preparedBundlePath, _bundlePath);
+  if (_bundlePath.length == 0) {
+    NSLog(@"[MiniAppPageStackView] abort: empty param path");
+    return nil;
+  }
   LynxConfig *config = [[LynxConfig alloc]
       initWithProvider:[[MiniAppStackTemplateProvider alloc]
                            initWithPath:_bundlePath]];
