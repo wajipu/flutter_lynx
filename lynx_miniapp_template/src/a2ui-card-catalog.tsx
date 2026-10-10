@@ -2883,14 +2883,11 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       (acc, item) => Math.max(acc, Number(item["value"]) || 0),
       0,
     );
-    // 名次徽章：金/银/铜，4 名及以后无徽章仅序号
+    // 名次徽章（Elements 口径收敛）：第 1 名品牌实底强调，2-3 名与 4+ 同为
+    // muted 面弱化，不再使用金/银/铜硬编码色板。
     const rankBadge = (rank: number) => {
-      const colors = ["#F2B66D", "#C9CDD4", "#B98E79"];
-      if (rank <= 3) {
-        return {
-          backgroundColor: colors[rank - 1]!,
-          color: "#ffffff",
-        };
+      if (rank === 1) {
+        return { backgroundColor: theme.primary, color: theme.onPrimary };
       }
       return {
         backgroundColor: theme.surfaceMuted,
