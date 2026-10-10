@@ -24,8 +24,15 @@ extern NSString* const MiniAppLynxHolderCurrentBundlePathDidChange;
 /// 当前容器的已准备 bundle 文件路径；nil 时 createLynxView 无法建页。
 @property(nonatomic, copy, nullable) NSString *preparedBundlePath;
 
-/// 已创建页面数（P1 观测用；P2 起由 Dart 侧经容器状态读取）。
+/// 页面栈挂载的原生容器视图（PlatformView 的根视图）；bind 后 navigate
+/// 出的页面由本类直接 addSubview 挂载，Flutter 层不参与页面栈。
+@property(nonatomic, weak, nullable) UIView *containerView;
+
+/// 页面栈深度（含首页；观测与栈底判定用）。
 @property(nonatomic, readonly) NSUInteger pageCount;
+
+/// 栈底 goBack 时经此回调通知 Flutter 关闭容器页（单向通知，唯一 Dart 触点）。
+@property(nonatomic, copy, nullable) void (^onStackBottomBack)(void);
 
 @end
 

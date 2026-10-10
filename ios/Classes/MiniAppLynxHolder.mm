@@ -88,18 +88,47 @@ NS_ASSUME_NONNULL_END
     builder.fontScale = 1.0;
   }];
   view.frame = UIScreen.mainScreen.bounds;
+  view.autoresizingMask =
+      UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  // 页面路由 = 初始 path：route 名即页面路径，模板入口按 path 渲染。
+  NSMutableDictionary *init = [NSMutableDictionary dictionary];
+  init[@"initialPath"] = route.routeName ?: @"/";
+  if (route.param) {
+    init[@"routeParams"] = route.param;
+  }
+  [view loadTemplateFromURL:[@"file://" stringByAppendingString:self.preparedBundlePath]
+                  initData:[[LynxTemplateData alloc] initWithDictionary:init]];
   [_pageStack addObject:route.routeName ?: @"page"];
-  NSLog(@"[MiniAppLynxHolder] createLynxView route=%@ stack=%lu",
+  NSLog(@"[MiniAppLynxHolder] navigate route=%@ stack=%lu",
         route.routeName ?: @"", (unsigned long)_pageStack.count);
   return view;
 }
 
 - (void)showLynxView:(LynxView *)lynxView name:(NSString *)name {
-  NSLog(@"[MiniAppLynxHolder] show page=%@", name ?: @"");
+  // 页面栈显示：挂入容器（navigate 出的页面已在创建时挂入，此处幂等）。
+  if (lynxView.superview != self.containerView) {
+    [self.containerView addSubview:lynxView];
+    lynxView.frame = self.containerView.bounds;
+    lynxView.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  }
 }
 
 - (void)hideLynxView:(LynxView *)lynxView {
-  NSLog(@"[MiniAppLynxHolder] hide page");
+  // goBack 回退：移除栈顶视图（返回上层页面仍由 goBack 后的 show 挂回），
+  // 并同步页面栈深度，供栈底判定。
+  [lynxView removeFromSuperview];
+  if (_pageStack.count > 1) {
+    [_pageStack removeLastObject];
+  }
+}
+
+#pragma mark - 栈底通知
+
+- (void)notifyStackBottomBack {
+  if (self.onStackBottomBack) {
+    self.onStackBottomBack();
+  }
 }
 
 @end

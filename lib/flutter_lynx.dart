@@ -3,6 +3,9 @@ export "src/models/lynx_template_data.dart";
 export "src/models/lynx_event.dart";
 export "src/models/lynx_load_status.dart";
 
+// Page stack
+export "src/view/mini_app_page_stack.dart";
+
 // Bridge
 export "src/bridge/lynx_bridge.dart";
 export "src/bridge/lynx_bridge_handler.dart";

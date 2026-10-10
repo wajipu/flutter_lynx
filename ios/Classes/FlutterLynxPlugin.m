@@ -4,10 +4,21 @@
 
 #import <UIKit/UIKit.h>
 
+static FlutterMethodChannel *kSharedBridgeChannel = nil;
+
 @implementation FlutterLynxPlugin {
   FlutterMethodChannel *_pluginChannel;
   FlutterMethodChannel *_bridgeChannel;
+  MiniAppPageStackFactory *_pageStackFactory;
   FlutterMethodChannel *_hostCapsuleChannel;
+}
+
++ (void)setSharedBridgeChannel:(FlutterMethodChannel *)channel {
+  kSharedBridgeChannel = channel;
+}
+
++ (FlutterMethodChannel *)bridgeChannel {
+  return kSharedBridgeChannel;
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -23,6 +34,8 @@
                                   binaryMessenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:bridgeChannel];
   instance->_bridgeChannel = bridgeChannel;
+  // 页面栈等原生自建 LynxView 经类方法复用同一转发通道。
+  [FlutterLynxPlugin setSharedBridgeChannel:bridgeChannel];
 
   FlutterMethodChannel *hostCapsuleChannel =
       [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/host_capsule"
@@ -34,6 +47,12 @@
   LynxPlatformViewFactory *factory =
       [[LynxPlatformViewFactory alloc] initWithMessenger:[registrar messenger]];
   [registrar registerViewFactory:factory withId:@"com.kmanager.flutter_lynx/lynx_view"];
+
+  // 工作台小程序页面栈容器：native 自治页面栈 + 背滑手势 + 栈底通知。
+  MiniAppPageStackFactory *pageStackFactory =
+      [[MiniAppPageStackFactory alloc] initWithMessenger:[registrar messenger]];
+  [registrar registerViewFactory:pageStackFactory
+                         withId:@"com.kmanager.flutter_lynx/mini_app_page_stack"];
 }
 
 + (void)callBridge:(NSString *)module
