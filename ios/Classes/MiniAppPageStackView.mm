@@ -79,6 +79,12 @@ NS_ASSUME_NONNULL_END
     _root = [[UIView alloc] initWithFrame:frame];
     _root.backgroundColor = UIColor.whiteColor;
 
+    // 同步 prepared bundle 路径给页面栈容器（Dart 经 creationParams 传入；
+    // PlatformView 的模板加载时机晚于本容器创建，不能依赖其回写）。
+    if (_bundlePath.length > 0) {
+      [MiniAppLynxHolder shared].preparedBundlePath = _bundlePath;
+    }
+
     // native → Flutter 的单向通知通道：栈底 goBack 时请求关闭容器页。
     _stackChannel = [FlutterMethodChannel
         methodChannelWithName:
