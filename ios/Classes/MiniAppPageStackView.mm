@@ -49,6 +49,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 NS_ASSUME_NONNULL_END
 
+
 @interface MiniAppPageStackView () <UITextFieldDelegate>
 @end
 
@@ -189,6 +190,29 @@ NS_ASSUME_NONNULL_END
     // 栈底：通知 Flutter 关闭整页容器。
     [_stackChannel invokeMethod:@"dismiss" arguments:nil];
   }
+}
+
+@end
+
+@implementation MiniAppPageStackFactory
+- (instancetype)initWithMessenger:(NSObject<FlutterBinaryMessenger> *)messenger {
+  return [super init];
+}
+
+- (NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame
+                                    viewIdentifier:(int64_t)viewId
+                                         arguments:(id _Nullable)args
+                                   binaryMessenger:(NSObject<FlutterBinaryMessenger> *)messenger {
+  return [[MiniAppPageStackView alloc] initWithFrame:frame
+                                              viewId:viewId
+                                              params:args
+                                            messenger:messenger];
+}
+
+- (NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame
+                                    viewIdentifier:(int64_t)viewId
+                                         arguments:(id _Nullable)args {
+  return [self createWithFrame:frame viewIdentifier:viewId arguments:args binaryMessenger:nil];
 }
 
 @end
