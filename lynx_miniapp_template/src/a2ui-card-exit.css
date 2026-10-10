@@ -130,3 +130,29 @@
   animation-timing-function: ease-out;
   animation-fill-mode: backwards;
 }
+
+/* Skeleton 脉冲（shadcn Skeleton 观感）：loading 占位条透明度往复呼吸。
+   无限循环不走 fill-mode，类移除即静止。 */
+@keyframes a2ui-skeleton-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.a2ui-skeleton {
+  animation-name: a2ui-skeleton-pulse;
+  animation-duration: 1600ms;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* 按钮按压降透明过渡：透明度变化由内联样式驱动，这里只补平滑过渡。 */
+.a2ui-btn-press {
+  transition: opacity 120ms ease-out;
+}

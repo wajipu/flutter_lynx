@@ -118,6 +118,38 @@ export function mergeA2UICardTheme(
   return theme as A2UICardTheme;
 }
 
+/** 语义色调基色：取 Tailwind 600 档，软徽章文字与浅面都从这里推导。 */
+const SEMANTIC_TONE: Record<"success" | "warning" | "danger", string> = {
+  success: "#16A34A",
+  warning: "#D97706",
+  danger: "#DC2626",
+};
+
+/** #RRGGBB 色向目标色按比例混合（t=0 全源色，t=1 全目标色）。
+ *  软徽章用 surface 当底混出浅色面、onSurface 当墨混出可读文字：
+ *  亮色主题把语义色压深、暗色主题提亮，两个模式都不需要第二套硬编码色板。 */
+function mixHex(source: string, target: string, t: number): string {
+  const parse = (value: string): [number, number, number] => {
+    const raw = value.replace("#", "");
+    const full =
+      raw.length === 3
+        ? raw
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : raw;
+    const num = Number.parseInt(full.slice(0, 6).padEnd(6, "0"), 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  };
+  const [sr, sg, sb] = parse(source);
+  const [tr, tg, tb] = parse(target);
+  const channel = (from: number, to: number) =>
+    Math.max(0, Math.min(255, Math.round(from + (to - from) * t)));
+  return `#${[channel(sr, tr), channel(sg, tg), channel(sb, tb)]
+    .map((v) => v.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
 // --- Props 类型：与官方内置组件的 Props 对齐（官方类型未导出，这里按
 // dist/catalog/*/index.d.ts 声明复刻，运行时行为一致）。 ---
 
@@ -285,8 +317,22 @@ type TextVariant = keyof typeof TEXT_VARIANTS;
  * 组件闭包引用它，随 factory 一次性创建。
  */
 export function createCatalogComponents(theme: A2UICardTheme) {
+  // outlined 卡边框：宿主未注入可用描边（空值/transparent；kmanager 亮色
+  // border 为 transparent、经宿主 css 映射会落成 #000000）时退化为分隔线色
+  // 细边——亮色容器不描边是宿主约定，卡片 hairline 观感由 divider 承担。
+  const outlinedBorder = ["", "transparent", "#000000", "#00000000"].includes(
+    theme.border.trim().toLowerCase(),
+  )
+    ? theme.divider
+    : theme.border;
   function Text(props: StyledTextProps) {
     const variant = props.variant ?? "body";
+    // 空文本折叠为 null：终态卡宿主将 /statusText 置空、状态改由壳层
+    // terminalBadge 徽章承担，标题位不能留 lineHeight 空盒；对其他模板
+    // 而言空字符串本就无内容可渲染，行为一致。
+    if (props.text === undefined || props.text === null || props.text === "") {
+      return null;
+    }
     // markdown 走原生 x-markdown，与官方行为一致。
     if (variant === "markdown") {
       return <x-markdown content={props.text} />;
@@ -492,7 +538,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           backgroundColor: theme.surface,
           borderRadius: "14px", // AppRadius.card
           padding: "16px", // AppInsets.card
-          border: `1px solid ${theme.border}`,
+          border: `1px solid ${outlinedBorder}`,
         };
       case "filled":
         return {
@@ -552,6 +598,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     });
     // 与官方一致：isValid（模型侧禁用）与 checks 求值同时通过才可点。
     const enabled = isValid && ok;
+    // 按压降透明反馈（Elements ghost 态口径）：透明度由内联样式驱动，
+    // 平滑过渡走 .a2ui-btn-press；禁用态维持 0.4，不叠加按压态。
+    const [pressed, setPressed] = useState(false);
+    const setPress = (down: boolean) => {
+      if (enabled) setPressed(down);
+    };
     const handleClick = () => {
       if (enabled && action) {
         void sendAction?.(action);
@@ -570,7 +622,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       borderRadius: "12px",
       paddingLeft: "16px",
       paddingRight: "16px",
-      opacity: enabled ? 1 : 0.4,
+      opacity: enabled ? (pressed ? 0.7 : 1) : 0.4,
     };
     if (variant === "primary") {
       shellStyle.backgroundColor = theme.primary;
@@ -580,7 +632,14 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     return (
       <>
         <ButtonLabelContext.Provider value={{ variant, theme }}>
-          <view style={shellStyle} bindtap={enabled ? handleClick : undefined}>
+          <view
+            style={shellStyle}
+            className="a2ui-btn-press"
+            bindtap={enabled ? handleClick : undefined}
+            bindtouchstart={enabled ? () => setPress(true) : undefined}
+            bindtouchend={enabled ? () => setPress(false) : undefined}
+            bindtouchcancel={enabled ? () => setPress(false) : undefined}
+          >
             {childResource ? (
               <ResourceChild resource={childResource} surface={surface} />
             ) : (
@@ -811,9 +870,13 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           paddingBottom: variant === "block" ? "6px" : "0px",
         }}
       >
-        <view style={{ ...skeletonStyle, width: "96%" }} />
+        {/* Elements/zinc Skeleton 口径：占位条脉冲呼吸（类移除即静止）。 */}
+        <view className="a2ui-skeleton" style={{ ...skeletonStyle, width: "96%" }} />
         {variant === "block" ? (
-          <view style={{ ...skeletonStyle, width: "68%" }} />
+          <view
+            className="a2ui-skeleton"
+            style={{ ...skeletonStyle, width: "68%" }}
+          />
         ) : null}
       </view>
     );
@@ -3392,17 +3455,21 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const items = Array.isArray(itemsValue)
       ? (itemsValue as Array<Record<string, unknown>>)
       : [];
-    // 语义色调 → 主题映射；以 # 开头的原始色值也接受（宿主可信通道）
+    // 语义色调 → 主题映射；以 # 开头的原始色值也接受（宿主可信通道）。
+    // Elements/zinc muted 徽章口径：语义色只出 ~14% 浅面 + 向正文色混色的
+    // 文字，明暗两版都由 surface/onSurface 推导（亮色压深、暗色提亮），
+    // 不引入第二套硬编码色板；primary 保持实底（品牌强调），# 原色透传不变。
     const toneStyle = (tone: string): { bg: string; text: string } => {
       switch (tone) {
         case "primary":
           return { bg: theme.primary, text: theme.onPrimary };
         case "success":
-          return { bg: "#166534", text: "#ffffff" };
         case "warning":
-          return { bg: "#F2B66D", text: "#171D1F" };
         case "danger":
-          return { bg: "#d92d20", text: "#ffffff" };
+          return {
+            bg: mixHex(SEMANTIC_TONE[tone], theme.surface, 0.86),
+            text: mixHex(SEMANTIC_TONE[tone], theme.onSurface, 0.35),
+          };
         case "neutral":
           return { bg: theme.surfaceMuted, text: theme.onSurfaceMuted };
         default:
