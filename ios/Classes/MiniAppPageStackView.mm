@@ -92,6 +92,7 @@ NS_ASSUME_NONNULL_END
                                        viewId]
               binaryMessenger:messenger];
 
+    NSLog(@"[MiniAppPageStackView] init params keys=%@ bundlePath='%@'", params.allKeys, _bundlePath);
     [self bootstrapFirstPage];
     [self installEdgeBackGesture];
     [[LynxNavigator sharedInstance]
@@ -115,7 +116,6 @@ NS_ASSUME_NONNULL_END
 }
 
 - (LynxView *)createLynxViewWithInitialData:(NSDictionary *)initialData {
-  NSLog(@"[MiniAppPageStackView] init params keys=%@ bundlePath='%@'", params.allKeys, _bundlePath);
   NSLog(@"[MiniAppPageStackView] createLynxView holderPath=%@ paramPath=%@",
         [MiniAppLynxHolder shared].preparedBundlePath, _bundlePath);
   if (_bundlePath.length == 0) {
