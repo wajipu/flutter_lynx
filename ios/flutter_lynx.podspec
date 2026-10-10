@@ -10,7 +10,7 @@ Lynx dynamic mini-program engine and container for Flutter applications.
   s.author           = { "KManager Team" => "dev@kmanager.com" }
   s.source           = { :path => "." }
   s.source_files = "Classes/**/*.{h,m,mm}"
-  s.public_header_files = "Classes/FlutterLynxPlugin.h"
+  s.public_header_files = "Classes/FlutterLynxPlugin.h", "Classes/MiniAppPageStackView.h"
   s.dependency "Flutter"
   s.platform = :ios, "12.0"
 
