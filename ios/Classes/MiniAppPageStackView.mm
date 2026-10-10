@@ -216,6 +216,8 @@ NS_ASSUME_NONNULL_END
                                     viewIdentifier:(int64_t)viewId
                                          arguments:(id _Nullable)args
                                    binaryMessenger:(NSObject<FlutterBinaryMessenger> *)messenger {
+  NSLog(@"[MiniAppPageStackFactory] create viewId=%lld argsClass=%@ args=%@",
+        viewId, NSStringFromClass([args class]), args);
   return [[MiniAppPageStackView alloc] initWithFrame:frame
                                               viewId:viewId
                                               params:args
