@@ -60,7 +60,12 @@ static NSData *DecodeTemplateBytesParam(id value) {
   NSError *error = nil;
   NSData *data = [NSData dataWithContentsOfURL:fileURL options:0 error:&error];
   // 页面栈容器需要知道当前 bundle：导航出的新页面复用同一文件。
-  [MiniAppLynxHolder shared].preparedBundlePath = fileURL.path;
+  // 防御：url 非法分支的 fileURL 可能为 nil，不得以 nil 覆盖既有值。
+  if (fileURL.path.length > 0) {
+    [MiniAppLynxHolder shared].preparedBundlePath = fileURL.path;
+  } else {
+    NSLog(@"[MiniAppLynxHolder] skip nil path from url=%@", url);
+  }
   if (error || data.length == 0 || data.length > kMaxBundleBytes) {
     callback(nil, error ?: [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
                                                code:400
