@@ -10,7 +10,6 @@
 #import <Lynx/NavigationModule.h>
 #import "LynxBridgeModule.h"
 
-#import "FlutterLynxPlugin.h"
 #import "MiniAppLynxHolder.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -92,6 +91,7 @@ NS_ASSUME_NONNULL_END
   NSSet<NSString *> *_allowedModules;
   BOOL _applySafeArea;
   FlutterMethodChannel *_stackChannel;
+  FlutterMethodChannel *_bridgeChannel;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -122,6 +122,10 @@ NS_ASSUME_NONNULL_END
         methodChannelWithName:
             [NSString stringWithFormat:@"com.kmanager.flutter_lynx/page_stack_%lld",
                                        viewId]
+              binaryMessenger:messenger];
+    // 后台引擎也会注册插件，页面调用必须绑定当前视图所属引擎。
+    _bridgeChannel = [FlutterMethodChannel
+        methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
               binaryMessenger:messenger];
 
     NSLog(@"[MiniAppPageStackView] init params keys=%@ bundlePath='%@'", params.allKeys, _bundlePath);
@@ -154,11 +158,10 @@ NS_ASSUME_NONNULL_END
   LynxConfig *config = [[LynxConfig alloc]
       initWithProvider:[[MiniAppStackTemplateProvider alloc]
                            initWithPath:_bundlePath]];
-  // 页面栈各页共享 bridge 转发通道（Dart 侧 LynxBridge 单例全局分发），
   // 白名单与整页单页模式一致，由 creationParams 传入。
   LynxBridgeBinding *binding = [[LynxBridgeBinding alloc]
       initWithAllowedModules:_allowedModules
-               bridgeChannel:[FlutterLynxPlugin bridgeChannel]];
+               bridgeChannel:_bridgeChannel];
   [config registerModule:[LynxBridgeModule class] param:binding];
   [config registerModule:[NavigationModule class]];
 
