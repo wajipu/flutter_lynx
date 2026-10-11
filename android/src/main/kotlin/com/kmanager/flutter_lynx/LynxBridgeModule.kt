@@ -8,9 +8,15 @@ import com.lynx.jsbridge.LynxMethod
 import com.lynx.jsbridge.LynxModule
 import com.lynx.react.bridge.Callback
 import com.lynx.react.bridge.ReadableMap
+import io.flutter.plugin.common.MethodChannel
 
 /** One binding belongs to one native view; reload/disposal invalidates pending host callbacks. */
-class LynxBridgeBinding(private val mainHandler: Handler, allowedModules: Set<String>) {
+class LynxBridgeBinding(
+    private val mainHandler: Handler,
+    allowedModules: Set<String>,
+    private val bridgeChannel: MethodChannel,
+    private val sourceContextId: String?
+) {
     private val allowedModules = allowedModules.toSet()
     @Volatile
     var isActive: Boolean = true
@@ -32,7 +38,8 @@ class LynxBridgeBinding(private val mainHandler: Handler, allowedModules: Set<St
                 )))
                 return@post
             }
-            FlutterLynxPlugin.callBridge(module, method, params, callId) { response ->
+            // Origin comes only from the native view binding, not JS arguments.
+            FlutterLynxPlugin.callBridge(module, method, params, callId, sourceContextId, bridgeChannel) { response ->
                 // SDK conversion recursively wraps nested Map/List values for its JNI type reader.
                 if (isActive) callback.invoke(Arguments.makeNativeMap(response))
             }

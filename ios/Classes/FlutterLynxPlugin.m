@@ -59,6 +59,7 @@ static FlutterMethodChannel *kSharedBridgeChannel = nil;
             method:(NSString *)method
             params:(NSDictionary *)params
             callId:(NSString *)callId
+   sourceContextId:(NSString *)sourceContextId
            channel:(FlutterMethodChannel *)channel
         completion:(void (^)(NSDictionary *response))completion {
   if (channel == nil) {
@@ -75,6 +76,7 @@ static FlutterMethodChannel *kSharedBridgeChannel = nil;
                 @"module" : module ?: @"",
                 @"method" : method ?: @"",
                 @"params" : params ?: @{},
+                @"sourceContextId" : sourceContextId ?: [NSNull null],
               }
                  result:^(id result) {
                    if ([result isKindOfClass:[NSDictionary class]]) {

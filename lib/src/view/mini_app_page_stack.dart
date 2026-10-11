@@ -14,6 +14,8 @@ class MiniAppPageStack extends StatefulWidget {
   final String bundlePath;
   final Map<String, Object?> initialData;
   final List<String> allowedModules;
+  /// 宿主关联当前原生视图的来源，独立于模板初始数据和 JS 参数。
+  final String? sourceContextId;
   final VoidCallback? onStackBottomBack;
 
   const MiniAppPageStack({
@@ -21,6 +23,7 @@ class MiniAppPageStack extends StatefulWidget {
     required this.bundlePath,
     required this.initialData,
     required this.allowedModules,
+    this.sourceContextId,
     this.onStackBottomBack,
   });
 
@@ -43,6 +46,7 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
   Widget build(BuildContext context) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
+        key: ValueKey(widget.sourceContextId),
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
@@ -53,14 +57,16 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
     return const SizedBox.shrink();
   }
 
-  Map<String, Object> _buildCreationParams() => <String, Object>{
+  Map<String, Object?> _buildCreationParams() => <String, Object?>{
         'bundlePath': widget.bundlePath,
         'initialData': widget.initialData,
         'allowedModules': widget.allowedModules,
+        'sourceContextId': widget.sourceContextId,
         'applySafeArea': true,
       };
 
   void _onPlatformViewCreated(int id) {
+    _stackChannel?.setMethodCallHandler(null);
     final channel = MethodChannel("com.kmanager.flutter_lynx/page_stack_$id");
     channel.setMethodCallHandler((call) async {
       if (call.method == 'dismiss') {

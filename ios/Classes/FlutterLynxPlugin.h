@@ -12,6 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
             method:(NSString *)method
             params:(NSDictionary *)params
             callId:(NSString *)callId
+   sourceContextId:(NSString *_Nullable)sourceContextId
            channel:(FlutterMethodChannel *)channel
         completion:(void (^)(NSDictionary *response))completion;
 @end

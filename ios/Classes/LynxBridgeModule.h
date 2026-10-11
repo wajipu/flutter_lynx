@@ -9,7 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
 @interface LynxBridgeBinding : NSObject
 @property(nonatomic, readonly) BOOL isActive;
 - (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules
-                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel;
+                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel
+                       sourceContextId:(NSString *_Nullable)sourceContextId;
 - (void)invalidate;
 - (void)callModule:(NSString *)module
             method:(NSString *)method

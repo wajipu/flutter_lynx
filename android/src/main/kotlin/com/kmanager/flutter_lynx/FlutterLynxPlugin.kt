@@ -20,18 +20,16 @@ class FlutterLynxPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
             method: String,
             params: Map<String, Any?>,
             callId: String,
+            sourceContextId: String?,
+            channel: MethodChannel,
             callback: (Map<String, Any?>) -> Unit
         ) {
-            val channel = bridgeChannel ?: run {
-                callback(mapOf("callId" to callId, "code" to 500, "message" to "Bridge channel not initialized"))
-                return
-            }
-
             val request = mapOf(
                 "callId" to callId,
                 "module" to module,
                 "method" to method,
-                "params" to params
+                "params" to params,
+                "sourceContextId" to sourceContextId
             )
 
             channel.invokeMethod("callBridge", request, object : MethodChannel.Result {

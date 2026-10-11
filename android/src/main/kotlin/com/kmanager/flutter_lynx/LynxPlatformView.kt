@@ -71,6 +71,9 @@ class LynxPlatformView(
         MethodChannel(messenger, "com.kmanager.flutter_lynx/lynx_view_$viewId")
     private val eventChannel =
         MethodChannel(messenger, "com.kmanager.flutter_lynx/lynx_view_" + viewId + "_events")
+    // Each view must deliver to its own Flutter engine, including with headless engines present.
+    private val bridgeChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/bridge")
+    private val sourceContextId = creationParams["sourceContextId"] as? String
     private var url = creationParams["url"] as? String ?: ""
     // 源码直喂模式：内容不经文件，渲染入口与文件链路相同（官方 bytes 直喂 API）。
     // 文本走 source（UTF-8 编码），rspeedy/tasm 二进制模板产物走 templateBytes。
@@ -121,7 +124,7 @@ class LynxPlatformView(
                 services.registerService(LynxImageService.getInstance())
             }
         }
-        val binding = LynxBridgeBinding(mainHandler, modules)
+        val binding = LynxBridgeBinding(mainHandler, modules, bridgeChannel, sourceContextId)
         bridgeBinding = binding
         val builder = LynxViewBuilder()
         builder.registerModule("LynxBridge", LynxBridgeModule::class.java, binding)

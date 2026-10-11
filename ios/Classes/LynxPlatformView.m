@@ -243,6 +243,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
   NSString *_source;
   NSData *_templateBytes;
   NSDictionary *_initialData;
+  NSString *_sourceContextId;
   NSSet<NSString *> *_allowedModules;
   NSError *_allowedModulesError;
   LynxView *_lynxView;
@@ -269,6 +270,9 @@ static NSData *DecodeTemplateBytesParam(id value) {
     _autoHeight = [params[@"autoHeight"] isKindOfClass:[NSNumber class]] &&
                   [params[@"autoHeight"] boolValue];
     _initialData = [self stringKeyedMap:params[@"initialData"]] ?: @{};
+    _sourceContextId = [params[@"sourceContextId"] isKindOfClass:[NSString class]]
+                           ? [params[@"sourceContextId"] copy]
+                           : nil;
     NSError *moduleError = nil;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
     _allowedModulesError = moduleError;
@@ -316,7 +320,8 @@ static NSData *DecodeTemplateBytesParam(id value) {
   });
   LynxBridgeBinding *binding = [[LynxBridgeBinding alloc]
       initWithAllowedModules:_allowedModules
-               bridgeChannel:_bridgeChannel];
+               bridgeChannel:_bridgeChannel
+             sourceContextId:_sourceContextId];
   _bridgeBinding = binding;
   FlutterLynxLifecycleClient *lifecycle = [[FlutterLynxLifecycleClient alloc] init];
   __weak typeof(self) weakSelf = self;

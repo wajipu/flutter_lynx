@@ -4,15 +4,19 @@
 @implementation LynxBridgeBinding {
   NSSet<NSString *> *_allowedModules;
   FlutterMethodChannel *_bridgeChannel;
+  NSString *_sourceContextId;
   BOOL _active;
 }
 
 - (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules
-                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel {
+                         bridgeChannel:(FlutterMethodChannel *)bridgeChannel
+                       sourceContextId:(NSString *)sourceContextId {
   self = [super init];
   if (self) {
     _allowedModules = [allowedModules copy];
     _bridgeChannel = bridgeChannel;
+    // The host's creation parameter is immutable for this binding's lifetime.
+    _sourceContextId = [sourceContextId copy];
     _active = YES;
   }
   return self;
@@ -47,6 +51,7 @@
                            method:method
                            params:params
                            callId:callId
+                  sourceContextId:self->_sourceContextId
                           channel:self->_bridgeChannel
                        completion:^(NSDictionary *response) {
                          if (self->_active && callback) {
@@ -79,6 +84,11 @@
     _binding = param;
   }
   return self;
+}
+
+- (void)destroy {
+  // A cleared native view must not complete old host calls into its JS runtime.
+  [_binding invalidate];
 }
 
 - (void)call:(NSString *)module

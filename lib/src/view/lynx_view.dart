@@ -63,6 +63,9 @@ class LynxView extends StatefulWidget {
   /// Custom modules must be listed explicitly; changing grants recreates the view.
   final Set<String> allowedModules;
 
+  /// Host-owned native-view origin; never exposed through template initial data.
+  final String? sourceContextId;
+
   /// Callback when the LynxController is created and attached.
   final LynxCreatedCallback? onLynxCreated;
 
@@ -84,6 +87,7 @@ class LynxView extends StatefulWidget {
     this.onHeightChanged,
     this.gestureRecognizers,
     this.initialData,
+    this.sourceContextId,
     this.allowedModules = const {
       "system",
       "ui",
@@ -126,6 +130,7 @@ class _LynxViewState extends State<LynxView> {
       if (widget.templateBytes != null) "templateBytes": widget.templateBytes,
       "autoHeight": widget.autoHeight,
       "allowedModules": _allowedModules.toList(growable: false),
+      "sourceContextId": widget.sourceContextId,
       if (widget.initialData != null)
         "initialData": widget.initialData!.toMap(),
     };
@@ -196,8 +201,9 @@ class _LynxViewState extends State<LynxView> {
   @override
   void didUpdateWidget(covariant LynxView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Grants belong to a native view's lifetime; never reuse a broader old binding.
-    if (!setEquals(widget.allowedModules, _allowedModules)) {
+    // Grants and origin belong to a native view's lifetime; recreate when either changes.
+    if (!setEquals(widget.allowedModules, _allowedModules) ||
+        widget.sourceContextId != oldWidget.sourceContextId) {
       _allowedModules = Set.of(widget.allowedModules);
       _platformGeneration += 1;
       _detachController();

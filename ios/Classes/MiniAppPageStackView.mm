@@ -92,6 +92,8 @@ NS_ASSUME_NONNULL_END
   BOOL _applySafeArea;
   FlutterMethodChannel *_stackChannel;
   FlutterMethodChannel *_bridgeChannel;
+  NSString *_sourceContextId;
+  LynxBridgeBinding *_bridgeBinding;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -103,6 +105,9 @@ NS_ASSUME_NONNULL_END
                       ? params[@"bundlePath"]
                       : @"";
     _initialData = [self stringKeyedMap:params[@"initialData"]] ?: @{};
+    _sourceContextId = [params[@"sourceContextId"] isKindOfClass:[NSString class]]
+                           ? [params[@"sourceContextId"] copy]
+                           : nil;
     _applySafeArea = [params[@"applySafeArea"] isKindOfClass:[NSNumber class]]
                          ? [params[@"applySafeArea"] boolValue]
                          : YES;
@@ -142,6 +147,11 @@ NS_ASSUME_NONNULL_END
   return _root;
 }
 
+- (void)dealloc {
+  // Platform-view disposal revokes callbacks belonging to this origin.
+  [_bridgeBinding invalidate];
+}
+
 - (void)bootstrapFirstPage {
   LynxView *first = [self createLynxViewWithInitialData:_initialData];
   [_root addSubview:first];
@@ -161,7 +171,9 @@ NS_ASSUME_NONNULL_END
   // 白名单与整页单页模式一致，由 creationParams 传入。
   LynxBridgeBinding *binding = [[LynxBridgeBinding alloc]
       initWithAllowedModules:_allowedModules
-               bridgeChannel:_bridgeChannel];
+               bridgeChannel:_bridgeChannel
+             sourceContextId:_sourceContextId];
+  _bridgeBinding = binding;
   [config registerModule:[LynxBridgeModule class] param:binding];
   [config registerModule:[NavigationModule class]];
 

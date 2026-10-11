@@ -11,6 +11,10 @@ import "built_in/router_bridge_handler.dart";
 typedef LynxBridgeFunction = Future<Map<String, dynamic>?> Function(
     Map<String, dynamic> params);
 
+/// A host handler that can associate a call with its native view origin.
+typedef LynxBridgeRequestFunction = Future<Map<String, dynamic>?> Function(
+    LynxBridgeRequest request);
+
 /// Central JSBridge dispatcher that connects Lynx JavaScript and Flutter Host.
 class LynxBridge {
   static final LynxBridge _instance = LynxBridge._internal();
@@ -21,7 +25,7 @@ class LynxBridge {
       const MethodChannel("com.kmanager.flutter_lynx/bridge");
 
   final List<LynxBridgeHandler> _handlers = [];
-  final Map<String, LynxBridgeFunction> _functionHandlers = {};
+  final Map<String, LynxBridgeRequestFunction> _functionHandlers = {};
 
   final SystemBridgeHandler systemHandler = SystemBridgeHandler();
   final UIBridgeHandler uiHandler = UIBridgeHandler();
@@ -56,6 +60,13 @@ class LynxBridge {
   /// scanQRCode, getUserInfo, request, etc.
   void register(String method, LynxBridgeFunction function,
       {String module = "default"}) {
+    // Keep the existing params-only contract on the same registration path.
+    registerRequest(method, (request) => function(request.params), module: module);
+  }
+
+  /// Register a full-request handler without creating another dispatcher.
+  void registerRequest(String method, LynxBridgeRequestFunction function,
+      {String module = "default"}) {
     final key = "$module:$method";
     _functionHandlers[key] = function;
   }
@@ -77,7 +88,7 @@ class LynxBridge {
 
     if (directFunction != null) {
       try {
-        final result = await directFunction(request.params);
+        final result = await directFunction(request);
         final response = LynxBridgeResponse.success(
           callId: request.callId,
           data: result,
