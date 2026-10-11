@@ -49,12 +49,44 @@ NS_ASSUME_NONNULL_BEGIN
 
 NS_ASSUME_NONNULL_END
 
+@interface MiniAppPageStackRootView : UIView
+@property(nonatomic, assign) CGSize lastViewport;
+@end
+
+@implementation MiniAppPageStackRootView
+- (void)didAddSubview:(UIView *)subview {
+  [super didAddSubview:subview];
+  // 导航新增页也要接收容器尺寸，不能沿用创建时的 UIScreen 尺寸。
+  self.lastViewport = CGSizeZero;
+  [self setNeedsLayout];
+}
+
+- (void)layoutSubviews {
+  [super layoutSubviews];
+  CGSize size = self.bounds.size;
+  if (size.width < 1 || size.height < 1 ||
+      CGSizeEqualToSize(size, self.lastViewport)) {
+    return;
+  }
+  self.lastViewport = size;
+  // UiKitView 常以零尺寸创建；与单页容器一致，在布局后显式同步真实 viewport。
+  for (UIView *subview in self.subviews) {
+    if ([subview isKindOfClass:[LynxView class]]) {
+      LynxView *view = (LynxView *)subview;
+      view.frame = self.bounds;
+      [view updateViewportWithPreferredLayoutWidth:size.width
+                           preferredLayoutHeight:size.height
+                                      needLayout:YES];
+    }
+  }
+}
+@end
 
 @interface MiniAppPageStackView () <UITextFieldDelegate>
 @end
 
 @implementation MiniAppPageStackView {
-  UIView *_root;
+  MiniAppPageStackRootView *_root;
   NSString *_bundlePath;
   NSDictionary *_initialData;
   NSSet<NSString *> *_allowedModules;
@@ -76,7 +108,7 @@ NS_ASSUME_NONNULL_END
                          : YES;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"]];
 
-    _root = [[UIView alloc] initWithFrame:frame];
+    _root = [[MiniAppPageStackRootView alloc] initWithFrame:frame];
     _root.backgroundColor = UIColor.whiteColor;
 
     // 同步 prepared bundle 路径给页面栈容器（Dart 经 creationParams 传入；
@@ -109,9 +141,6 @@ NS_ASSUME_NONNULL_END
 - (void)bootstrapFirstPage {
   LynxView *first = [self createLynxViewWithInitialData:_initialData];
   [_root addSubview:first];
-  first.frame = _root.bounds;
-  first.autoresizingMask =
-      UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   [MiniAppLynxHolder shared].containerView = _root;
 }
 
@@ -138,6 +167,14 @@ NS_ASSUME_NONNULL_END
     builder.screenSize = UIScreen.mainScreen.bounds.size;
     builder.fontScale = 1.0;
   }];
+  // 首次加载使用容器约束，后续有效尺寸由根视图布局同步。
+  view.frame = _root.bounds;
+  view.autoresizingMask =
+      UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  view.layoutWidthMode = LynxViewSizeModeExact;
+  view.layoutHeightMode = LynxViewSizeModeExact;
+  view.preferredLayoutWidth = CGRectGetWidth(_root.bounds);
+  view.preferredLayoutHeight = CGRectGetHeight(_root.bounds);
   // 初始数据经 loadTemplate 的 initData 参数注入（LynxView 无独立
   // updateInitialData 入口）；模板文件字节直喂。
   NSData *bytes = [NSData dataWithContentsOfFile:[MiniAppLynxHolder shared].preparedBundlePath];
@@ -163,14 +200,15 @@ NS_ASSUME_NONNULL_END
   return set;
 }
 
-- (NSDictionary<NSString *, NSString *> *)stringKeyedMap:(id)value {
+- (NSDictionary<NSString *, id> *)stringKeyedMap:(id)value {
   if (![value isKindOfClass:[NSDictionary class]]) {
     return @{};
   }
-  NSMutableDictionary<NSString *, NSString *> *out = [NSMutableDictionary dictionary];
+  // 只限制键类型，保留模板初始数据中的数字、布尔值和嵌套对象。
+  NSMutableDictionary<NSString *, id> *out = [NSMutableDictionary dictionary];
   [(NSDictionary *)value
       enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-        if ([key isKindOfClass:[NSString class]] && [obj isKindOfClass:[NSString class]]) {
+        if ([key isKindOfClass:[NSString class]]) {
           out[key] = obj;
         }
       }];
@@ -207,9 +245,21 @@ NS_ASSUME_NONNULL_END
 
 @end
 
-@implementation MiniAppPageStackFactory
+@implementation MiniAppPageStackFactory {
+  NSObject<FlutterBinaryMessenger> *_messenger;
+}
+
 - (instancetype)initWithMessenger:(NSObject<FlutterBinaryMessenger> *)messenger {
-  return [super init];
+  self = [super init];
+  if (self) {
+    _messenger = messenger;
+  }
+  return self;
+}
+
+- (NSObject<FlutterMessageCodec> *)createArgsCodec {
+  // 与 Dart creationParamsCodec 配对，否则 Flutter 会传入空参数。
+  return [FlutterStandardMessageCodec sharedInstance];
 }
 
 - (NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame
@@ -227,7 +277,7 @@ NS_ASSUME_NONNULL_END
 - (NSObject<FlutterPlatformView> *)createWithFrame:(CGRect)frame
                                     viewIdentifier:(int64_t)viewId
                                          arguments:(id _Nullable)args {
-  return [self createWithFrame:frame viewIdentifier:viewId arguments:args binaryMessenger:nil];
+  return [self createWithFrame:frame viewIdentifier:viewId arguments:args binaryMessenger:_messenger];
 }
 
 @end
