@@ -19,24 +19,20 @@ LYNX_PROPS_GROUP_DECLARE(LYNX_PROP_DECLARE("default-value", setDefaultValue, NSS
                          LYNX_PROP_DECLARE("confirm-type", setConfirmType, NSString*))
 
 - (UITextField *)createView {
-  return [[UITextField alloc] init];
-}
-
-- (instancetype)initWithView:(UITextField*)view {
-  if (self = [super initWithView:view]) {
-    view.delegate = self;
-    view.borderStyle = UITextBorderStyleNone;
-    view.backgroundColor = [UIColor clearColor];
-    view.autocorrectionType = UITextAutocorrectionTypeNo;
-    view.autocapitalizationType = UITextAutocapitalizationTypeNone;
-    [view addTarget:self
-             action:@selector(onTextChanged:)
-   forControlEvents:UIControlEventEditingChanged];
-    [view addTarget:self
-             action:@selector(onConfirm:)
-   forControlEvents:UIControlEventEditingDidEndOnExit];
-  }
-  return self;
+  // Lynx 的 initWithView:nil 会调用这里创建视图，监听必须绑定实际文本框。
+  UITextField* view = [[UITextField alloc] init];
+  view.delegate = self;
+  view.borderStyle = UITextBorderStyleNone;
+  view.backgroundColor = [UIColor clearColor];
+  view.autocorrectionType = UITextAutocorrectionTypeNo;
+  view.autocapitalizationType = UITextAutocapitalizationTypeNone;
+  [view addTarget:self
+           action:@selector(onTextChanged:)
+ forControlEvents:UIControlEventEditingChanged];
+  [view addTarget:self
+           action:@selector(onConfirm:)
+ forControlEvents:UIControlEventEditingDidEndOnExit];
+  return view;
 }
 
 - (void)onTextChanged:(UITextField*)sender {
