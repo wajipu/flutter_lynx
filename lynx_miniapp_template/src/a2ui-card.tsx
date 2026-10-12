@@ -52,6 +52,60 @@ interface A2UICardInitData {
 }
 
 /**
+ * surfaceId 一致性归一：模型手写 ```a2ui 卡偶发笔误——createSurface 与
+ * updateDataModel 用 A、updateComponents 写成 B（真实事故：趋势卡
+ * card-trend-1010 vs card-1），渲染器按声明建出两个 surface，组件挂在
+ * 无数据模型那个上，所有 {"path"} 绑定文本静默落空、只剩字面量渲染。
+ * 单 surface 卡（展示卡/确认卡都是）下把游离引用重写回 createSurface 的
+ * id；多 surface 或无 createSurface 的流无法可靠猜测映射，保持原样交给
+ * 渲染器按声明处理。重写时 console.warn 留现场便于排查。
+ */
+function normalizeSurfaceIds(messages: unknown[]): unknown[] {
+  const created: string[] = [];
+  for (const message of messages) {
+    if (
+      typeof message === "object" &&
+      message !== null &&
+      "createSurface" in message
+    ) {
+      const surfaceId = (message as { createSurface?: { surfaceId?: unknown } })
+        .createSurface?.surfaceId;
+      if (typeof surfaceId === "string" && surfaceId.length > 0) {
+        created.push(surfaceId);
+      }
+    }
+  }
+  if (created.length !== 1) return messages;
+  const surfaceId = created[0]!;
+  const strays = new Set<string>();
+  let changed = false;
+  const normalized = messages.map((message) => {
+    if (typeof message !== "object" || message === null) return message;
+    const record = message as Record<string, unknown>;
+    for (const kind of ["updateComponents", "updateDataModel"] as const) {
+      const body = record[kind];
+      if (
+        body &&
+        typeof body === "object" &&
+        "surfaceId" in (body as Record<string, unknown>) &&
+        (body as Record<string, unknown>).surfaceId !== surfaceId
+      ) {
+        strays.add(String((body as Record<string, unknown>).surfaceId));
+        changed = true;
+        return { ...message, [kind]: { ...(body as object), surfaceId } };
+      }
+    }
+    return message;
+  });
+  if (changed) {
+    console.warn(
+      `a2ui-card: surfaceId 归一 ${[...strays].join("/")} -> ${surfaceId}`,
+    );
+  }
+  return changed ? normalized : messages;
+}
+
+/**
  * 把 initData 的契约命名空间播种进渲染器数据模型：在首条 createSurface 之后
  * 插入一条播种 updateDataModel（协议要求 surface 先建），模板自带
  * updateDataModel 时按消息序覆盖播种值。token 等非契约字段不进数据模型，
@@ -61,6 +115,7 @@ function buildInitialMessages(
   rawMessages: unknown[],
   seed: Record<string, unknown>,
 ): unknown[] {
+  rawMessages = normalizeSurfaceIds(rawMessages);
   if (Object.keys(seed).length === 0) return rawMessages;
   const messages = [...rawMessages];
   const surfaceIndex = messages.findIndex(
