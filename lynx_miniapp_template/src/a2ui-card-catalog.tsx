@@ -994,14 +994,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     "#145743", // tabActive（深绿）
     "#059669", // brandBright（翠绿）
   ];
-  function escapeXml(value: string): string {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
-  }
   function formatValue(value: number): string {
     if (!Number.isFinite(value)) return "0";
     const rounded =
@@ -1032,65 +1024,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     });
   }
 
-  function buildLinearPath(points: Array<{ x: number; y: number }>): string {
-    if (points.length === 0) return "";
-    const first = points[0]!;
-    const rest = points.slice(1);
-    let path = `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`;
-    for (const point of rest) {
-      path += ` L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    }
-    return path;
-  }
 
-  function buildStepPath(points: Array<{ x: number; y: number }>): string {
-    if (points.length === 0) return "";
-    const first = points[0]!;
-    const rest = points.slice(1);
-    let path = `M ${first.x.toFixed(1)} ${first.y.toFixed(1)}`;
-    let prev = first;
-    for (const point of rest) {
-      path += ` L ${point.x.toFixed(1)} ${prev.y.toFixed(1)}`;
-      path += ` L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-      prev = point;
-    }
-    return path;
-  }
 
-  function buildNaturalPath(points: Array<{ x: number; y: number }>): string {
-    if (points.length === 0) return "";
-    if (points.length === 1) {
-      const point = points[0]!;
-      return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    }
-    let path = `M ${points[0]!.x.toFixed(1)} ${points[0]!.y.toFixed(1)}`;
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const p0 = points[index - 1] ?? points[index]!;
-      const p1 = points[index]!;
-      const p2 = points[index + 1]!;
-      const p3 = points[index + 2] ?? p2;
-      const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.y + (p2.y - p0.y) / 6;
-      const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.y - (p3.y - p1.y) / 6;
-      path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-    }
-    return path;
-  }
 
-  function buildPath(
-    points: Array<{ x: number; y: number }>,
-    variant: string,
-  ): string {
-    switch (variant) {
-      case "step":
-        return buildStepPath(points);
-      case "natural":
-        return buildNaturalPath(points);
-      default:
-        return buildLinearPath(points);
-    }
-  }
 
   function sampleIndices(count: number, maxLabels: number): number[] {
     if (count <= 0) return [];
@@ -1124,6 +1060,122 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     return { min, max };
   }
 
+  // --- 图表家族（2026-10-12 引擎级重写：纯流内布局）---
+  // 深链二分 + 壳层探针结论：本 Lynx 引擎静默不支持 position:absolute
+  // （探针 view 不渲染、无 JS 异常），原「300px 画布 + 绝对定位摆放」的
+  // 九个图表组件整体塌掉。全部改为纯流内 flex：柱状/堆叠用等权列 + 底对
+  // 齐，线/散点/面积用等宽列 + px 垫高表达点位，环形/仪表/饼图降级为条形
+  // 表达。动效只挂纯 opacity 的 a2ui-anim-fade（真机已验证可跑；grow/pop
+  // 依赖 transform 未验证，不挂在数据形状上）。引擎恢复 absolute 后可回
+  // 滚本提交找回画布实现。
+
+  // 图例行（流内）：色点 + 名称；onTap 传入时可点选（雷达系列切换）。
+  function chartLegend(
+    items: Array<{ name: string; color: string }>,
+    onTap?: (index: number) => void,
+    selectedIndex?: number | null,
+  ): JSX.Element | null {
+    if (items.length === 0) return null;
+    return (
+      <view
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: "8px 14px",
+          width: "100%",
+        }}
+      >
+        {items.map((item, index) => {
+          const dimmed =
+            selectedIndex !== null &&
+            selectedIndex !== undefined &&
+            selectedIndex !== index;
+          return (
+            <view
+              key={`lg-${item.name}-${index}`}
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: "6px",
+                opacity: dimmed ? 0.4 : 1,
+              }}
+              bindtap={onTap ? () => onTap(index) : undefined}
+            >
+              <view
+                style={{
+                  width: "10px",
+                  height: "10px",
+                  borderRadius: "2px",
+                  backgroundColor: item.color,
+                }}
+              />
+              <text
+                style={{
+                  fontSize: "12px",
+                  lineHeight: "16px",
+                  color: theme.onSurfaceMuted,
+                }}
+              >
+                {item.name}
+              </text>
+            </view>
+          );
+        })}
+      </view>
+    );
+  }
+
+  // 选中读出条（流内）：原画布浮动气泡的替代，选中态出现在图与轴标签之间。
+  function chartReadout(
+    label: string,
+    values: Array<{ name: string; value: number }>,
+  ): JSX.Element | null {
+    if (!label) return null;
+    return (
+      <view
+        style={{
+          alignSelf: "center",
+          display: "flex",
+          flexDirection: "row",
+          borderRadius: "6px",
+          backgroundColor: theme.onSurface,
+          paddingLeft: "8px",
+          paddingRight: "8px",
+          paddingTop: "4px",
+          paddingBottom: "4px",
+        }}
+      >
+        <text
+          style={{
+            fontSize: "10px",
+            lineHeight: "13px",
+            color: theme.surface,
+          }}
+        >
+          {`${label}　${values
+            .map((v) => `${v.name} ${formatValue(v.value)}`)
+            .join(" · ")}`}
+        </text>
+      </view>
+    );
+  }
+
+  // 基线（流内）：原画布内绝对定位基线的替代，独立一行居中。
+  function chartBaseline(): JSX.Element {
+    return (
+      <view
+        style={{
+          width: "300px",
+          height: "1.5px",
+          alignSelf: "center",
+          backgroundColor: theme.onSurfaceMuted,
+        }}
+      />
+    );
+  }
+
   function LineChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -1131,7 +1183,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
-    // 点选态：tap 某列热区 → 参考线 + 数据点放大 + 数值气泡；再 tap 取消。
+    // 点选态：tap 某列 → 读出条显示该列各系列数值；再 tap 取消。
     const [selectedDot, setSelectedDot] = useState<number | null>(null);
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
@@ -1143,120 +1195,80 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const series = Array.isArray(seriesValue)
       ? normalizeSeries(seriesValue, chartPalette)
       : [];
-    const variant =
-      typeof resolvedProps["variant"] === "string"
-        ? resolvedProps["variant"]
-        : "natural";
-    const showGrid = resolvedProps["showGrid"] !== false;
     const showLegend = resolvedProps["showLegend"] !== false;
     const heightValue = resolvedProps["height"];
     const height =
       typeof heightValue === "number" ? heightValue : LINE_DEFAULT_HEIGHT;
-    // view 画布几何：与官方 SVG 版同一套数学，画布固定 300px 设计宽
-    // （卡内内容宽约 334px，居中绘制）。本引擎不支持 SVG（image data URI 与
-    // <svg> 元素实测均空白），线段用「中心点定位 + 旋转」的绝对定位 view 绘制。
-    const canvasW = 300;
-    const canvasMargin = { top: 8, right: 12, bottom: 8, left: 12 };
-    const plotW = canvasW - canvasMargin.left - canvasMargin.right;
-    const plotH = height - canvasMargin.top - canvasMargin.bottom;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+    // 纯流内几何：等宽列表达 x 轴，「数据点 + 茎」棒棒糖形态表达 y；
+    // 原折线段依赖引擎缺失的 absolute + rotate，降级为棒棒糖，趋势由相邻
+    // 列高差读出，min/max 头行保留刻度感。showGrid/variant 不再生效。
+    const plotH = Math.max(60, height - 40);
     const maxPoints = labels.length;
     const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
     const { min: plotMin, max: plotMax } = minMax(allValues);
     const plotRange = plotMax - plotMin;
-    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
-    const seriesPoints = series.map((item) =>
-      item.values.slice(0, maxPoints).map((value, index) => ({
-        x: canvasMargin.left + xStep * index,
-        y:
-          canvasMargin.top +
-          plotH -
-          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
-        color: item.color,
-      })),
-    );
-    const gridLines = 4;
-    const chartGrid = showGrid
-      ? Array.from({ length: gridLines + 1 }, (_, index) => {
-          const ratio = index / gridLines;
-          return (
-            <view
-              key={`grid-${index}`}
-              style={{
-                position: "absolute",
-                left: `${canvasMargin.left}px`,
-                top: `${canvasMargin.top + plotH - ratio * plotH}px`,
-                width: `${plotW}px`,
-                height: "1px",
-                backgroundColor: theme.border,
-              }}
-            />
-          );
-        })
-      : null;
-    const chartBaseline = (
-      <view
-        style={{
-          position: "absolute",
-          left: `${canvasMargin.left}px`,
-          top: `${canvasMargin.top + plotH}px`,
-          width: `${plotW}px`,
-          height: "1.5px",
-          backgroundColor: theme.onSurfaceMuted,
-        }}
-      />
-    );
-    const chartSegments = seriesPoints.map((points, seriesIndex) =>
-      points.slice(0, -1).map((point, index) => {
-        const next = points[index + 1]!;
-        const dx = next.x - point.x;
-        const dy = next.y - point.y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-        return (
-          <view
-            key={`seg-${seriesIndex}-${index}`}
-            className="a2ui-anim-fade"
-            style={{
-              position: "absolute",
-              left: `${(point.x + next.x) / 2 - len / 2}px`,
-              top: `${(point.y + next.y) / 2 - 1.25}px`,
-              width: `${len}px`,
-              height: "2.5px",
-              borderRadius: "2px",
-              backgroundColor: point.color,
-              transform: `rotate(${angleDeg}deg)`,
-              animationDelay: `${index * 70}ms`,
-            }}
-          />
-        );
-      }),
-    );
-    const chartDots = seriesPoints.map((points, seriesIndex) =>
-      points.map((point, index) => {
-        const selected = selectedDot === index;
-        const dotOffset = selected ? 4.5 : 3.5;
-        return (
-          <view
-            key={`dot-${seriesIndex}-${index}`}
-            className="a2ui-anim-fade"
-            style={{
-              position: "absolute",
-              left: `${point.x - dotOffset}px`,
-              top: `${point.y - dotOffset}px`,
-              width: `${selected ? 9 : 7}px`,
-              height: `${selected ? 9 : 7}px`,
-              borderRadius: `${selected ? 4.5 : 3.5}px`,
-              backgroundColor: point.color,
-              border: `1.5px solid ${selected ? theme.primary : theme.surface}`,
-              animationDelay: `${index * 70 + 240}ms`,
-            }}
-          />
-        );
-      }),
-    );
-    // 选中列的参考线与数值气泡
-    const guideX =
-      selectedDot === null ? null : canvasMargin.left + xStep * selectedDot;
+    const pointColumns = labels.slice(0, maxPoints).map((_, index) => {
+      const selected = selectedDot === index;
+      return (
+        <view
+          key={`lcol-${index}`}
+          style={{
+            flex: "1 1 0%",
+            height: `${plotH}px`,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            gap: "3px",
+            minWidth: 0,
+          }}
+          bindtap={() =>
+            setSelectedDot(selectedDot === index ? null : index)
+          }
+        >
+          {series.map((item, seriesIndex) => {
+            const value = Number(item.values[index]) || 0;
+            const ratio =
+              plotRange === 0 ? 0.5 : (value - plotMin) / plotRange;
+            const stemH = Math.max(2, ratio * (plotH - 18));
+            return (
+              <view
+                key={`lpop-${seriesIndex}-${index}`}
+                className="a2ui-anim-fade"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  animationDelay: `${index * 70 + seriesIndex * 35}ms`,
+                }}
+              >
+                <view
+                  style={{
+                    width: `${selected ? 10 : 8}px`,
+                    height: `${selected ? 10 : 8}px`,
+                    borderRadius: "5px",
+                    backgroundColor: item.color,
+                    border: `1.5px solid ${selected ? theme.primary : theme.surface}`,
+                  }}
+                />
+                <view
+                  style={{
+                    width: "2.5px",
+                    height: `${stemH}px`,
+                    backgroundColor: item.color,
+                    opacity: 0.5,
+                  }}
+                />
+              </view>
+            );
+          })}
+        </view>
+      );
+    });
     const selectedLabel =
       selectedDot === null ? "" : String(labels[selectedDot] ?? "");
     const selectedValues =
@@ -1266,36 +1278,10 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             name: item.name,
             value: item.values[selectedDot] ?? 0,
           }));
-    // 整列热区（30px 宽、全画布高），置于最上层保证可点
-    const chartHitBoxes = maxPoints
-      ? Array.from({ length: maxPoints }, (_, index) => {
-          const hitX = canvasMargin.left + xStep * index;
-          return (
-            <view
-              key={`hit-${index}`}
-              style={{
-                position: "absolute",
-                left: `${hitX - 15}px`,
-                top: "0px",
-                width: "30px",
-                height: `${height}px`,
-                backgroundColor: "transparent",
-              }}
-              bindtap={() =>
-                setSelectedDot(selectedDot === index ? null : index)
-              }
-            />
-          );
-        })
-      : [];
     const visibleLabelIndices = sampleIndices(labels.length, 8);
     const { min, max } = minMax(
       series.flatMap((item) => item.values.slice(0, labels.length)),
     );
-    const chartTitle =
-      typeof resolvedProps["yLabel"] === "string"
-        ? resolvedProps["yLabel"]
-        : "";
     return (
       <view
         key={id}
@@ -1307,41 +1293,18 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           minWidth: 0,
         }}
       >
-        <view
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            width: "100%",
-          }}
-        >
+        {chartTitle ? (
           <text
             style={{
               fontSize: "16px",
               lineHeight: "22px",
               fontWeight: "600",
-              flexShrink: 0,
               color: theme.onSurface,
             }}
           >
             {chartTitle}
           </text>
-          {typeof resolvedProps["xLabel"] === "string" &&
-          resolvedProps["xLabel"].length > 0 ? (
-            <text
-              style={{
-                fontSize: "11px",
-                lineHeight: "16px",
-                flexShrink: 0,
-                color: theme.onSurfaceMuted,
-              }}
-            >
-              {resolvedProps["xLabel"]}
-            </text>
-          ) : null}
-        </view>
-
+        ) : null}
         <view
           style={{
             display: "flex",
@@ -1369,62 +1332,19 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             {formatValue(max)}
           </text>
         </view>
-
         <view
           style={{
             width: "300px",
-            height: `${height}px`,
-            position: "relative",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-end",
             alignSelf: "center",
           }}
         >
-          {chartGrid}
-          {chartBaseline}
-          {chartSegments}
-          {chartDots}
-          {selectedDot !== null && guideX !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${guideX}px`,
-                top: `${canvasMargin.top}px`,
-                width: "1px",
-                height: `${plotH}px`,
-                backgroundColor: theme.primary,
-                opacity: 0.35,
-              }}
-            />
-          ) : null}
-          {selectedDot !== null && guideX !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
-                top: "2px",
-                borderRadius: "6px",
-                backgroundColor: theme.onSurface,
-                paddingLeft: "8px",
-                paddingRight: "8px",
-                paddingTop: "4px",
-                paddingBottom: "4px",
-              }}
-            >
-              <text
-                style={{
-                  fontSize: "10px",
-                  lineHeight: "13px",
-                  color: theme.surface,
-                }}
-              >
-                {`${selectedLabel}　${selectedValues
-                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
-                  .join(" · ")}`}
-              </text>
-            </view>
-          ) : null}
-          {chartHitBoxes}
+          {pointColumns}
         </view>
-
+        {chartBaseline()}
+        {chartReadout(selectedLabel, selectedValues)}
         <view
           style={{
             display: "flex",
@@ -1439,65 +1359,21 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               style={{
                 fontSize: "11px",
                 lineHeight: "16px",
-                color: theme.onSurfaceMuted,
+                color:
+                  selectedDot === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
               }}
             >
               {labels[index] ?? ""}
             </text>
           ))}
         </view>
-
-        {showLegend ? (
-          <view
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: "8px 14px",
-              width: "100%",
-            }}
-          >
-            {series.map((item, index) => (
-              <view
-                key={item.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <view
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "2px",
-                    backgroundColor: item.color,
-                  }}
-                />
-                <text
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: "16px",
-                    color: theme.onSurfaceMuted,
-                  }}
-                >
-                  {item.name}
-                </text>
-              </view>
-            ))}
-          </view>
-        ) : null}
+        {showLegend ? chartLegend(series) : null}
       </view>
     );
   }
 
-  const PIE_SVG_WIDTH = 360;
-  const PIE_SVG_HEIGHT = 220;
-  const PIE_CENTER_X = PIE_SVG_WIDTH / 2;
-  const PIE_CENTER_Y = PIE_SVG_HEIGHT / 2;
-  const PIE_OUTER_RADIUS = 84;
-  const PIE_DONUT_INNER_RADIUS = 52;
 
   function formatPercent(value: number): string {
     if (!Number.isFinite(value)) return "0%";
@@ -1509,6 +1385,9 @@ export function createCatalogComponents(theme: A2UICardTheme) {
   // 矩形 view，基线从 0 起（柱状图惯例，不做 min-max 截断）。支持点选整组
   // 高亮 + 数值气泡，机制与 LineChart 一致。作为白名单扩展项写入 Skill 约束。 ---
 
+  // --- BarChart（柱状图）：宿主自有扩展组件（官方 basic catalog 无此组件），
+  // props 与 LineChart 对齐（labels + series）。纯流内：等权组列 + 底对齐
+  // 柱体，网格线降级去掉、基线独立成行；点选整组高亮 + 读出条。 ---
   function BarChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -1520,7 +1399,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
-    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
     const chartPalette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
@@ -1536,128 +1414,84 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       typeof resolvedProps["yLabel"] === "string"
         ? resolvedProps["yLabel"]
         : "";
-
-    // 几何：300px 设计宽，组内并列柱体，柱宽自适应；顶部预留 18px 给
-    // 柱顶数值标签（showValues 时最高的柱标签也不能越界被裁）。
     const canvasW = 300;
-    const margin = { top: 26, right: 12, bottom: 8, left: 12 };
-    const plotW = canvasW - margin.left - margin.right;
-    const plotH = height - margin.top - margin.bottom;
+    const plotW = canvasW - 24;
+    const plotH = Math.max(60, height - 24);
     const groupCount = labels.length;
-    const seriesCount = series.length || 1;
     const groupW = groupCount > 0 ? plotW / groupCount : 0;
-    const groupPad = 6;
-    const barGap = seriesCount > 1 ? 2 : 0;
+    const barGap = series.length > 1 ? 2 : 0;
     const barW = Math.max(
       4,
       Math.min(
         24,
-        (groupW - groupPad * 2 - (seriesCount - 1) * barGap) / seriesCount,
+        (groupW - 12 - (series.length - 1) * barGap) / (series.length || 1),
       ),
     );
-    const allValues = series.flatMap((item) =>
-      item.values.slice(0, groupCount),
-    );
+    // 柱状图惯例：基线从 0 起，不做 min-max 截断。
+    const allValues = series.flatMap((item) => item.values.slice(0, groupCount));
     const maxValue = allValues.reduce((acc, v) => (v > acc ? v : acc), 0);
     const scaleMax = maxValue > 0 ? maxValue : 1;
-
-    const gridLines = 4;
-    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
-      const ratio = index / gridLines;
+    const groupColumns = labels.slice(0, groupCount).map((_, groupIndex) => {
+      const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
       return (
         <view
-          key={`bgrid-${index}`}
+          key={`bgrp-${groupIndex}`}
           style={{
-            position: "absolute",
-            left: `${margin.left}px`,
-            top: `${margin.top + plotH - ratio * plotH}px`,
-            width: `${plotW}px`,
-            height: "1px",
-            backgroundColor: theme.border,
+            flex: "1 1 0%",
+            height: `${plotH}px`,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            gap: `${barGap}px`,
+            minWidth: 0,
+            opacity: dimmed ? 0.35 : 1,
           }}
-        />
-      );
-    });
-    const chartBaseline = (
-      <view
-        style={{
-          position: "absolute",
-          left: `${margin.left}px`,
-          top: `${margin.top + plotH}px`,
-          width: `${plotW}px`,
-          height: "1.5px",
-          backgroundColor: theme.onSurfaceMuted,
-        }}
-      />
-    );
-    // 柱体：值域 [0, scaleMax]，高度按占比；基线从 0 起
-    const chartBars = series.flatMap((item, seriesIndex) =>
-      item.values.slice(0, groupCount).map((value, groupIndex) => {
-        const h = Math.max(2, ((Number(value) || 0) / scaleMax) * plotH);
-        const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
-        const barX =
-          margin.left +
-          groupIndex * groupW +
-          groupPad +
-          seriesIndex * (barW + barGap);
-        return (
-          <view
-            key={`bar-${seriesIndex}-${groupIndex}`}
-            className="a2ui-anim-grow-y"
-            style={{
-              position: "absolute",
-              left: `${barX}px`,
-              top: `${margin.top + plotH - h}px`,
-              width: `${barW}px`,
-              height: `${h}px`,
-              borderTopLeftRadius: "4px",
-              borderTopRightRadius: "4px",
-              backgroundColor: item.color,
-              opacity: dimmed ? 0.35 : 1,
-              transformOrigin: "50% 100%",
-              animationDelay: `${groupIndex * 60}ms`,
-            }}
-          />
-        );
-      }),
-    );
-    // 柱顶数值（showValues 时）
-    const chartValueLabels = showValues
-      ? series.flatMap((item, seriesIndex) =>
-          item.values.slice(0, groupCount).map((value, groupIndex) => {
-            const h = Math.max(2, ((Number(value) || 0) / scaleMax) * plotH);
-            const dimmed =
-              selectedGroup !== null && selectedGroup !== groupIndex;
-            const barX =
-              margin.left +
-              groupIndex * groupW +
-              groupPad +
-              seriesIndex * (barW + barGap);
+          bindtap={() =>
+            setSelectedGroup(selectedGroup === groupIndex ? null : groupIndex)
+          }
+        >
+          {series.map((item, seriesIndex) => {
+            const v = Number(item.values[groupIndex]) || 0;
+            const h = Math.max(2, (v / scaleMax) * (plotH - 20));
             return (
-              <text
-                key={`bval-${seriesIndex}-${groupIndex}`}
+              <view
+                key={`bar-${seriesIndex}-${groupIndex}`}
                 style={{
-                  position: "absolute",
-                  left: `${barX - 6}px`,
-                  top: `${margin.top + plotH - h - 15}px`,
-                  width: `${barW + 12}px`,
-                  textAlign: "center",
-                  fontSize: "10px",
-                  lineHeight: "12px",
-                  color: dimmed ? theme.onSurfaceMuted : theme.onSurface,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
                 }}
               >
-                {formatValue(Number(value) || 0)}
-              </text>
+                {showValues ? (
+                  <text
+                    style={{
+                      fontSize: "10px",
+                      lineHeight: "12px",
+                      marginBottom: "2px",
+                      color: dimmed ? theme.onSurfaceMuted : theme.onSurface,
+                    }}
+                  >
+                    {formatValue(v)}
+                  </text>
+                ) : null}
+                <view
+                  className="a2ui-anim-fade"
+                  style={{
+                    width: `${barW}px`,
+                    height: `${h}px`,
+                    borderTopLeftRadius: "4px",
+                    borderTopRightRadius: "4px",
+                    backgroundColor: item.color,
+                    animationDelay: `${groupIndex * 60}ms`,
+                  }}
+                />
+              </view>
             );
-          }),
-        )
-      : [];
-    // 选中组的数值气泡
-    const guideX =
-      selectedGroup === null
-        ? null
-        : margin.left + selectedGroup * groupW + groupW / 2;
+          })}
+        </view>
+      );
+    });
     const selectedLabel =
       selectedGroup === null ? "" : String(labels[selectedGroup] ?? "");
     const selectedValues =
@@ -1667,284 +1501,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
             name: item.name,
             value: item.values[selectedGroup] ?? 0,
           }));
-    // 整组热区
-    const chartHitBoxes = groupCount
-      ? Array.from({ length: groupCount }, (_, index) => (
-          <view
-            key={`bhit-${index}`}
-            style={{
-              position: "absolute",
-              left: `${margin.left + index * groupW}px`,
-              top: "0px",
-              width: `${groupW}px`,
-              height: `${height}px`,
-              backgroundColor: "transparent",
-            }}
-            bindtap={() =>
-              setSelectedGroup(selectedGroup === index ? null : index)
-            }
-          />
-        ))
-      : [];
-
-    return (
-      <view
-        key={id}
-        style={{
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          minWidth: 0,
-        }}
-      >
-        <view
-          style={{
-            width: "300px",
-            height: `${height}px`,
-            position: "relative",
-            alignSelf: "center",
-          }}
-        >
-          {chartGrid}
-          {chartBaseline}
-          {chartBars}
-          {chartValueLabels}
-          {selectedGroup !== null && guideX !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
-                top: "0px",
-                borderRadius: "6px",
-                backgroundColor: theme.onSurface,
-                paddingLeft: "8px",
-                paddingRight: "8px",
-                paddingTop: "4px",
-                paddingBottom: "4px",
-              }}
-            >
-              <text
-                style={{
-                  fontSize: "10px",
-                  lineHeight: "13px",
-                  color: theme.surface,
-                }}
-              >
-                {`${selectedLabel}　${selectedValues
-                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
-                  .join(" · ")}`}
-              </text>
-            </view>
-          ) : null}
-          {chartHitBoxes}
-        </view>
-
-        <view
-          style={{
-            width: "300px",
-            height: "16px",
-            position: "relative",
-            alignSelf: "center",
-          }}
-        >
-          {labels.map((label, index) => (
-            <text
-              key={`${index}-${label ?? index}`}
-              style={{
-                position: "absolute",
-                left: `${margin.left + index * groupW}px`,
-                top: "0px",
-                width: `${groupW}px`,
-                textAlign: "center",
-                fontSize: "11px",
-                lineHeight: "16px",
-                color:
-                  selectedGroup === index
-                    ? theme.onSurface
-                    : theme.onSurfaceMuted,
-              }}
-            >
-              {label ?? ""}
-            </text>
-          ))}
-        </view>
-
-        {showLegend ? (
-          <view
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: "8px 14px",
-              width: "100%",
-            }}
-          >
-            {series.map((item) => (
-              <view
-                key={item.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <view
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "2px",
-                    backgroundColor: item.color,
-                  }}
-                />
-                <text
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: "16px",
-                    color: theme.onSurfaceMuted,
-                  }}
-                >
-                  {item.name}
-                </text>
-              </view>
-            ))}
-          </view>
-        ) : null}
-      </view>
-    );
-  }
-
-  // --- ScatterChart（散点图）/ RadarChart（雷达图）/ FunnelChart（漏斗图）：
-  // 宿主自有扩展组件（官方 basic catalog 无），全部纯 view 绘制。 ---
-
-  function ScatterChart(props: GenericComponentProps) {
-    const [resolvedProps] = useResolvedProps(
-      props,
-      props.surface,
-      props.dataContextPath,
-    );
-    const id = props.id;
-    const [selectedDot, setSelectedDot] = useState<number | null>(null);
-    const labelsValue = resolvedProps["labels"];
-    const labels = Array.isArray(labelsValue) ? labelsValue : [];
-    const seriesValue = resolvedProps["series"];
-    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
-    const chartPalette = Array.isArray(resolvedProps["colors"])
-      ? (resolvedProps["colors"] as string[])
-      : DEFAULT_CHART_COLORS;
-    const series = Array.isArray(seriesValue)
-      ? normalizeSeries(seriesValue, chartPalette)
-      : [];
-    const showLegend = resolvedProps["showLegend"] !== false;
-    const heightValue = resolvedProps["height"];
-    const height = typeof heightValue === "number" ? heightValue : 200;
-    const chartTitle =
-      typeof resolvedProps["yLabel"] === "string"
-        ? resolvedProps["yLabel"]
-        : "";
-
-    const canvasW = 300;
-    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
-    const plotW = canvasW - margin.left - margin.right;
-    const plotH = height - margin.top - margin.bottom;
-    const maxPoints = labels.length;
-    const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
-    const { min: plotMin, max: plotMax } = minMax(allValues);
-    const plotRange = plotMax - plotMin;
-    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
-    const seriesPoints = series.map((item) =>
-      item.values.slice(0, maxPoints).map((value, index) => ({
-        x: margin.left + xStep * index,
-        y:
-          margin.top +
-          plotH -
-          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
-        color: item.color,
-      })),
-    );
-    const gridLines = 4;
-    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
-      const ratio = index / gridLines;
-      return (
-        <view
-          key={`sgrid-${index}`}
-          style={{
-            position: "absolute",
-            left: `${margin.left}px`,
-            top: `${margin.top + plotH - ratio * plotH}px`,
-            width: `${plotW}px`,
-            height: "1px",
-            backgroundColor: theme.border,
-          }}
-        />
-      );
-    });
-    const chartBaseline = (
-      <view
-        style={{
-          position: "absolute",
-          left: `${margin.left}px`,
-          top: `${margin.top + plotH}px`,
-          width: `${plotW}px`,
-          height: "1.5px",
-          backgroundColor: theme.onSurfaceMuted,
-        }}
-      />
-    );
-    // 散点：9px 圆点（散点是主数据，比折线的数据点大）
-    const chartDots = seriesPoints.map((points, seriesIndex) =>
-      points.map((point, index) => {
-        const selected = selectedDot === index;
-        const dotSize = selected ? "11px" : "9px";
-        const dotOffset = selected ? 5.5 : 4.5;
-        return (
-          <view
-            key={`sdot-${seriesIndex}-${index}`}
-            className="a2ui-anim-pop"
-            style={{
-              position: "absolute",
-              left: `${point.x - dotOffset}px`,
-              top: `${point.y - dotOffset}px`,
-              width: dotSize,
-              height: dotSize,
-              borderRadius: `${dotOffset}px`,
-              backgroundColor: point.color,
-              opacity: selected || selectedDot === null ? 1 : 0.45,
-              animationDelay: `${index * 70 + seriesIndex * 35}ms`,
-            }}
-          />
-        );
-      }),
-    );
-    const guideX =
-      selectedDot === null ? null : margin.left + xStep * selectedDot;
-    const selectedLabel =
-      selectedDot === null ? "" : String(labels[selectedDot] ?? "");
-    const selectedValues =
-      selectedDot === null
-        ? []
-        : series.map((item) => ({
-            name: item.name,
-            value: item.values[selectedDot] ?? 0,
-          }));
-    const chartHitBoxes = maxPoints
-      ? Array.from({ length: maxPoints }, (_, index) => (
-          <view
-            key={`shit-${index}`}
-            style={{
-              position: "absolute",
-              left: `${margin.left + xStep * index - 15}px`,
-              top: "0px",
-              width: "30px",
-              height: `${height}px`,
-              backgroundColor: "transparent",
-            }}
-            bindtap={() => setSelectedDot(selectedDot === index ? null : index)}
-          />
-        ))
-      : [];
-
     return (
       <view
         key={id}
@@ -1971,123 +1527,207 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         <view
           style={{
             width: "300px",
-            height: `${height}px`,
-            position: "relative",
-            alignSelf: "center",
-          }}
-        >
-          {chartGrid}
-          {chartBaseline}
-          {chartDots}
-          {selectedDot !== null && guideX !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${guideX}px`,
-                top: `${margin.top}px`,
-                width: "1px",
-                height: `${plotH}px`,
-                backgroundColor: theme.primary,
-                opacity: 0.35,
-              }}
-            />
-          ) : null}
-          {selectedDot !== null && guideX !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${Math.min(Math.max(guideX - 55, 0), canvasW - 110)}px`,
-                top: "2px",
-                borderRadius: "6px",
-                backgroundColor: theme.onSurface,
-                paddingLeft: "8px",
-                paddingRight: "8px",
-                paddingTop: "4px",
-                paddingBottom: "4px",
-              }}
-            >
-              <text
-                style={{
-                  fontSize: "10px",
-                  lineHeight: "13px",
-                  color: theme.surface,
-                }}
-              >
-                {`${selectedLabel}　${selectedValues
-                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
-                  .join(" · ")}`}
-              </text>
-            </view>
-          ) : null}
-          {chartHitBoxes}
-        </view>
-        <view
-          style={{
             display: "flex",
             flexDirection: "row",
-            justifyContent: "space-between",
-            width: "300px",
+            alignItems: "flex-end",
             alignSelf: "center",
           }}
         >
-          {labels.map((label, index) => (
+          {groupColumns}
+        </view>
+        {chartBaseline()}
+        {chartReadout(selectedLabel, selectedValues)}
+        <view
+          style={{
+            width: "300px",
+            display: "flex",
+            flexDirection: "row",
+            alignSelf: "center",
+          }}
+        >
+          {labels.slice(0, groupCount).map((label, index) => (
             <text
-              key={`sax-${index}-${label ?? index}`}
+              key={`${index}-${label ?? index}`}
               style={{
+                flex: "1 1 0%",
+                textAlign: "center",
                 fontSize: "11px",
                 lineHeight: "16px",
-                color: theme.onSurfaceMuted,
+                color:
+                  selectedGroup === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
               }}
             >
               {label ?? ""}
             </text>
           ))}
         </view>
-        {showLegend ? (
-          <view
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: "8px 14px",
-              width: "100%",
-            }}
-          >
-            {series.map((item) => (
-              <view
-                key={item.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <view
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "5px",
-                    backgroundColor: item.color,
-                  }}
-                />
-                <text
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: "16px",
-                    color: theme.onSurfaceMuted,
-                  }}
-                >
-                  {item.name}
-                </text>
-              </view>
-            ))}
-          </view>
-        ) : null}
+        {showLegend ? chartLegend(series) : null}
       </view>
     );
   }
 
+  // --- ScatterChart（散点图）/ RadarChart（雷达图）/ FunnelChart（漏斗图）：
+  // 宿主自有扩展组件（官方 basic catalog 无），全部纯 view 绘制。 ---
+
+  // --- ScatterChart（散点图）：等宽列 + px 垫高让点浮在真实高度；
+  // 未选中系列淡化，点选列出读出条。 ---
+  function ScatterChart(props: GenericComponentProps) {
+    const [resolvedProps] = useResolvedProps(
+      props,
+      props.surface,
+      props.dataContextPath,
+    );
+    const id = props.id;
+    const [selectedDot, setSelectedDot] = useState<number | null>(null);
+    const labelsValue = resolvedProps["labels"];
+    const labels = Array.isArray(labelsValue) ? labelsValue : [];
+    const seriesValue = resolvedProps["series"];
+    const chartPalette = Array.isArray(resolvedProps["colors"])
+      ? (resolvedProps["colors"] as string[])
+      : DEFAULT_CHART_COLORS;
+    const series = Array.isArray(seriesValue)
+      ? normalizeSeries(seriesValue, chartPalette)
+      : [];
+    const showLegend = resolvedProps["showLegend"] !== false;
+    const heightValue = resolvedProps["height"];
+    const height = typeof heightValue === "number" ? heightValue : 200;
+    const chartTitle =
+      typeof resolvedProps["yLabel"] === "string"
+        ? resolvedProps["yLabel"]
+        : "";
+    const plotH = Math.max(60, height - 40);
+    const maxPoints = labels.length;
+    const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
+    const { min: plotMin, max: plotMax } = minMax(allValues);
+    const plotRange = plotMax - plotMin;
+    const pointColumns = labels.slice(0, maxPoints).map((_, index) => {
+      const selected = selectedDot === index;
+      return (
+        <view
+          key={`scol-${index}`}
+          style={{
+            flex: "1 1 0%",
+            height: `${plotH}px`,
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: "3px",
+            minWidth: 0,
+          }}
+          bindtap={() =>
+            setSelectedDot(selectedDot === index ? null : index)
+          }
+        >
+          {series.map((item, seriesIndex) => {
+            const value = Number(item.values[index]) || 0;
+            const ratio =
+              plotRange === 0 ? 0.5 : (value - plotMin) / plotRange;
+            const topPad = Math.max(0, ratio * (plotH - 16));
+            return (
+              <view
+                key={`sdot-${seriesIndex}-${index}`}
+                className="a2ui-anim-fade"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  animationDelay: `${index * 70 + seriesIndex * 35}ms`,
+                }}
+              >
+                <view style={{ height: `${topPad}px` }} />
+                <view
+                  style={{
+                    width: `${selected ? 11 : 9}px`,
+                    height: `${selected ? 11 : 9}px`,
+                    borderRadius: "5px",
+                    backgroundColor: item.color,
+                    opacity: selected || selectedDot === null ? 1 : 0.45,
+                  }}
+                />
+              </view>
+            );
+          })}
+        </view>
+      );
+    });
+    const selectedLabel =
+      selectedDot === null ? "" : String(labels[selectedDot] ?? "");
+    const selectedValues =
+      selectedDot === null
+        ? []
+        : series.map((item) => ({
+            name: item.name,
+            value: item.values[selectedDot] ?? 0,
+          }));
+    const visibleLabelIndices = sampleIndices(labels.length, 8);
+    return (
+      <view
+        key={id}
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          minWidth: 0,
+        }}
+      >
+        {chartTitle ? (
+          <text
+            style={{
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
+            }}
+          >
+            {chartTitle}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "300px",
+            display: "flex",
+            flexDirection: "row",
+            alignSelf: "center",
+          }}
+        >
+          {pointColumns}
+        </view>
+        {chartBaseline()}
+        {chartReadout(selectedLabel, selectedValues)}
+        <view
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          {visibleLabelIndices.map((index) => (
+            <text
+              key={`${index}-${labels[index] ?? index}`}
+              style={{
+                fontSize: "11px",
+                lineHeight: "16px",
+                color:
+                  selectedDot === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
+              }}
+            >
+              {labels[index] ?? ""}
+            </text>
+          ))}
+        </view>
+        {showLegend ? chartLegend(series) : null}
+      </view>
+    );
+  }
+
+  // --- RadarChart（雷达图）：环形多边形依赖 absolute + rotate，降级为
+  // 「逐指标横向条」——每个指标一根轨道，各系列按 max 归一填色，图例点选
+  // 淡化其他系列。 ---
   function RadarChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -2101,7 +1741,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       ? (indicatorsValue as Array<Record<string, unknown>>)
       : [];
     const seriesValue = resolvedProps["series"];
-    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
     const chartPalette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
@@ -2109,213 +1748,74 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       ? normalizeSeries(seriesValue, chartPalette)
       : [];
     const showLegend = resolvedProps["showLegend"] !== false;
-    const heightValue = resolvedProps["height"];
-    const height = typeof heightValue === "number" ? heightValue : 250;
-
-    // 画布：300×height，圆心居中，半径留出标签空间
-    const canvasW = 300;
-    const cx = canvasW / 2;
-    const cy = height / 2;
-    const radius = Math.min(110, height / 2 - 26);
-    const axisCount = indicators.length;
-    const rings = 4;
-    const ringElements = Array.from({ length: rings }, (_, index) => {
-      const r = (radius * (index + 1)) / rings;
+    const axisRows = indicators.map((indicator, axisIndex) => {
+      const record = (indicator ?? {}) as Record<string, unknown>;
+      const maxV = Number(record["max"]) || 1;
       return (
         <view
-          key={`rring-${index}`}
-          className="a2ui-anim-pop"
+          key={`rax-${axisIndex}-${String(record["name"] ?? "")}`}
           style={{
-            position: "absolute",
-            left: `${cx - r}px`,
-            top: `${cy - r}px`,
-            width: `${r * 2}px`,
-            height: `${r * 2}px`,
-            borderRadius: "50%",
-            border: `1px solid ${theme.border}`,
-            animationDelay: `${index * 70}ms`,
-          }}
-        />
-      );
-    });
-    // 辐条：中心到外圈的细线（中心点定位 + 旋转）
-    const spokeElements = indicators.map((_, index) => {
-      const angleDeg = -90 + (index * 360) / Math.max(1, axisCount);
-      return (
-        <view
-          key={`rspoke-${index}`}
-          style={{
-            position: "absolute",
-            left: `${cx - 0.5}px`,
-            top: `${cy - radius / 2}px`,
-            width: "1px",
-            height: `${radius}px`,
-            backgroundColor: theme.border,
-            transform: `rotate(${angleDeg + 90}deg)`,
-          }}
-        />
-      );
-    });
-    // 指标标签：外圈外围 60px 宽居中文本
-    const labelElements = indicators.map((indicator, index) => {
-      const angleDeg = -90 + (index * 360) / Math.max(1, axisCount);
-      const rad = (angleDeg * Math.PI) / 180;
-      const lx = cx + (radius + 18) * Math.cos(rad);
-      const ly = cy + (radius + 18) * Math.sin(rad);
-      return (
-        <text
-          key={`rlabel-${index}`}
-          style={{
-            position: "absolute",
-            left: `${lx - 30}px`,
-            top: `${ly - 8}px`,
-            width: "60px",
-            textAlign: "center",
-            fontSize: "11px",
-            lineHeight: "16px",
-            color: theme.onSurfaceMuted,
-          }}
-        >
-          {String(indicator["name"] ?? "")}
-        </text>
-      );
-    });
-    // 数据多边形：顶点相连的线段 + 顶点圆点（未选系列淡化）
-    const vertexAt = (seriesIndex: number, axisIndex: number) => {
-      const indicator = (indicators[axisIndex] ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const maxV = Number(indicator["max"]) || 1;
-      const item = series[seriesIndex]!;
-      const raw = Number(item.values[axisIndex]) || 0;
-      const ratio = Math.max(0, Math.min(1, raw / maxV));
-      const angleDeg = -90 + (axisIndex * 360) / Math.max(1, axisCount);
-      const rad = (angleDeg * Math.PI) / 180;
-      return {
-        x: cx + radius * ratio * Math.cos(rad),
-        y: cy + radius * ratio * Math.sin(rad),
-      };
-    };
-    const polygonElements = series.flatMap((item, seriesIndex) => {
-      const dimmed = selectedSeries !== null && selectedSeries !== seriesIndex;
-      const count = Math.min(axisCount, item.values.length);
-      const segments: Array<JSX.Element> = [];
-      for (let index = 0; index < count; index += 1) {
-        const a = vertexAt(seriesIndex, index);
-        const b = vertexAt(seriesIndex, (index + 1) % count);
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-        segments.push(
-          <view
-            key={`rpoly-${seriesIndex}-${index}`}
-            style={{
-              position: "absolute",
-              left: `${(a.x + b.x) / 2 - len / 2}px`,
-              top: `${(a.y + b.y) / 2 - 1.25}px`,
-              width: `${len}px`,
-              height: "2.5px",
-              backgroundColor: item.color,
-              opacity: dimmed ? 0.25 : 1,
-              transform: `rotate(${angleDeg}deg)`,
-            }}
-          />,
-        );
-      }
-      const dots = item.values.slice(0, count).map((_, axisIndex) => {
-        const v = vertexAt(seriesIndex, axisIndex);
-        return (
-          <view
-            key={`rdot-${seriesIndex}-${axisIndex}`}
-            style={{
-              position: "absolute",
-              left: `${v.x - 3}px`,
-              top: `${v.y - 3}px`,
-              width: "6px",
-              height: "6px",
-              borderRadius: "3px",
-              backgroundColor: item.color,
-              opacity: dimmed ? 0.25 : 1,
-            }}
-          />
-        );
-      });
-      // 整个多边形包在 scale 包裹层里从圆心向外撑开（子元素的内联
-      // rotate/定位不受影响）；多系列依次进场
-      return (
-        <view
-          key={`rpoly-${seriesIndex}`}
-          className="a2ui-anim-grow"
-          style={{
-            position: "absolute",
-            left: "0px",
-            top: "0px",
             width: "100%",
-            height: "100%",
-            animationDelay: `${seriesIndex * 150}ms`,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: "8px",
           }}
         >
-          {segments}
-          {dots}
+          <text
+            style={{
+              width: "72px",
+              textAlign: "right",
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {String(record["name"] ?? "")}
+          </text>
+          <view
+            style={{
+              flex: "1 1 0%",
+              display: "flex",
+              flexDirection: "column",
+              gap: "3px",
+              minWidth: 0,
+            }}
+          >
+            {series.map((item, seriesIndex) => {
+              const raw = Number(item.values[axisIndex]) || 0;
+              const ratio = Math.max(0, Math.min(1, raw / maxV));
+              const dimmed =
+                selectedSeries !== null && selectedSeries !== seriesIndex;
+              return (
+                <view
+                  key={`rbar-${seriesIndex}`}
+                  className="a2ui-anim-fade"
+                  style={{
+                    height: "8px",
+                    width: "100%",
+                    borderRadius: "4px",
+                    backgroundColor: theme.surfaceMuted,
+                    overflow: "hidden",
+                    animationDelay: `${axisIndex * 50 + seriesIndex * 30}ms`,
+                  }}
+                >
+                  <view
+                    style={{
+                      height: "100%",
+                      width: `${(ratio * 100).toFixed(1)}%`,
+                      borderRadius: "4px",
+                      backgroundColor: item.color,
+                      opacity: dimmed ? 0.35 : 1,
+                    }}
+                  />
+                </view>
+              );
+            })}
+          </view>
         </view>
       );
     });
-    // 图例行可点选系列
-    const legend = showLegend ? (
-      <view
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: "8px 14px",
-          width: "100%",
-          justifyContent: "center",
-        }}
-      >
-        {series.map((item, index) => (
-          <view
-            key={`rlegend-${item.name}`}
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: "6px",
-            }}
-            bindtap={() =>
-              setSelectedSeries(selectedSeries === index ? null : index)
-            }
-          >
-            <view
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "5px",
-                backgroundColor: item.color,
-                opacity:
-                  selectedSeries === null || selectedSeries === index
-                    ? 1
-                    : 0.35,
-              }}
-            />
-            <text
-              style={{
-                fontSize: "12px",
-                lineHeight: "16px",
-                color:
-                  selectedSeries === index
-                    ? theme.onSurface
-                    : theme.onSurfaceMuted,
-              }}
-            >
-              {item.name}
-            </text>
-          </view>
-        ))}
-      </view>
-    ) : null;
-
     return (
       <view
         key={id}
@@ -2323,24 +1823,21 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
+          gap: "10px",
           minWidth: 0,
-          alignItems: "center",
         }}
       >
-        <view
-          style={{
-            width: "300px",
-            height: `${height}px`,
-            position: "relative",
-          }}
-        >
-          {ringElements}
-          {spokeElements}
-          {polygonElements}
-          {labelElements}
-        </view>
-        {legend}
+        {axisRows}
+        {showLegend
+          ? chartLegend(
+              series,
+              (index) =>
+                setSelectedSeries(
+                  selectedSeries === index ? null : index,
+                ),
+              selectedSeries,
+            )
+          : null}
       </view>
     );
   }
@@ -2484,6 +1981,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- PieChart（饼/环图）：扇形段依赖 absolute + rotate，降级为「构成
+  // 条 + 明细行」——一条按占比分色的横向构成条 + 可点选的逐扇形明细。 ---
   function PieChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -2491,17 +1990,12 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
-    // 点选态：tap 扇形/图例 → 该扇形保持高亮、其余淡化；再 tap 取消。
+    // 点选态：tap 构成条分段/明细行 → 该扇形保持高亮、其余淡化；再 tap 取消。
     const [selectedSlice, setSelectedSlice] = useState<number | null>(null);
-
     const dataValue = resolvedProps["data"];
     const slices = Array.isArray(dataValue)
       ? (dataValue as Array<Record<string, unknown>>)
       : [];
-    const variant =
-      typeof resolvedProps["variant"] === "string"
-        ? resolvedProps["variant"]
-        : "pie";
     const title =
       typeof resolvedProps["title"] === "string" && resolvedProps["title"]
         ? resolvedProps["title"]
@@ -2517,93 +2011,21 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           ? `${slices.length} 项 • ${formatValue(total)} 合计`
           : "暂无数据";
     const showPercentages = resolvedProps["showPercentages"] !== false;
-    const heightValue = resolvedProps["height"];
-    const height = typeof heightValue === "number" ? heightValue : 220;
     const palette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
-
-    // 环形几何（切线线段逼近）：外径 84；donut 内径 52 / pie 小孔 14；
-    // 每 3° 一段 +1px 重叠补隙，静态实心平滑。段全程不透明（透明淡入会让
-    // 重叠区显双份深斑——用户实测反馈），生长动效在扇形包裹层上做 scale。
-    const outerRadius = 84;
-    const innerRadius = variant === "donut" ? 52 : 14;
-    const ringMid = (outerRadius + innerRadius) / 2;
-    const ringThickness = outerRadius - innerRadius;
-    const segStep = 3;
-    const polarAt = (angleDeg: number, r: number) => {
-      const rad = ((angleDeg - 90) * Math.PI) / 180;
-      return {
-        x: PIE_CENTER_X + r * Math.cos(rad),
-        y: PIE_CENTER_Y + r * Math.sin(rad),
-      };
-    };
-    const ringGroups: Array<JSX.Element> = [];
-    if (total > 0) {
-      let cursor = 0; // 自 12 点钟顺时针累计角度
-      slices.forEach((slice, sliceIndex) => {
-        const value = Math.max(0, Number(slice["value"]) || 0);
-        if (value <= 0) return;
-        const sliceAngle = (value / total) * 360;
-        const segCount = Math.max(1, Math.round(sliceAngle / segStep));
-        const color =
+    const activeSlices = slices
+      .map((slice, sliceIndex) => ({
+        sliceIndex,
+        value: Math.max(0, Number(slice["value"]) || 0),
+        name: String(slice["name"] ?? ""),
+        color:
           typeof slice["color"] === "string"
             ? slice["color"]
             : (palette[sliceIndex % palette.length] ??
-              DEFAULT_CHART_COLORS[0]!);
-        const dimmed = selectedSlice !== null && selectedSlice !== sliceIndex;
-        const segments: Array<JSX.Element> = [];
-        for (let i = 0; i < segCount; i += 1) {
-          const a1 = cursor + (i * sliceAngle) / segCount;
-          const a2 = cursor + ((i + 1) * sliceAngle) / segCount;
-          const p1 = polarAt(a1, ringMid);
-          const p2 = polarAt(a2, ringMid);
-          const dx = p2.x - p1.x;
-          const dy = p2.y - p1.y;
-          const len = Math.sqrt(dx * dx + dy * dy) + 1;
-          const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-          segments.push(
-            <view
-              key={`rseg-${sliceIndex}-${i}`}
-              style={{
-                position: "absolute",
-                left: `${(p1.x + p2.x) / 2 - len / 2}px`,
-                top: `${(p1.y + p2.y) / 2 - ringThickness / 2}px`,
-                width: `${len}px`,
-                height: `${ringThickness}px`,
-                backgroundColor: color,
-                opacity: dimmed ? 0.3 : 1,
-                transform: `rotate(${angleDeg}deg)`,
-              }}
-              bindtap={() =>
-                setSelectedSlice(
-                  selectedSlice === sliceIndex ? null : sliceIndex,
-                )
-              }
-            />,
-          );
-        }
-        // 扇形整体包 scale 包裹层：从圆心向外生长（0→100），逐扇形错峰
-        ringGroups.push(
-          <view
-            key={`rgrp-${sliceIndex}`}
-            className="a2ui-anim-grow"
-            style={{
-              position: "absolute",
-              left: "0px",
-              top: "0px",
-              width: "100%",
-              height: "100%",
-              animationDelay: `${sliceIndex * 130}ms`,
-            }}
-          >
-            {segments}
-          </view>,
-        );
-        cursor += sliceAngle;
-      });
-    }
-
+              DEFAULT_CHART_COLORS[0]!),
+      }))
+      .filter((item) => item.value > 0);
     return (
       <view
         key={id}
@@ -2619,156 +2041,122 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           style={{
             width: "100%",
             display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
+            flexDirection: "column",
+            gap: "2px",
           }}
         >
-          <view
-            style={{ display: "flex", flexDirection: "column", gap: "2px" }}
-          >
-            <text
-              style={{
-                fontSize: "16px",
-                lineHeight: "22px",
-                fontWeight: "600",
-                color: theme.onSurface,
-              }}
-            >
-              {title}
-            </text>
-            <text
-              style={{
-                fontSize: "11px",
-                lineHeight: "16px",
-                color: theme.onSurfaceMuted,
-              }}
-            >
-              {subtitle}
-            </text>
-          </view>
-          <view
+          <text
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
+              fontSize: "16px",
+              lineHeight: "22px",
+              fontWeight: "600",
+              color: theme.onSurface,
             }}
           >
-            <text
-              style={{
-                fontSize: "11px",
-                lineHeight: "16px",
-                color: theme.onSurfaceMuted,
-              }}
-            >
-              合计
-            </text>
-            <text
-              style={{
-                fontSize: "17px",
-                lineHeight: "22px",
-                fontWeight: "700",
-                color: theme.onSurface,
-              }}
-            >
-              {formatValue(total)}
-            </text>
+            {title}
+          </text>
+          <text
+            style={{
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {subtitle}
+          </text>
+        </view>
+        {total > 0 ? (
+          <view
+            style={{
+              width: "100%",
+              height: "18px",
+              display: "flex",
+              flexDirection: "row",
+              borderRadius: "9px",
+              overflow: "hidden",
+            }}
+          >
+            {activeSlices.map((item) => {
+              const dimmed =
+                selectedSlice !== null && selectedSlice !== item.sliceIndex;
+              return (
+                <view
+                  key={`cseg-${item.sliceIndex}`}
+                  className="a2ui-anim-fade"
+                  style={{
+                    flex: `${item.value} 1 0%`,
+                    minWidth: "2px",
+                    backgroundColor: item.color,
+                    opacity: dimmed ? 0.35 : 1,
+                    animationDelay: `${item.sliceIndex * 90}ms`,
+                  }}
+                  bindtap={() =>
+                    setSelectedSlice(
+                      selectedSlice === item.sliceIndex
+                        ? null
+                        : item.sliceIndex,
+                    )
+                  }
+                />
+              );
+            })}
           </view>
-        </view>
-
-        <view
-          style={{
-            width: "300px",
-            height: `${height}px`,
-            position: "relative",
-            alignSelf: "center",
-          }}
-        >
-          {ringGroups}
-          {total > 0 ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${PIE_CENTER_X - innerRadius}px`,
-                top: `${PIE_CENTER_Y - innerRadius}px`,
-                width: `${innerRadius * 2}px`,
-                height: `${innerRadius * 2}px`,
-                borderRadius: "50%",
-                backgroundColor: theme.surface,
-              }}
-            />
-          ) : null}
-        </view>
-
-        <view
-          style={{
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        >
-          {slices.map((slice, index) => {
-            const value = Math.max(0, Number(slice["value"]) || 0);
-            const percent = total > 0 ? (value / total) * 100 : 0;
-            const color =
-              typeof slice["color"] === "string"
-                ? slice["color"]
-                : (palette[index % palette.length] ?? DEFAULT_CHART_COLORS[0]!);
-            const dimmed = selectedSlice !== null && selectedSlice !== index;
+        ) : null}
+        {activeSlices
+          .filter(
+            (item) => selectedSlice === null || selectedSlice === item.sliceIndex,
+          )
+          .map((item) => {
+            const pct = total > 0 ? (item.value / total) * 100 : 0;
             return (
               <view
-                key={`legend-${String(slice["name"] ?? "")}-${index}`}
+                key={`crow-${item.sliceIndex}`}
                 style={{
                   width: "100%",
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
                   gap: "8px",
-                  opacity: dimmed ? 0.4 : 1,
                 }}
                 bindtap={() =>
-                  setSelectedSlice(selectedSlice === index ? null : index)
+                  setSelectedSlice(
+                    selectedSlice === item.sliceIndex ? null : item.sliceIndex,
+                  )
                 }
               >
                 <view
                   style={{
                     width: "10px",
                     height: "10px",
-                    borderRadius: "2px",
-                    backgroundColor: color,
-                    flexShrink: 0,
+                    borderRadius: "5px",
+                    backgroundColor: item.color,
                   }}
                 />
                 <text
                   style={{
+                    flex: "1 1 0%",
                     fontSize: "13px",
                     lineHeight: "18px",
                     color: theme.onSurface,
+                    minWidth: 0,
                   }}
                 >
-                  {String(slice["name"] ?? "")}
+                  {item.name}
                 </text>
                 <text
                   style={{
-                    fontSize: "13px",
-                    lineHeight: "18px",
-                    fontWeight: selectedSlice === index ? "600" : "400",
-                    color:
-                      selectedSlice === index
-                        ? theme.primary
-                        : theme.onSurfaceMuted,
-                    marginLeft: "auto",
+                    fontSize: "12px",
+                    lineHeight: "16px",
+                    color: theme.onSurfaceMuted,
                   }}
                 >
-                  {showPercentages
-                    ? `${formatValue(value)}（${formatPercent(percent)}）`
-                    : formatValue(value)}
+                  {`${formatValue(item.value)}${
+                    showPercentages ? ` · ${formatPercent(pct)}` : ""
+                  }`}
                 </text>
               </view>
             );
           })}
-        </view>
       </view>
     );
   }
@@ -3015,6 +2403,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- ProgressRing（进度环）：环弧依赖 absolute + rotate，降级为「数值
+  // + 横向进度条」；height 语义由环直径调整为条长（120–240 夹取不变）。 ---
   function ProgressRing(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -3031,50 +2421,10 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         ? resolvedProps["color"]
         : theme.primary;
     const heightValue = resolvedProps["height"];
-    // height 即环形直径（默认 180，120–240 夹取），不再固定 300 占满卡宽
-    const diameter = Math.max(120, Math.min(heightValue === "number"
-      ? (heightValue as number)
-      : 180, 240));
-    const ringThickness = 14;
-    const ringMid = diameter / 2 - ringThickness / 2;
-    const polarAt = (angleDeg: number, r: number) => {
-      const rad = ((angleDeg - 90) * Math.PI) / 180;
-      return {
-        x: diameter / 2 + r * Math.cos(rad),
-        y: diameter / 2 + r * Math.sin(rad),
-      };
-    };
-    // 底环：border 圆一个 view 搞定；进度弧：切线段自 12 点钟顺时针
-    const segStep = 6;
-    const sweep = (percent / 100) * 360;
-    const segCount = Math.floor(sweep / segStep);
-    const arcSegments: Array<JSX.Element> = [];
-    for (let i = 0; i < segCount; i += 1) {
-      const a1 = i * segStep;
-      const a2 = a1 + segStep;
-      const p1 = polarAt(a1, ringMid);
-      const p2 = polarAt(a2, ringMid);
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const len = Math.sqrt(dx * dx + dy * dy) + 1;
-      const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-      arcSegments.push(
-        <view
-          key={`arc-${i}`}
-          className="a2ui-anim-fade"
-          style={{
-            position: "absolute",
-            left: `${(p1.x + p2.x) / 2 - len / 2}px`,
-            top: `${(p1.y + p2.y) / 2 - ringThickness / 2}px`,
-            width: `${len}px`,
-            height: `${ringThickness}px`,
-            backgroundColor: color,
-            transform: `rotate(${angleDeg}deg)`,
-            animationDelay: `${(a1 / 360) * 600}ms`,
-          }}
-        />,
-      );
-    }
+    const barLength = Math.max(
+      120,
+      Math.min(typeof heightValue === "number" ? heightValue : 180, 240),
+    );
     return (
       <view
         key={id}
@@ -3086,61 +2436,47 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           gap: "8px",
         }}
       >
+        <text
+          style={{
+            fontSize: "26px",
+            lineHeight: "32px",
+            fontWeight: "700",
+            color: theme.onSurface,
+          }}
+        >
+          {`${percent}%`}
+        </text>
+        {label ? (
+          <text
+            style={{
+              fontSize: "12px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {label}
+          </text>
+        ) : null}
         <view
           style={{
-            width: `${diameter}px`,
-            height: `${diameter}px`,
-            position: "relative",
+            width: `${barLength}px`,
+            height: "14px",
+            display: "flex",
+            flexDirection: "row",
+            borderRadius: "999px",
+            backgroundColor: theme.surfaceMuted,
+            overflow: "hidden",
           }}
         >
           <view
+            className="a2ui-anim-fade"
             style={{
-              position: "absolute",
-              left: "0px",
-              top: "0px",
-              width: `${diameter}px`,
-              height: `${diameter}px`,
-              borderRadius: "50%",
-              borderWidth: `${ringThickness}px`,
-              borderColor: theme.surfaceMuted,
+              height: "100%",
+              width: `${percent}%`,
+              borderRadius: "999px",
+              backgroundColor: color,
             }}
           />
-          {arcSegments}
-          <view
-            style={{
-              position: "absolute",
-              left: "0px",
-              top: "0px",
-              width: `${diameter}px`,
-              height: `${diameter}px`,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <text
-              style={{
-                fontSize: "26px",
-                lineHeight: "32px",
-                fontWeight: "700",
-                color: theme.onSurface,
-              }}
-            >
-              {`${percent}%`}
-            </text>
-            {label ? (
-              <text
-                style={{
-                  fontSize: "12px",
-                  lineHeight: "16px",
-                  color: theme.onSurfaceMuted,
-                }}
-              >
-                {label}
-              </text>
-            ) : null}
-          </view>
         </view>
         {caption ? (
           <text
@@ -3618,6 +2954,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
   // --- C 组：AreaChart / StackedBar / DataTable / Gauge / CountUp。
   // 宿主自有扩展组件，全部 view 绘制 + 主题注入 + 颜色三级回滚。 ---
 
+  // --- AreaChart（面积图）：面积填充依赖 absolute 覆盖，降级与折线图同
+  // 构的棒棒糖列（数据点 + 茎），面积观感不再保留。 ---
   function AreaChart(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -3634,7 +2972,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const series = Array.isArray(seriesValue)
       ? normalizeSeries(seriesValue, chartPalette)
       : [];
-    const showGrid = resolvedProps["showGrid"] !== false;
     const showLegend = resolvedProps["showLegend"] !== false;
     const heightValue = resolvedProps["height"];
     const height = typeof heightValue === "number" ? heightValue : 200;
@@ -3642,81 +2979,65 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       typeof resolvedProps["yLabel"] === "string"
         ? resolvedProps["yLabel"]
         : "";
-
-    const canvasW = 300;
-    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
-    const plotW = canvasW - margin.left - margin.right;
-    const plotH = height - margin.top - margin.bottom;
+    const plotH = Math.max(60, height - 40);
     const maxPoints = labels.length;
     const allValues = series.flatMap((item) => item.values.slice(0, maxPoints));
     const { min: plotMin, max: plotMax } = minMax(allValues);
     const plotRange = plotMax - plotMin;
-    const xStep = maxPoints > 1 ? plotW / (maxPoints - 1) : 0;
-    const seriesPoints = series.map((item) =>
-      item.values.slice(0, maxPoints).map((value, index) => ({
-        x: margin.left + xStep * index,
-        y:
-          margin.top +
-          plotH -
-          (plotRange === 0 ? 0.5 : (value - plotMin) / plotRange) * plotH,
-        color: item.color,
-      })),
+    const pointColumns = labels.slice(0, maxPoints).map((_, index) => (
+      <view
+        key={`acol-${index}`}
+        style={{
+          flex: "1 1 0%",
+          height: `${plotH}px`,
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          gap: "3px",
+          minWidth: 0,
+        }}
+      >
+        {series.map((item, seriesIndex) => {
+          const value = Number(item.values[index]) || 0;
+          const ratio = plotRange === 0 ? 0.5 : (value - plotMin) / plotRange;
+          const stemH = Math.max(2, ratio * (plotH - 16));
+          return (
+            <view
+              key={`apop-${seriesIndex}-${index}`}
+              className="a2ui-anim-fade"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                animationDelay: `${index * 60 + seriesIndex * 30}ms`,
+              }}
+            >
+              <view
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "3px",
+                  backgroundColor: item.color,
+                }}
+              />
+              <view
+                style={{
+                  width: "2.5px",
+                  height: `${stemH}px`,
+                  backgroundColor: item.color,
+                  opacity: 0.4,
+                }}
+              />
+            </view>
+          );
+        })}
+      </view>
+    ));
+    const { min, max } = minMax(
+      series.flatMap((item) => item.values.slice(0, labels.length)),
     );
-    // 面积填充：每个 x 步进一列矩形，从折线中点落到基线（低透明度叠出面积观感）
-    const fillColumns = seriesPoints.map((points, seriesIndex) =>
-      points.slice(0, -1).map((point, index) => {
-        const next = points[index + 1]!;
-        const top = Math.min(point.y, next.y);
-        return (
-          <view
-            key={`afill-${seriesIndex}-${index}`}
-            style={{
-              position: "absolute",
-              left: `${point.x}px`,
-              top: `${top}px`,
-              width: `${next.x - point.x + 0.5}px`,
-              height: `${margin.top + plotH - top}px`,
-              backgroundColor: point.color,
-              opacity: 0.14,
-            }}
-          />
-        );
-      }),
-    );
-    const lineDots = seriesPoints.map((points, seriesIndex) =>
-      points.map((point, index) => (
-        <view
-          key={`adot-${seriesIndex}-${index}`}
-          style={{
-            position: "absolute",
-            left: `${point.x - 3}px`,
-            top: `${point.y - 3}px`,
-            width: "6px",
-            height: "6px",
-            borderRadius: "3px",
-            backgroundColor: point.color,
-          }}
-        />
-      )),
-    );
-    const gridLines = 4;
-    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
-      const ratio = index / gridLines;
-      return (
-        <view
-          key={`agrid-${index}`}
-          style={{
-            position: "absolute",
-            left: `${margin.left}px`,
-            top: `${margin.top + plotH - ratio * plotH}px`,
-            width: `${plotW}px`,
-            height: "1px",
-            backgroundColor: theme.border,
-          }}
-        />
-      );
-    });
-
+    const visibleLabelIndices = sampleIndices(labels.length, 8);
     return (
       <view
         key={id}
@@ -3742,83 +3063,71 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         ) : null}
         <view
           style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            width: "100%",
+          }}
+        >
+          <text
+            style={{
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {formatValue(min)}
+          </text>
+          <text
+            style={{
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            {formatValue(max)}
+          </text>
+        </view>
+        <view
+          style={{
             width: "300px",
-            height: `${height}px`,
-            position: "relative",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-end",
             alignSelf: "center",
           }}
         >
-          {chartGrid}
-          {fillColumns}
-          {lineDots}
+          {pointColumns}
         </view>
+        {chartBaseline()}
         <view
           style={{
             display: "flex",
             flexDirection: "row",
             justifyContent: "space-between",
-            width: "300px",
-            alignSelf: "center",
+            width: "100%",
           }}
         >
-          {labels.map((label, index) => (
+          {visibleLabelIndices.map((index) => (
             <text
-              key={`alax-${index}-${label ?? index}`}
+              key={`${index}-${labels[index] ?? index}`}
               style={{
                 fontSize: "11px",
                 lineHeight: "16px",
                 color: theme.onSurfaceMuted,
               }}
             >
-              {label ?? ""}
+              {labels[index] ?? ""}
             </text>
           ))}
         </view>
-        {showLegend ? (
-          <view
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: "8px 14px",
-              width: "100%",
-            }}
-          >
-            {series.map((item) => (
-              <view
-                key={item.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <view
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "2px",
-                    backgroundColor: item.color,
-                  }}
-                />
-                <text
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: "16px",
-                    color: theme.onSurfaceMuted,
-                  }}
-                >
-                  {item.name}
-                </text>
-              </view>
-            ))}
-          </view>
-        ) : null}
+        {showLegend ? chartLegend(series) : null}
       </view>
     );
   }
 
+  // --- StackedBar（堆叠柱）：组内各系列自下而上累加；纯流内用「倒序系列
+  // + 底对齐列」表达堆叠，网格线降级去掉，点选组出读出条。 ---
   function StackedBar(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -3843,15 +3152,13 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       typeof resolvedProps["yLabel"] === "string"
         ? resolvedProps["yLabel"]
         : "";
-
     const canvasW = 300;
-    const margin = { top: 8, right: 12, bottom: 8, left: 12 };
-    const plotW = canvasW - margin.left - margin.right;
-    const plotH = height - margin.top - margin.bottom;
+    const plotW = canvasW - 24;
+    const plotH = Math.max(60, height - 24);
     const groupCount = labels.length;
     const groupW = groupCount > 0 ? plotW / groupCount : 0;
     const barW = Math.max(8, Math.min(36, groupW - 12));
-    // 堆叠：每组各系列自下而上累加，总量基准 = 组内合计的最大值
+    // 堆叠：每组各系列自下而上累加，总量基准 = 组内合计的最大值。
     const groupTotals = labels.map((_, g) =>
       series.reduce(
         (sum, item) => sum + Math.max(0, Number(item.values[g]) || 0),
@@ -3859,88 +3166,55 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       ),
     );
     const scaleMax = Math.max(1, ...groupTotals);
-    const gridLines = 4;
-    const chartGrid = Array.from({ length: gridLines + 1 }, (_, index) => {
-      const ratio = index / gridLines;
+    // 倒序渲染：column 自上而下 = 系列自上而下，flex-end 底对齐后首个系列
+    // 恰好贴基线，与「自下而上累加」语义一致。
+    const reversedSeries = series.slice().reverse();
+    const groupColumns = labels.slice(0, groupCount).map((_, groupIndex) => {
+      const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
       return (
         <view
-          key={`sbgrid-${index}`}
+          key={`sbgrp-${groupIndex}`}
           style={{
-            position: "absolute",
-            left: `${margin.left}px`,
-            top: `${margin.top + plotH - ratio * plotH}px`,
-            width: `${plotW}px`,
-            height: "1px",
-            backgroundColor: theme.border,
+            flex: "1 1 0%",
+            height: `${plotH}px`,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            minWidth: 0,
+            opacity: dimmed ? 0.35 : 1,
           }}
-        />
+          bindtap={() =>
+            setSelectedGroup(selectedGroup === groupIndex ? null : groupIndex)
+          }
+        >
+          {reversedSeries.map((item, reverseIndex) => {
+            const v = Math.max(0, Number(item.values[groupIndex]) || 0);
+            const segH = (v / scaleMax) * (plotH - 8);
+            if (segH <= 0) return null;
+            return (
+              <view
+                key={`sbseg-${reverseIndex}-${groupIndex}`}
+                style={{
+                  width: `${barW}px`,
+                  height: `${segH}px`,
+                  backgroundColor: item.color,
+                }}
+              />
+            );
+          })}
+        </view>
       );
     });
-    const stackedBars = series.map((item, seriesIndex) =>
-      labels.map((_, groupIndex) => {
-        const dimmed = selectedGroup !== null && selectedGroup !== groupIndex;
-        // 自下而上：先累加本系列之前各组分的和
-        const below = series
-          .slice(0, seriesIndex)
-          .reduce(
-            (sum, s) => sum + Math.max(0, Number(s.values[groupIndex]) || 0),
-            0,
-          );
-        const v = Math.max(0, Number(item.values[groupIndex]) || 0);
-        const segH = (v / scaleMax) * plotH;
-        const belowH = (below / scaleMax) * plotH;
-        return (
-          <view
-            key={`sb-${seriesIndex}-${groupIndex}`}
-            style={{
-              position: "absolute",
-              left: `${margin.left + groupIndex * groupW + (groupW - barW) / 2}px`,
-              top: `${margin.top + plotH - belowH - segH}px`,
-              width: `${barW}px`,
-              height: `${segH}px`,
-              backgroundColor: item.color,
-              opacity: dimmed ? 0.35 : 1,
-            }}
-          />
-        );
-      }),
-    );
-    const groupHitBoxes = groupCount
-      ? labels.map((_, groupIndex) => (
-          <view
-            key={`sbhit-${groupIndex}`}
-            style={{
-              position: "absolute",
-              left: `${margin.left + groupIndex * groupW}px`,
-              top: "0px",
-              width: `${groupW}px`,
-              height: `${height}px`,
-              backgroundColor: "transparent",
-            }}
-            bindtap={() =>
-              setSelectedGroup(
-                selectedGroup === groupIndex ? null : groupIndex,
-              )
-            }
-          />
-        ))
-      : [];
-    const bubbleValues =
+    const selectedLabel =
+      selectedGroup === null ? "" : String(labels[selectedGroup] ?? "");
+    const selectedValues =
       selectedGroup === null
         ? []
         : series.map((item) => ({
             name: item.name,
             value: item.values[selectedGroup] ?? 0,
           }));
-    const bubbleTotal =
-      selectedGroup === null
-        ? 0
-        : series.reduce(
-            (sum, s) =>
-              sum + Math.max(0, Number(s.values[selectedGroup]) || 0),
-            0,
-          );
-
     return (
       <view
         key={id}
@@ -3967,111 +3241,43 @@ export function createCatalogComponents(theme: A2UICardTheme) {
         <view
           style={{
             width: "300px",
-            height: `${height}px`,
-            position: "relative",
-            alignSelf: "center",
-          }}
-        >
-          {chartGrid}
-          {stackedBars}
-          {selectedGroup !== null ? (
-            <view
-              style={{
-                position: "absolute",
-                left: `${Math.min(
-                  Math.max(
-                    margin.left + selectedGroup * groupW + groupW / 2 - 60,
-                    0,
-                  ),
-                  canvasW - 120,
-                )}px`,
-                top: "0px",
-                borderRadius: "6px",
-                backgroundColor: theme.onSurface,
-                paddingLeft: "8px",
-                paddingRight: "8px",
-                paddingTop: "4px",
-                paddingBottom: "4px",
-              }}
-            >
-              <text
-                style={{
-                  fontSize: "10px",
-                  lineHeight: "13px",
-                  color: theme.surface,
-                }}
-              >
-                {`${labels[selectedGroup] ?? ""}　合计 ${formatValue(bubbleTotal)}　${bubbleValues
-                  .map((v) => `${v.name} ${formatValue(Number(v.value) || 0)}`)
-                  .join(" · ")}`}
-              </text>
-            </view>
-          ) : null}
-          {groupHitBoxes}
-        </view>
-        <view
-          style={{
             display: "flex",
             flexDirection: "row",
-            justifyContent: "space-between",
-            width: "300px",
+            alignItems: "flex-end",
             alignSelf: "center",
           }}
         >
-          {labels.map((label, index) => (
+          {groupColumns}
+        </view>
+        {chartBaseline()}
+        {chartReadout(selectedLabel, selectedValues)}
+        <view
+          style={{
+            width: "300px",
+            display: "flex",
+            flexDirection: "row",
+            alignSelf: "center",
+          }}
+        >
+          {labels.slice(0, groupCount).map((label, index) => (
             <text
-              key={`sbax-${index}-${label ?? index}`}
+              key={`${index}-${label ?? index}`}
               style={{
+                flex: "1 1 0%",
+                textAlign: "center",
                 fontSize: "11px",
                 lineHeight: "16px",
-                color: theme.onSurfaceMuted,
+                color:
+                  selectedGroup === index
+                    ? theme.onSurface
+                    : theme.onSurfaceMuted,
               }}
             >
               {label ?? ""}
             </text>
           ))}
         </view>
-        {showLegend ? (
-          <view
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: "8px 14px",
-              width: "100%",
-            }}
-          >
-            {series.map((item) => (
-              <view
-                key={item.name}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <view
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "2px",
-                    backgroundColor: item.color,
-                  }}
-                />
-                <text
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: "16px",
-                    color: theme.onSurfaceMuted,
-                  }}
-                >
-                  {item.name}
-                </text>
-              </view>
-            ))}
-          </view>
-        ) : null}
+        {showLegend ? chartLegend(series) : null}
       </view>
     );
   }
@@ -4167,6 +3373,8 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
+  // --- Gauge（仪表盘）：半圆弧 + 数值覆盖依赖 absolute + rotate，降级为
+  // 「数值 + 横向仪表条 + 0/100 刻度」。 ---
   function Gauge(props: GenericComponentProps) {
     const [resolvedProps] = useResolvedProps(
       props,
@@ -4181,52 +3389,6 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       typeof resolvedProps["color"] === "string" && resolvedProps["color"]
         ? resolvedProps["color"]
         : theme.primary;
-    const heightValue = resolvedProps["height"];
-    const height = typeof heightValue === "number" ? heightValue : 160;
-    // 半圆仪表：圆心在画布底部中央，弧自 9 点钟（270°）顺时针到 3 点钟（90°）
-    const radius = 110;
-    const thickness = 14;
-    const ringMid = radius - thickness / 2;
-    const canvasW = radius * 2 + 8;
-    const canvasH = radius + 12;
-    const polarAt = (angleDeg: number, r: number) => {
-      const rad = ((angleDeg - 90) * Math.PI) / 180;
-      return {
-        x: canvasW / 2 + r * Math.cos(rad),
-        y: canvasH - 6 + r * Math.sin(rad),
-      };
-    };
-    // 底弧 + 值弧：切线段，2° 步进（90 段，弧面平滑），范围 [270, 270+180]
-    const segStep = 2;
-    const sweep = (percent / 100) * 180;
-    const segCount = Math.floor(sweep / segStep);
-    const arcSegments: Array<JSX.Element> = [];
-    const arcTotal = Math.ceil(180 / segStep);
-    for (let i = 0; i < arcTotal; i += 1) {
-      const a1 = 270 + i * segStep;
-      const a2 = a1 + segStep;
-      const p1 = polarAt(a1, ringMid);
-      const p2 = polarAt(a2, ringMid);
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const len = Math.sqrt(dx * dx + dy * dy) + 1;
-      const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-      const filled = i < segCount;
-      arcSegments.push(
-        <view
-          key={`garc-${i}`}
-          style={{
-            position: "absolute",
-            left: `${(p1.x + p2.x) / 2 - len / 2}px`,
-            top: `${(p1.y + p2.y) / 2 - thickness / 2}px`,
-            width: `${len}px`,
-            height: `${thickness}px`,
-            borderRadius: "2px",
-            backgroundColor: filled ? color : theme.surfaceMuted,
-          }}
-        />,
-      );
-    }
     return (
       <view
         key={id}
@@ -4238,47 +3400,74 @@ export function createCatalogComponents(theme: A2UICardTheme) {
           gap: "4px",
         }}
       >
-        <view
+        <text
           style={{
-            width: `${canvasW}px`,
-            height: `${canvasH}px`,
-            position: "relative",
+            fontSize: "26px",
+            lineHeight: "32px",
+            fontWeight: "700",
+            color: theme.onSurface,
           }}
         >
-          {arcSegments}
-          <view
+          {`${percent}%`}
+        </text>
+        {label ? (
+          <text
             style={{
-              position: "absolute",
-              left: `${canvasW / 2 - 40}px`,
-              top: `${canvasH - 46}px`,
-              width: "80px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              fontSize: "11px",
+              lineHeight: "16px",
+              color: theme.onSurfaceMuted,
             }}
           >
-            <text
-              style={{
-                fontSize: "24px",
-                lineHeight: "30px",
-                fontWeight: "700",
-                color: theme.onSurface,
-              }}
-            >
-              {`${percent}%`}
-            </text>
-            {label ? (
-              <text
-                style={{
-                  fontSize: "11px",
-                  lineHeight: "16px",
-                  color: theme.onSurfaceMuted,
-                }}
-              >
-                {label}
-              </text>
-            ) : null}
-          </view>
+            {label}
+          </text>
+        ) : null}
+        <view
+          style={{
+            width: "240px",
+            height: "14px",
+            display: "flex",
+            flexDirection: "row",
+            borderRadius: "999px",
+            backgroundColor: theme.surfaceMuted,
+            overflow: "hidden",
+            marginTop: "4px",
+          }}
+        >
+          <view
+            className="a2ui-anim-fade"
+            style={{
+              height: "100%",
+              width: `${percent}%`,
+              backgroundColor: color,
+            }}
+          />
+        </view>
+        <view
+          style={{
+            width: "240px",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+          }}
+        >
+          <text
+            style={{
+              fontSize: "10px",
+              lineHeight: "14px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            0
+          </text>
+          <text
+            style={{
+              fontSize: "10px",
+              lineHeight: "14px",
+              color: theme.onSurfaceMuted,
+            }}
+          >
+            100
+          </text>
         </view>
       </view>
     );
