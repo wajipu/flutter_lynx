@@ -98,8 +98,13 @@ NS_ASSUME_NONNULL_END
   if (route.param) {
     init[@"routeParams"] = route.param;
   }
-  [view loadTemplateFromURL:[@"file://" stringByAppendingString:self.preparedBundlePath]
-                  initData:[[LynxTemplateData alloc] initWithDictionary:init]];
+  // bytes 直喂（与主通道一致）：loadTemplateFromURL 走 provider 同步回调，
+  // 在 navigate 持锁路径上存在重入死锁风险。
+  NSData *bytes = [NSData dataWithContentsOfFile:self.preparedBundlePath];
+  NSString *fileURL = [@"file://" stringByAppendingString:self.preparedBundlePath];
+  [view loadTemplate:bytes
+              withURL:fileURL
+             initData:[[LynxTemplateData alloc] initWithDictionary:init]];
   [_pageStack addObject:route.routeName ?: @"page"];
   NSLog(@"[MiniAppLynxHolder] navigate route=%@ stack=%lu",
         route.routeName ?: @"", (unsigned long)_pageStack.count);
