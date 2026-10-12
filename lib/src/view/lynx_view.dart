@@ -139,7 +139,10 @@ class _LynxViewState extends State<LynxView> {
       if (widget.initialData != null)
         "initialData": widget.initialData!.toMap(),
       if (widget.canvasBackground != null)
-        "canvasBackground": widget.canvasBackground!.toARGB32(),
+        // .value 在新旧 Flutter 均可用（新版本仅 deprecated）；插件需跨
+        // 宿主 Flutter 版本可编译，不用 3.27+ 才有的 toARGB32。
+        // ignore: deprecated_member_use
+        "canvasBackground": widget.canvasBackground!.value,
     };
   }
 
