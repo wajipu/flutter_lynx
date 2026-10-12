@@ -362,18 +362,6 @@ export function A2UICard() {
                   : cardShellStyle(theme)
               }
             >
-              {/* 探针（临时调试）：absolute 定位支持判定，验证后移除 */}
-              <view
-                style={{
-                  position: "absolute",
-                  top: "6px",
-                  right: "6px",
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "12px",
-                  backgroundColor: "#F2B66D",
-                }}
-              />
               {terminalBadge ? (
                 /* 终态徽章（zinc muted 口径）：surfaceMuted 面 + onSurfaceMuted
                    文字，胶囊形；挂载期常量驱动，宿主终态重挂载后稳定呈现，
