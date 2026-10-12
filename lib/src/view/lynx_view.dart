@@ -59,6 +59,10 @@ class LynxView extends StatefulWidget {
   /// Optional initial data to pass to the Lynx template.
   final LynxTemplateData? initialData;
 
+  /// Lynx 页面底色（ARGB）：垫在模板内容之下、未绘制区域不再透出引擎默认
+  /// 白底（暗色模板不露白）。null 保持引擎历史默认白。
+  final Color? canvasBackground;
+
   /// Android / iOS JSBridge modules granted to this native view, matched exactly.
   /// Custom modules must be listed explicitly; changing grants recreates the view.
   final Set<String> allowedModules;
@@ -87,6 +91,7 @@ class LynxView extends StatefulWidget {
     this.onHeightChanged,
     this.gestureRecognizers,
     this.initialData,
+    this.canvasBackground,
     this.sourceContextId,
     this.allowedModules = const {
       "system",
@@ -133,6 +138,8 @@ class _LynxViewState extends State<LynxView> {
       "sourceContextId": widget.sourceContextId,
       if (widget.initialData != null)
         "initialData": widget.initialData!.toMap(),
+      if (widget.canvasBackground != null)
+        "canvasBackground": widget.canvasBackground!.toARGB32(),
     };
   }
 

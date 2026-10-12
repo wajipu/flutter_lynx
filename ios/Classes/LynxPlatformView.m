@@ -277,7 +277,22 @@ static NSData *DecodeTemplateBytesParam(id value) {
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
     _allowedModulesError = moduleError;
     _rootView = [[FlutterLynxRootView alloc] initWithFrame:frame];
-    _rootView.backgroundColor = UIColor.whiteColor;
+    // 画布底色：宿主可传 canvasBackground（ARGB int）垫暗色，未绘制区域
+    // 不再透出引擎默认白底；不传保持历史白底，其他消费方不受影响。
+    NSNumber *canvasBackground = params[@"canvasBackground"];
+    if ([canvasBackground isKindOfClass:[NSNumber class]]) {
+      int32_t argb = (int32_t)[canvasBackground intValue];
+      CGFloat red = ((argb >> 16) & 0xFF) / 255.0;
+      CGFloat green = ((argb >> 8) & 0xFF) / 255.0;
+      CGFloat blue = (argb & 0xFF) / 255.0;
+      CGFloat alpha = ((argb >> 24) & 0xFF) / 255.0;
+      _rootView.backgroundColor = [UIColor colorWithRed:red
+                                                  green:green
+                                                   blue:blue
+                                                  alpha:alpha];
+    } else {
+      _rootView.backgroundColor = UIColor.whiteColor;
+    }
     _rootView.userInteractionEnabled = YES;
     _methodChannel = [FlutterMethodChannel
         methodChannelWithName:[NSString stringWithFormat:@"com.kmanager.flutter_lynx/lynx_view_%lld", viewId]
