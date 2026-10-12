@@ -306,7 +306,9 @@ export function A2UICard() {
           backgroundColor: theme.background,
           display: "flex",
           flexDirection: "column",
-          padding: "12px",
+          // 卡片与宿主文本块左右对齐：内边距由宿主容器负责，模板不再
+          // 额外缩进（12px 叠在聊天页边距上会让 a2ui 卡比正文窄一圈）。
+          padding: "0px",
         }}
       >
         <A2UI
