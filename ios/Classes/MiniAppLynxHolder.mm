@@ -91,7 +91,9 @@ NS_ASSUME_NONNULL_END
   view.autoresizingMask =
       UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   // 页面路由 = 初始 path：route 名即页面路径，模板入口按 path 渲染。
-  NSMutableDictionary *init = [NSMutableDictionary dictionary];
+  // 主题/palette/安全区等与首页共享同一上下文，仅 path 与路由参数不同。
+  NSMutableDictionary *init = [NSMutableDictionary
+      dictionaryWithDictionary:self.initialTemplateData ?: @{}];
   init[@"initialPath"] = route.routeName ?: @"/";
   if (route.param) {
     init[@"routeParams"] = route.param;
