@@ -28,6 +28,10 @@ extern NSString* const MiniAppLynxHolderCurrentBundlePathDidChange;
 /// 出的页面由本类直接 addSubview 挂载，Flutter 层不参与页面栈。
 @property(nonatomic, weak, nullable) UIView *containerView;
 
+/// 首页初始数据（主题/palette/安全区/胶囊几何）：导航出的新页面与首页
+/// 共享同一渲染上下文，仅 path 与路由参数不同。
+@property(nonatomic, copy, nullable) NSDictionary *initialTemplateData;
+
 /// 页面栈深度（含首页；观测与栈底判定用）。
 @property(nonatomic, readonly) NSUInteger pageCount;
 
