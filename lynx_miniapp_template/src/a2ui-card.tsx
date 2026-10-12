@@ -1,4 +1,9 @@
-import { useMemo, useState, useInitData } from "@lynx-js/react";
+import {
+  Component,
+  useMemo,
+  useState,
+  useInitData,
+} from "@lynx-js/react";
 import {
   A2UI,
   basicFunctions,
@@ -141,6 +146,33 @@ function buildInitialMessages(
 // 这里用一处显式断言对齐声明差异，运行时行为与官方示例一致。
 function catalogEntry(component: unknown): CatalogComponent {
   return component as CatalogComponent;
+}
+
+/// 渲染异常边界：图表等组件在引擎上的失败是静默的（无 JS 错误日志通道），
+/// 把异常文本直接渲染成可见内容用于定位；正常路径零开销直通。
+class A2UIErrorBoundary extends Component<
+  { children?: unknown },
+  { error: string | null }
+> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(error: unknown) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+  componentDidCatch(error: Error) {
+    console.error("a2ui-card: 渲染异常", error?.message);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <text style={{ color: "#ff8a8a", fontSize: "12px", lineHeight: "16px" }}>
+          {`渲染异常：${this.state.error}`}
+        </text>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // 卡片化外壳：白底 + 圆角 + 阴影，浮在 theme.background 衬底上，模板根
@@ -311,6 +343,7 @@ export function A2UICard() {
           padding: "0px",
         }}
       >
+        <A2UIErrorBoundary>
         <A2UI
           messageStore={store}
           catalogs={catalog}
@@ -329,6 +362,18 @@ export function A2UICard() {
                   : cardShellStyle(theme)
               }
             >
+              {/* 探针（临时调试）：absolute 定位支持判定，验证后移除 */}
+              <view
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "12px",
+                  backgroundColor: "#F2B66D",
+                }}
+              />
               {terminalBadge ? (
                 /* 终态徽章（zinc muted 口径）：surfaceMuted 面 + onSurfaceMuted
                    文字，胶囊形；挂载期常量驱动，宿主终态重挂载后稳定呈现，
@@ -375,6 +420,7 @@ export function A2UICard() {
             </text>
           )}
         />
+        </A2UIErrorBoundary>
       </view>
     </scroll-view>
   );
