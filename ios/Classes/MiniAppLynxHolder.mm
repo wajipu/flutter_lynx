@@ -106,6 +106,14 @@ NS_ASSUME_NONNULL_END
               withURL:fileURL
              initData:[[LynxTemplateData alloc] initWithDictionary:init]];
   [_pageStack addObject:route.routeName ?: @"page"];
+  // 引擎的 show 回调在模板异步加载完成后才触发；新页创建即挂入容器，
+  // 否则加载期间页面不可见（表现为点击无反应）。
+  if (self.containerView) {
+    view.frame = self.containerView.bounds;
+    view.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.containerView addSubview:view];
+  }
   NSLog(@"[MiniAppLynxHolder] navigate route=%@ stack=%lu",
         route.routeName ?: @"", (unsigned long)_pageStack.count);
   return view;
