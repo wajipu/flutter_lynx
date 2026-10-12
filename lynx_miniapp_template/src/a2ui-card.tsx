@@ -290,7 +290,13 @@ export function A2UICard() {
   // 短内容（确认卡）时衬底色仍铺满视口。
   return (
     <scroll-view
-      style={{ width: "100%", height: "100%" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        // 滚动容器自带白底：autoHeight 收敛时序里视口高于内容的空隙会露白
+        // （暗色下白条），垫 theme.background 与卡衬底同色。
+        backgroundColor: theme.background,
+      }}
       scroll-orientation="vertical"
     >
       <view
