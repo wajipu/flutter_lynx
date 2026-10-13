@@ -1001,6 +1001,31 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     return String(rounded);
   }
 
+  /**
+   * hex → rgba：图表两段式柱体/读出条需要带透明度的系列色。
+   * 只认 #RRGGBB 与 #RRGGBBAA；其他格式（rgba 原样、主题 token）原串返回。
+   */
+  function hexToRgba(color: string, alpha: number): string {
+    const hex = color.trim();
+    const six = /^#([0-9a-fA-F]{6})$/.exec(hex);
+    if (six) {
+      const value = parseInt(six[1]!, 16);
+      const r = (value >> 16) & 255;
+      const g = (value >> 8) & 255;
+      const b = value & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    const eight = /^#([0-9a-fA-F]{8})$/.exec(hex);
+    if (eight) {
+      const value = parseInt(eight[1]!, 16);
+      const r = (value >>> 24) & 255;
+      const g = (value >>> 16) & 255;
+      const b = (value >>> 8) & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return color;
+  }
+
   const LINE_SVG_WIDTH = 360;
   const LINE_DEFAULT_HEIGHT = 240;
   const LINE_MARGIN = { top: 16, right: 16, bottom: 24, left: 16 };
@@ -1248,19 +1273,21 @@ export function createCatalogComponents(theme: A2UICardTheme) {
               >
                 <view
                   style={{
-                    width: `${selected ? 10 : 8}px`,
-                    height: `${selected ? 10 : 8}px`,
-                    borderRadius: "5px",
+                    width: `${selected ? 11 : 9}px`,
+                    height: `${selected ? 11 : 9}px`,
+                    borderRadius: "6px",
                     backgroundColor: item.color,
-                    border: `1.5px solid ${selected ? theme.primary : theme.surface}`,
+                    border: `2px solid ${selected ? theme.primary : theme.surface}`,
                   }}
                 />
                 <view
                   style={{
-                    width: "2.5px",
+                    width: "4.5px",
                     height: `${stemH}px`,
                     backgroundColor: item.color,
-                    opacity: 0.5,
+                    borderTopLeftRadius: "2px",
+                    borderTopRightRadius: "2px",
+                    opacity: 0.85,
                   }}
                 />
               </view>
@@ -1419,12 +1446,13 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const plotH = Math.max(60, height - 24);
     const groupCount = labels.length;
     const groupW = groupCount > 0 ? plotW / groupCount : 0;
-    const barGap = series.length > 1 ? 2 : 0;
+    const barGap = series.length > 1 ? 3 : 0;
+    // shadcn 质感：柱体加宽（上限 24→34），粗柱 + 顶部亮帽才有分量
     const barW = Math.max(
-      4,
+      6,
       Math.min(
-        24,
-        (groupW - 12 - (series.length - 1) * barGap) / (series.length || 1),
+        34,
+        (groupW - 10 - (series.length - 1) * barGap) / (series.length || 1),
       ),
     );
     // 柱状图惯例：基线从 0 起，不做 min-max 截断。
@@ -1480,12 +1508,23 @@ export function createCatalogComponents(theme: A2UICardTheme) {
                   style={{
                     width: `${barW}px`,
                     height: `${h}px`,
-                    borderTopLeftRadius: "4px",
-                    borderTopRightRadius: "4px",
-                    backgroundColor: item.color,
+                    display: "flex",
+                    flexDirection: "column",
+                    borderTopLeftRadius: "7px",
+                    borderTopRightRadius: "7px",
+                    overflow: "hidden",
+                    backgroundColor: hexToRgba(item.color, 0.78),
                     animationDelay: `${groupIndex * 60}ms`,
                   }}
-                />
+                >
+                  <view
+                    style={{
+                      height: "6px",
+                      width: "100%",
+                      backgroundColor: item.color,
+                    }}
+                  />
+                </view>
               </view>
             );
           })}
