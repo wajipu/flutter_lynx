@@ -8,6 +8,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// One binding belongs to one native view; reload/disposal invalidates pending host callbacks.
 @interface LynxBridgeBinding : NSObject
 @property(nonatomic, readonly) BOOL isActive;
+@property(nonatomic, copy, nullable) void (^onGoBack)(void);
+/// Stage an accepted store-selection snapshot before its origin JS callback.
+@property(nonatomic, copy, nullable) void (^storeScopeObserver)(NSString *sourceContextId,
+                                                               NSNumber *requestedRevision,
+                                                               NSDictionary *selection);
 - (instancetype)initWithAllowedModules:(NSSet<NSString *> *)allowedModules
                          bridgeChannel:(FlutterMethodChannel *)bridgeChannel
                        sourceContextId:(NSString *_Nullable)sourceContextId;

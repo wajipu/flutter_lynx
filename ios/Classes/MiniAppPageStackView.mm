@@ -94,6 +94,7 @@ NS_ASSUME_NONNULL_END
   FlutterMethodChannel *_bridgeChannel;
   NSString *_sourceContextId;
   LynxBridgeBinding *_bridgeBinding;
+  MiniAppLynxHolder *_holder;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -112,6 +113,10 @@ NS_ASSUME_NONNULL_END
                          ? [params[@"applySafeArea"] boolValue]
                          : YES;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"]];
+    NSMutableDictionary *templateData = [_initialData mutableCopy];
+    templateData[@"applySafeArea"] = @(_applySafeArea ? 1 : 0);
+    _initialData = [templateData copy];
+    _holder = [[MiniAppLynxHolder alloc] init];
 
     _root = [[MiniAppPageStackRootView alloc] initWithFrame:frame];
     _root.backgroundColor = UIColor.whiteColor;
@@ -119,7 +124,7 @@ NS_ASSUME_NONNULL_END
     // 同步 prepared bundle 路径给页面栈容器（Dart 经 creationParams 传入；
     // PlatformView 的模板加载时机晚于本容器创建，不能依赖其回写）。
     if (_bundlePath.length > 0) {
-      [MiniAppLynxHolder shared].preparedBundlePath = _bundlePath;
+      _holder.preparedBundlePath = _bundlePath;
     }
 
     // native → Flutter 的单向通知通道：栈底 goBack 时请求关闭容器页。
@@ -132,12 +137,40 @@ NS_ASSUME_NONNULL_END
     _bridgeChannel = [FlutterMethodChannel
         methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
               binaryMessenger:messenger];
+    _holder.allowedModules = _allowedModules;
+    _holder.sourceContextId = _sourceContextId;
+    _holder.bridgeChannel = _bridgeChannel;
+    __weak typeof(self) weakSelf = self;
+    [_stackChannel setMethodCallHandler:^(FlutterMethodCall *call, FlutterResult result) {
+      MiniAppPageStackView *strongSelf = weakSelf;
+      if (strongSelf == nil) {
+        result([FlutterError errorWithCode:@"lynx_disposed" message:@"Page stack has been disposed" details:nil]);
+      } else if ([call.method isEqualToString:@"updateData"]) {
+        if (![call.arguments isKindOfClass:[NSDictionary class]]) {
+          result([FlutterError errorWithCode:@"lynx_invalid_data" message:@"updateData requires string-keyed data" details:nil]);
+          return;
+        }
+        for (id key in (NSDictionary *)call.arguments) {
+          if (![key isKindOfClass:[NSString class]]) {
+            result([FlutterError errorWithCode:@"lynx_invalid_data" message:@"updateData requires string-keyed data" details:nil]);
+            return;
+          }
+        }
+        NSMutableDictionary *data = [call.arguments mutableCopy];
+        data[@"applySafeArea"] = @(strongSelf->_applySafeArea ? 1 : 0);
+        [strongSelf->_holder updateTemplateData:data];
+        strongSelf->_initialData = strongSelf->_holder.initialTemplateData;
+        result(@YES);
+      } else {
+        result(FlutterMethodNotImplemented);
+      }
+    }];
 
     NSLog(@"[MiniAppPageStackView] init params keys=%@ bundlePath='%@'", params.allKeys, _bundlePath);
     [self bootstrapFirstPage];
     [self installEdgeBackGesture];
     [[LynxNavigator sharedInstance]
-        registerLynxHolder:[MiniAppLynxHolder shared]
+        registerLynxHolder:_holder
               initLynxView:[self topLynxView]];
   }
   return self;
@@ -150,17 +183,22 @@ NS_ASSUME_NONNULL_END
 - (void)dealloc {
   // Platform-view disposal revokes callbacks belonging to this origin.
   [_bridgeBinding invalidate];
+  [_holder invalidateBridgeBindings];
+  [_stackChannel setMethodCallHandler:nil];
 }
 
 - (void)bootstrapFirstPage {
+  _holder.initialTemplateData = _initialData;
   LynxView *first = [self createLynxViewWithInitialData:_initialData];
   [_root addSubview:first];
-  [MiniAppLynxHolder shared].containerView = _root;
+  MiniAppLynxHolder *holder = _holder;
+  holder.containerView = _root;
+  holder.initialTemplateData = _initialData;
 }
 
 - (LynxView *)createLynxViewWithInitialData:(NSDictionary *)initialData {
   NSLog(@"[MiniAppPageStackView] createLynxView holderPath=%@ paramPath=%@",
-        [MiniAppLynxHolder shared].preparedBundlePath, _bundlePath);
+        _holder.preparedBundlePath, _bundlePath);
   if (_bundlePath.length == 0) {
     NSLog(@"[MiniAppPageStackView] abort: empty param path");
     return nil;
@@ -169,19 +207,17 @@ NS_ASSUME_NONNULL_END
       initWithProvider:[[MiniAppStackTemplateProvider alloc]
                            initWithPath:_bundlePath]];
   // 白名单与整页单页模式一致，由 creationParams 传入。
-  LynxBridgeBinding *binding = [[LynxBridgeBinding alloc]
-      initWithAllowedModules:_allowedModules
-               bridgeChannel:_bridgeChannel
-             sourceContextId:_sourceContextId];
+  LynxBridgeBinding *binding = [_holder createBridgeBinding];
   _bridgeBinding = binding;
   [config registerModule:[LynxBridgeModule class] param:binding];
-  [config registerModule:[NavigationModule class]];
+  [config registerModule:[MiniAppStackNavigationModule class] param:binding];
 
-  LynxView *view = [[LynxView alloc] initWithBuilderBlock:^(LynxViewBuilder *builder) {
+  MiniAppStackLynxView *view = [[MiniAppStackLynxView alloc] initWithBuilderBlock:^(LynxViewBuilder *builder) {
     builder.config = config;
     builder.screenSize = UIScreen.mainScreen.bounds.size;
     builder.fontScale = 1.0;
   }];
+  view.holder = _holder;
   // 首次加载使用容器约束，后续有效尺寸由根视图布局同步。
   view.frame = _root.bounds;
   view.autoresizingMask =
@@ -192,13 +228,14 @@ NS_ASSUME_NONNULL_END
   view.preferredLayoutHeight = CGRectGetHeight(_root.bounds);
   // 初始数据经 loadTemplate 的 initData 参数注入（LynxView 无独立
   // updateInitialData 入口）；模板文件字节直喂。
-  NSData *bytes = [NSData dataWithContentsOfFile:[MiniAppLynxHolder shared].preparedBundlePath];
+  NSData *bytes = [NSData dataWithContentsOfFile:_holder.preparedBundlePath];
   NSMutableDictionary *init = [NSMutableDictionary dictionaryWithDictionary:initialData];
-  init[@"applySafeArea"] = @(_applySafeArea);
-  NSString *url = [@"file://" stringByAppendingString:[MiniAppLynxHolder shared].preparedBundlePath];
+  init[@"applySafeArea"] = @(_applySafeArea ? 1 : 0);
+  NSString *url = [@"file://" stringByAppendingString:_holder.preparedBundlePath];
   [view loadTemplate:bytes
               withURL:url
              initData:[[LynxTemplateData alloc] initWithDictionary:init]];
+  [_holder trackLynxView:view binding:binding templateData:init];
   return view;
 }
 
@@ -249,9 +286,9 @@ NS_ASSUME_NONNULL_END
   if (gesture.state != UIGestureRecognizerStateEnded) {
     return;
   }
-  if ([MiniAppLynxHolder shared].pageCount > 1) {
+  if (_holder.pageCount > 1) {
     // 有上级页面：交还页面栈回退。
-    [[LynxNavigator sharedInstance] goBack];
+    [_holder goBack];
   } else {
     // 栈底：通知 Flutter 关闭整页容器。
     [_stackChannel invokeMethod:@"dismiss" arguments:nil];

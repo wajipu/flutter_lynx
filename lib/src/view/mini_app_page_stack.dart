@@ -37,6 +37,26 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
   MethodChannel? _stackChannel;
 
   @override
+  void didUpdateWidget(covariant MiniAppPageStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sourceContextId != widget.sourceContextId) {
+      _stackChannel?.setMethodCallHandler(null);
+      _stackChannel = null;
+      return;
+    }
+    if (!mapEquals(oldWidget.initialData, widget.initialData)) {
+      _updateNativeData();
+    }
+  }
+
+  void _updateNativeData() {
+    final channel = _stackChannel;
+    if (channel != null) {
+      unawaited(channel.invokeMethod<bool>('updateData', widget.initialData));
+    }
+  }
+
+  @override
   void dispose() {
     _stackChannel?.setMethodCallHandler(null);
     super.dispose();
@@ -45,12 +65,17 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
   @override
   Widget build(BuildContext context) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final sourceContextId = widget.sourceContextId;
       return UiKitView(
         key: ValueKey(widget.sourceContextId),
         viewType: _viewType,
         creationParams: _buildCreationParams(),
         creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: _onPlatformViewCreated,
+        onPlatformViewCreated: (id) {
+          if (sourceContextId == widget.sourceContextId) {
+            _onPlatformViewCreated(id);
+          }
+        },
         hitTestBehavior: PlatformViewHitTestBehavior.opaque,
       );
     }
@@ -75,5 +100,6 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
       return null;
     });
     _stackChannel = channel;
+    _updateNativeData();
   }
 }

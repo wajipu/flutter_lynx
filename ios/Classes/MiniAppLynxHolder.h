@@ -9,9 +9,22 @@
 #import <Lynx/LynxRoute.h>
 #import <Lynx/LynxView.h>
 #import <Lynx/LynxViewBuilder.h>
+#import <Lynx/NavigationModule.h>
 #import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
+
+@class FlutterMethodChannel;
+@class LynxBridgeBinding;
+@class MiniAppLynxHolder;
+
+@interface MiniAppStackLynxView : LynxView
+@property(nonatomic, weak, nullable) MiniAppLynxHolder *holder;
+@end
+
+@interface MiniAppStackNavigationModule : NavigationModule
+- (instancetype)initWithParam:(id)param;
+@end
 
 extern NSString* const MiniAppLynxHolderCurrentBundlePathDidChange;
 
@@ -31,6 +44,17 @@ extern NSString* const MiniAppLynxHolderCurrentBundlePathDidChange;
 /// 首页初始数据（主题/palette/安全区/胶囊几何）：导航出的新页面与首页
 /// 共享同一渲染上下文，仅 path 与路由参数不同。
 @property(nonatomic, copy, nullable) NSDictionary *initialTemplateData;
+@property(nonatomic, copy) NSSet<NSString *> *allowedModules;
+@property(nonatomic, copy, nullable) NSString *sourceContextId;
+@property(nonatomic, strong, nullable) FlutterMethodChannel *bridgeChannel;
+
+- (LynxBridgeBinding *)createBridgeBinding;
+- (void)trackLynxView:(LynxView *)view
+              binding:(LynxBridgeBinding *)binding
+         templateData:(NSDictionary *)templateData;
+- (void)updateTemplateData:(NSDictionary *)data;
+- (void)invalidateBridgeBindings;
+- (void)goBack;
 
 /// 页面栈深度（含首页；观测与栈底判定用）。
 @property(nonatomic, readonly) NSUInteger pageCount;
