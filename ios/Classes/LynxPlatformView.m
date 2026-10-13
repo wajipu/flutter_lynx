@@ -376,7 +376,12 @@ static NSData *DecodeTemplateBytesParam(id value) {
     // 避免容器更新前被拉伸。
     nativeView.layoutWidthMode = LynxViewSizeModeExact;
     nativeView.layoutHeightMode = LynxViewSizeModeMax;
-    nativeView.preferredMaxLayoutHeight = 480;
+    // 封顶可由宿主按卡片场景放大（长图表/多 section 卡），缺省 480。
+    NSNumber *maxLayoutHeight = params[@"preferredMaxLayoutHeight"];
+    nativeView.preferredMaxLayoutHeight =
+        [maxLayoutHeight isKindOfClass:[NSNumber class]]
+            ? [maxLayoutHeight doubleValue]
+            : 480;
     nativeView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
   } else {
     nativeView.autoresizingMask =

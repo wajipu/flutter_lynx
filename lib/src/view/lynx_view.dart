@@ -63,6 +63,10 @@ class LynxView extends StatefulWidget {
   /// 白底（暗色模板不露白）。null 保持引擎历史默认白。
   final Color? canvasBackground;
 
+  /// iOS autoHeight 的内容高封顶（逻辑像素）：超高内容（长图表/多 section
+  /// 卡）需要放大或解除封顶，否则超出部分被裁剪不可达。null = 默认 480。
+  final double? preferredMaxLayoutHeight;
+
   /// Android / iOS JSBridge modules granted to this native view, matched exactly.
   /// Custom modules must be listed explicitly; changing grants recreates the view.
   final Set<String> allowedModules;
@@ -92,6 +96,7 @@ class LynxView extends StatefulWidget {
     this.gestureRecognizers,
     this.initialData,
     this.canvasBackground,
+    this.preferredMaxLayoutHeight,
     this.sourceContextId,
     this.allowedModules = const {
       "system",
@@ -143,6 +148,8 @@ class _LynxViewState extends State<LynxView> {
         // 宿主 Flutter 版本可编译，不用 3.27+ 才有的 toARGB32。
         // ignore: deprecated_member_use
         "canvasBackground": widget.canvasBackground!.value,
+      if (widget.preferredMaxLayoutHeight != null)
+        "preferredMaxLayoutHeight": widget.preferredMaxLayoutHeight,
     };
   }
 
