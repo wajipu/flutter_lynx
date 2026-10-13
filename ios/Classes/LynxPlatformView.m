@@ -254,6 +254,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
   BOOL _templateRequested;
   BOOL _loaded;
   BOOL _disposed;
+  double _preferredMaxLayoutHeight;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -276,6 +277,11 @@ static NSData *DecodeTemplateBytesParam(id value) {
     NSError *moduleError = nil;
     _allowedModules = [self parseAllowedModules:params[@"allowedModules"] error:&moduleError];
     _allowedModulesError = moduleError;
+    NSNumber *maxLayoutHeight = params[@"preferredMaxLayoutHeight"];
+    _preferredMaxLayoutHeight =
+        [maxLayoutHeight isKindOfClass:[NSNumber class]]
+            ? [maxLayoutHeight doubleValue]
+            : 480;
     _rootView = [[FlutterLynxRootView alloc] initWithFrame:frame];
     // 画布底色：宿主可传 canvasBackground（ARGB int）垫暗色，未绘制区域
     // 不再透出引擎默认白底；不传保持历史白底，其他消费方不受影响。
@@ -376,12 +382,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
     // 避免容器更新前被拉伸。
     nativeView.layoutWidthMode = LynxViewSizeModeExact;
     nativeView.layoutHeightMode = LynxViewSizeModeMax;
-    // 封顶可由宿主按卡片场景放大（长图表/多 section 卡），缺省 480。
-    NSNumber *maxLayoutHeight = params[@"preferredMaxLayoutHeight"];
-    nativeView.preferredMaxLayoutHeight =
-        [maxLayoutHeight isKindOfClass:[NSNumber class]]
-            ? [maxLayoutHeight doubleValue]
-            : 480;
+    nativeView.preferredMaxLayoutHeight = _preferredMaxLayoutHeight;
     nativeView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
   } else {
     nativeView.autoresizingMask =
