@@ -317,32 +317,31 @@ export function A2UICard() {
     });
   };
 
-  // 根节点用 scroll-view（Lynx 内置滚动原语，竖向）：内容超过可视高度时
-  // 卡内自滚动（LynxView 本体不带滚动）。内层容器 minHeight 100% 保证
-  // 短内容（确认卡）时衬底色仍铺满视口。
+  // 根节点必须是无固定高的 view，不能是 scroll-view / height:100% 容器。
+  //
+  // iOS autoHeight 的高度来源是原生 LynxView 的 intrinsicContentSize.height，
+  // 而 Lynx 的百分比高度基准是 viewport 高，viewport 高又来自 Flutter 侧
+  // 容器高——一旦根节点写 height:"100%" 或 minHeight:"100%"，高度就成了闭环：
+  // 容器 240 → viewport 240 → 根 240 → intrinsicContentSize 报 240 → 容器仍 240。
+  // 原生报上来的从来不是内容真高，宿主改封顶数字（480/960/2000）全都无效，
+  // 表现为"内容超出部分被裁掉且不可达"。
+  //
+  // 无固定高的根 view 让 intrinsicContentSize 直接等于内容真高，闭环解开。
+  // 超高内容由宿主容器封顶 + 聊天列表滚动访问（宿主 a2uiCardMaxHeight 的约定）；
+  // 卡内滚动已由目录 List 的原生 <list>（固定 420px、自带滚动）负责，
+  // 目录内无第二个滚动容器，此处移除根 scroll-view 无回退风险。
   return (
-    <scroll-view
+    <view
       style={{
         width: "100%",
-        height: "100%",
-        // 滚动容器自带白底：autoHeight 收敛时序里视口高于内容的空隙会露白
-        // （暗色下白条），垫 theme.background 与卡衬底同色。
         backgroundColor: theme.background,
+        display: "flex",
+        flexDirection: "column",
+        // 卡片与宿主文本块左右对齐：内边距由宿主容器负责，模板不再
+        // 额外缩进（12px 叠在聊天页边距上会让 a2ui 卡比正文窄一圈）。
+        padding: "0px",
       }}
-      scroll-orientation="vertical"
     >
-      <view
-        style={{
-          width: "100%",
-          minHeight: "100%",
-          backgroundColor: theme.background,
-          display: "flex",
-          flexDirection: "column",
-          // 卡片与宿主文本块左右对齐：内边距由宿主容器负责，模板不再
-          // 额外缩进（12px 叠在聊天页边距上会让 a2ui 卡比正文窄一圈）。
-          padding: "0px",
-        }}
-      >
         <A2UIErrorBoundary>
         <A2UI
           messageStore={store}
@@ -409,7 +408,6 @@ export function A2UICard() {
           )}
         />
         </A2UIErrorBoundary>
-      </view>
-    </scroll-view>
+    </view>
   );
 }
