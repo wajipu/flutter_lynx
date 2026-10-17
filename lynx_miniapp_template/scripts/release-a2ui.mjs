@@ -13,9 +13,15 @@
 //   npm run a2ui:promote -- 6                              # 灰度 v6 提升为 stable
 //   npm run a2ui:rollback -- 5                             # stable 回滚到 v5（版本化产物保留在 OSS）
 //   npm run a2ui:status                                    # 查看远端 manifest
+//   npm run a2ui:preview -- --kind confirm                 # 预览发布（不影响线上 manifest）
 //
 // 说明：产物按版本号归档（${bucket}/${version}/a2ui-card.lynx.bundle，永不覆盖），
 // manifest.json 只是指针——回滚/提升都只是改指针，秒级生效。
+//
+// preview 模式是独立的开发/评审通道：产物落在 ${bucket}/preview/${version}/，
+// 同时上传 bundle 与 messages 并生成 card-spec.json，供 koklam://card?spec= 扫码直开。
+// 它不写 manifest.json、不写 releases/index.json，因此完全不影响线上灰度与回滚。
+// 契约见 koklam-docs features/a2ui-card-qr-open/03_contract.md。
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -37,6 +43,14 @@ const GRAY_PERCENT = Number.parseInt(process.env.A2UI_GRAY_PERCENT ?? "0", 10);
 const distDir = path.resolve("dist-a2ui-card");
 const bundlePath = path.join(distDir, "a2ui-card.lynx.bundle");
 const remoteManifest = BUCKET ? `${BUCKET}/manifest.json` : "";
+
+// 预览产物：bundle 与 messages 都必须下发——卡片内容在 messages 里，
+// 只换 bundle 等于没换卡片（契约见 koklam-docs features/a2ui-card-qr-open/03_contract.md §2）。
+const PREVIEW_KINDS = {
+  confirm: "../example/assets/a2ui/confirm-card-messages.json",
+  display: "../example/assets/a2ui/display-card-messages.json",
+};
+const messagesPathFor = (kind) => path.resolve(PREVIEW_KINDS[kind]);
 
 function fail(msg) {
   console.error(`✗ ${msg}`);
@@ -151,6 +165,100 @@ async function main() {
     }
     pushManifest({ stable: entry });
     console.log(`✓ manifest 已更新：${remoteManifest}`);
+    return;
+  }
+
+  // ---- preview：开发/评审预览通道，不触碰线上 manifest ----
+  if (mode === "preview") {
+    requireBucket();
+    // --kind confirm|display，决定用哪份 messages 并写进 spec 的 kind 字段
+    const kindArgIndex = process.argv.indexOf("--kind");
+    const kind = kindArgIndex >= 0 ? process.argv[kindArgIndex + 1] : "confirm";
+    if (!PREVIEW_KINDS[kind]) {
+      fail(`非法 --kind ${kind}（可选：${Object.keys(PREVIEW_KINDS).join(" | ")}）`);
+    }
+    const messagesPath = messagesPathFor(kind);
+    if (!existsSync(messagesPath)) {
+      fail(`messages 源文件缺失：${messagesPath}`);
+    }
+    const skipBuild = process.argv.includes("--no-build");
+
+    // 1. 构建（--no-build 跳过，便于同一 bundle 反复换 messages 预览）
+    if (skipBuild) {
+      console.log("▸ 跳过构建（--no-build）");
+      if (!existsSync(bundlePath)) fail(`构建产物缺失：${bundlePath}`);
+    } else {
+      console.log("▸ 构建 bundle…");
+      execSync(
+        `MINIAPP_A2UI_CARD_OUTPUT_DIR=${distDir} ./node_modules/.bin/rspeedy build --config lynx.a2ui-card.config.ts --no-env`,
+        { stdio: "inherit" },
+      );
+      if (!existsSync(bundlePath)) fail(`构建产物缺失：${bundlePath}`);
+    }
+
+    // 2. 两个产物各自哈希（spec 必须声明各自的 md5）
+    const bundleBytes = readFileSync(bundlePath);
+    const bundleMd5 = createHash("md5").update(bundleBytes).digest("hex");
+    const messagesBytes = readFileSync(messagesPath);
+    const messagesMd5 = createHash("md5").update(messagesBytes).digest("hex");
+
+    // messages 必须是 JSON 数组——形状错了扫出来是白屏，发布前就拦住
+    let messagesJson;
+    try {
+      messagesJson = JSON.parse(messagesBytes.toString("utf8"));
+    } catch (error) {
+      fail(`messages 不是合法 JSON：${error.message}`);
+    }
+    if (!Array.isArray(messagesJson)) {
+      fail("messages 顶层必须是数组（a2ui v0.9 协议消息数组）");
+    }
+    if (bundleBytes.length > 10 * 1024 * 1024) {
+      fail(`bundle 超过原生侧 10 MiB 上限：${bundleBytes.length} 字节`);
+    }
+
+    const gitSha = run("git rev-parse --short HEAD");
+    const version = `preview-${gitSha}-${new Date()
+      .toISOString()
+      .replace(/[-:TZ]/g, "")
+      .slice(0, 12)}`;
+
+    // 3. 上传 bundle + messages 到 preview 命名空间
+    const previewDir = `${BUCKET}/preview/${version}`;
+    const messagesName = `${kind}-card-messages.json`;
+    console.log(
+      `▸ 上传预览产物 v${version}（bundle ${bundleBytes.length} 字节 / messages ${messagesJson.length} 条）…`,
+    );
+    run(`${OSSUTIL} cp ${bundlePath} ${previewDir}/a2ui-card.lynx.bundle -f`);
+    run(`${OSSUTIL} cp ${messagesPath} ${previewDir}/${messagesName} -f`);
+
+    // 4. 生成并上传 card-spec.json
+    const title = process.env.A2UI_TITLE ?? "";
+    const spec = {
+      version,
+      ...(title ? { title } : {}),
+      kind,
+      bundle: {
+        url: `${PUBLIC_BASE}/preview/${version}/a2ui-card.lynx.bundle`,
+        md5: bundleMd5,
+      },
+      messages: {
+        url: `${PUBLIC_BASE}/preview/${version}/${messagesName}`,
+        md5: messagesMd5,
+      },
+    };
+    const specTmp = path.join(distDir, "card-spec.json");
+    writeFileSync(specTmp, JSON.stringify(spec, null, 2));
+    run(`${OSSUTIL} cp ${specTmp} ${previewDir}/card-spec.json -f`);
+
+    const specUrl = `${PUBLIC_BASE}/preview/${version}/card-spec.json`;
+    console.log("");
+    console.log(`✓ 预览发布完成（kind=${kind}）`);
+    console.log(`  版本   v${version}`);
+    console.log(`  二维码  koklam://card?spec=${encodeURIComponent(specUrl)}`);
+    console.log(`  spec   ${specUrl}`);
+    console.log(`  白名单 ${PUBLIC_BASE}/preview/`);
+    console.log("");
+    console.log("  未写 manifest.json / releases/index.json——线上灰度与回滚不受影响。");
     return;
   }
 

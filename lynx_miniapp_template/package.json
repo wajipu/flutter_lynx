@@ -11,7 +11,8 @@
     "a2ui:promote": "node scripts/release-a2ui.mjs promote",
     "a2ui:rollback": "node scripts/release-a2ui.mjs rollback",
     "a2ui:status": "node scripts/release-a2ui.mjs status",
-    "a2ui:admin": "node scripts/a2ui-admin.mjs"
+    "a2ui:admin": "node scripts/a2ui-admin.mjs",
+    "a2ui:preview": "node scripts/release-a2ui.mjs preview"
   },
   "dependencies": {
     "@lynx-js/genui": "0.5.0",
