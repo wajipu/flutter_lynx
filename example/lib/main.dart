@@ -8,6 +8,8 @@ import "package:flutter/services.dart" show rootBundle;
 import "package:flutter_lynx/flutter_lynx.dart";
 import "package:path_provider/path_provider.dart";
 
+import "a2ui_card_preview.dart";
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   LynxLogger.onLog = (tag, msg, {error}) {
@@ -206,6 +208,20 @@ class _DemoHomePageState extends State<DemoHomePage>
   LynxBundleUpdater? _ossUpdater;
   String? _ossCacheDir;
 
+  // --- 扫码直开预览（koklam://card?spec=...）---
+  /// 白名单前缀，编译期注入，便于验证越权拒绝；留空表示"不接受任何地址"。
+  static const String _previewAllowedEnv = String.fromEnvironment(
+    "A2UI_PREVIEW_ALLOWED",
+  );
+  /// 仅本机静态服务器联调用，绝不能带进评审/发布环境。
+  static const bool _previewAllowHttpEnv = bool.fromEnvironment(
+    "A2UI_PREVIEW_ALLOW_HTTP",
+  );
+  final _previewAllowedCtrl = TextEditingController(text: _previewAllowedEnv);
+  final _previewSpecCtrl = TextEditingController();
+  final A2uiCardPreviewLoader _previewLoader = A2uiCardPreviewLoader();
+  A2uiCardPreviewResult? _previewResult;
+
   Future<LynxBundleUpdater> _ossEnsure() async {
     if (_ossUpdater == null) {
       _ossCacheDir ??= "${(await getApplicationCacheDirectory()).path}/a2ui-ota";
@@ -271,6 +287,66 @@ class _DemoHomePageState extends State<DemoHomePage>
     });
     _addLog("OSS >> 恢复内置版本装载");
     await _loadA2uiConfirmCard(display: true);
+  }
+
+  /// 从 spec 地址装载预览卡片。
+  ///
+  /// 失败即失败：不回退内置、不静默重试，画面保持上一次成功渲染的结果不变，
+  /// 只在日志里明确指出是哪一项不合法。
+  Future<void> _previewOpen(String? specUrl) async {
+    final url = (specUrl ?? _previewSpecCtrl.text).trim();
+    if (url.isEmpty) {
+      _addLog("Preview >> 请先填 spec 地址");
+      return;
+    }
+    final allowlist = _previewAllowedCtrl.text
+        .split(",")
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (allowlist.isEmpty) {
+      _addLog("Preview >> 白名单为空，拒绝加载（编译期 A2UI_PREVIEW_ALLOWED 未配置？）");
+      return;
+    }
+    _addLog("Preview >> 开始装载 $url");
+    try {
+      final cacheDir =
+          "${(await getApplicationCacheDirectory()).path}/a2ui-preview";
+      final result = await _previewLoader.load(
+        specUrl: url,
+        allowlist: allowlist,
+        cacheDirectory: cacheDir,
+        allowHttp: _previewAllowHttpEnv,
+        onLog: _addLog,
+      );
+      setState(() {
+        _a2uiBundleBytes = result.bundleBytes;
+        _a2uiMessages = result.messages;
+        _a2uiDisplayMode = result.kind == "display";
+        _previewResult = result;
+      });
+      _addLog(
+          "Preview >> 渲染完成 v${result.version} kind=${result.kind}"
+          " bundle(${result.bundleSource.name}) ${result.bundleBytes.length} 字节"
+          " messages(${result.messagesSource.name}) ${result.messages.length} 条");
+    } on A2uiPreviewException catch (error) {
+      _addLog("Preview >> 装载失败：${error.message}");
+    } catch (error) {
+      _addLog("Preview >> 装载异常：$error");
+    }
+  }
+
+  /// 装载失败的预览版本记入本机坏版本名单，同一版本不再重试。
+  Future<void> _previewOnLoadFail() async {
+    final result = _previewResult;
+    if (result == null) return;
+    _addLog("Preview >> v${result.version} 装载失败，记入本机坏版本名单");
+    final cacheDir =
+        "${(await getApplicationCacheDirectory()).path}/a2ui-preview";
+    try {
+      final dir = Directory("$cacheDir/${result.version}");
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {}
   }
 
   /// OSS 版本装载失败的自动止损：熔断该版本并自动回退内置重新装载（热更自愈）。
@@ -983,6 +1059,89 @@ class _DemoHomePageState extends State<DemoHomePage>
             ],
           ),
         ),
+
+        // --- 扫码直开预览（koklam://card?spec=...）---
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "扫码直开预览",
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "扫 koklam://card?spec=<地址> 直开 OSS 卡片；也可直接粘贴 spec 地址验证。"
+                "bundle 与 messages 都从 OSS 取，域名必须在白名单内。",
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _previewAllowedCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "白名单前缀（逗号分隔），编译期 A2UI_PREVIEW_ALLOWED",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _previewSpecCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: "https://…/preview/<version>/card-spec.json",
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => _previewOpen(null),
+                    child: const Text("打开卡片", style: TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final url = _previewSpecCtrl.text.trim();
+                      if (url.isEmpty) {
+                        _addLog("Preview >> 请先填 spec 地址");
+                        return;
+                      }
+                      _addLog("Preview >> 模拟收到 scheme：koklam://card?spec=$url");
+                      final parsed = A2uiCardPreviewLoader.parseSpecUrl(
+                          "koklam://card?spec=${Uri.encodeComponent(url)}");
+                      if (parsed == null) {
+                        _addLog("Preview >> scheme 解析失败");
+                        return;
+                      }
+                      _previewOpen(parsed);
+                    },
+                    child: const Text("模拟扫码", style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (_previewResult != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  "上次预览: v${_previewResult!.version}"
+                  " · ${_previewResult!.kind}"
+                  " · ${_previewResult!.title}",
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
         Container(
           height: 440,
@@ -1157,6 +1316,11 @@ class _DemoHomePageState extends State<DemoHomePage>
         },
         onLoadFail: (error) {
           _addLog("A2UI LynxView load error: $error");
+          // 预览版本装载失败 → 只记坏版本，不回退内置（预览链路失败即失败）
+          if (_previewResult != null) {
+            _previewOnLoadFail();
+            return;
+          }
           // OSS 版本装载失败 → 自动熔断 + 回退内置重新装载（热更自愈演示）
           _ossSelfHealOnLoadFail();
         },
@@ -1258,6 +1422,8 @@ class _DemoHomePageState extends State<DemoHomePage>
     _tabController.dispose();
     _ossManifestCtrl.dispose();
     _ossDeviceCtrl.dispose();
+    _previewAllowedCtrl.dispose();
+    _previewSpecCtrl.dispose();
     _customUrlController.dispose();
     super.dispose();
   }

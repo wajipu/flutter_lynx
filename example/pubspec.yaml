@@ -30,6 +30,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   path_provider: ^2.1.5
+  # 扫码直开预览链路需要直接下载 OSS 产物并校验 MD5。
+  # 插件 lib/ 已有这两个依赖，这里显式声明而非依赖传递解析。
+  dio: ^5.7.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   integration_test:
