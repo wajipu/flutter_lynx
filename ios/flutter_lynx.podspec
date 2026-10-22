@@ -5,9 +5,9 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
 Lynx dynamic mini-program engine and container for Flutter applications.
                        DESC
-  s.homepage         = "https://github.com/kmanager/flutter_lynx"
+  s.homepage         = "https://github.com/wajipu/flutter_lynx"
   s.license          = { :file => "../LICENSE" }
-  s.author           = { "KManager Team" => "dev@kmanager.com" }
+  s.author           = { "wajipu" => "wajipu@users.noreply.github.com" }
   s.source           = { :path => "." }
   s.source_files = "Classes/**/*.{h,m,mm}"
   s.public_header_files = "Classes/FlutterLynxPlugin.h", "Classes/MiniAppPageStackView.h"

@@ -11,8 +11,8 @@
 - iOS 宿主 `Podfile` 必须同时声明 `https://cdn.cocoapods.org/` 和 `https://github.com/lynx-family/Specs.git`。Lynx 4.1.0 不在 CocoaPods CDN。
 - 已删除 Lynx 3.2 / PrimJS 2.12.0 及配套 `ios/lynx_3_2_xcode16.rb`。4.1 编译或 `lynx_core.js` 查找若再出问题，按 4.1 源码另写补丁，不要回退 3.2。
 - macOS / Windows 的官方桌面引擎是 CMake `libLynx`，不是 iOS `LynxView`。当前 Flutter `LynxView` 在这些平台明确失败，不再用 Dart 自绘预览冒充已加载。
-- kmanager 工作台通过固定 Git 提交接入，当前只授权 `system` Bridge。Android / iOS 打开官方引擎闸门；macOS 明确拒绝。
-- 独立验收入口：`flutter run -t lib/runtime_verification.dart -d <Android或iOS测试设备>`。安装前核对示例包名 `com.kmanager.flutter_lynx_example`，不要覆盖业务App。
+- 宿主 App 通过固定 Git 提交接入，当前只授权 `system` Bridge。Android / iOS 打开官方引擎闸门；macOS 明确拒绝。
+- 独立验收入口：`flutter run -t lib/runtime_verification.dart -d <Android或iOS测试设备>`。安装前核对示例包名 `io.github.wajipu.flutter_lynx_example`，不要覆盖业务App。
 - A/B源码与构建说明见 [模板README](lynx_miniapp_template/README.md)。原有用户修改的演示源码/dist仍保留，旧JSON打包脚本已经移除。
 
 ---
@@ -47,7 +47,7 @@
 +-------------------------------------------------------------+
                               ↕  MethodChannel
 +-------------------------------------------------------------+
-|                     Flutter 宿主 (kmanager)                 |
+|                     Flutter 宿主 App                 |
 |  - 扫码 (MobileScanner / QR)                                |
 |  - 网络代理 (DioClient + 自动携带 Token / Refresh Token)     |
 |  - 状态管理 (Riverpod / 登录信息 / 权限)                       |
@@ -74,17 +74,17 @@ source 'https://github.com/lynx-family/Specs.git'
 dependencies:
   flutter_lynx:
     git:
-      url: git@codeup2.aliyun.com:68359a6af957ee9df431ecaa/basic_library/flutter-lynx.git
-      ref: <kmanager/pubspec.yaml 锁定的已验证提交>
+      url: https://github.com/wajipu/flutter_lynx.git
+      ref: <宿主 App 的 pubspec.yaml 锁定的已验证提交>
 ```
 
-私有仓库需要开发机或CI具备对应Codeup读取权限。宿主应固定已验证提交，禁止 `path:` 指向相邻本地目录，也不要跟浮动 `main`。
+宿主应固定已验证提交，禁止 `path:` 指向相邻本地目录，也不要跟浮动 `main`。
 
 ### 2. 注册宿主能力至 LynxBridge
 
 在宿主初始化阶段（如 `main.dart` 或 `di.dart` 中），将宿主能力注入给小程序调用：
 
-以下Host类仅说明宿主适配位置，不是kmanager现有实现。不得向JS返回主App Token；网络能力必须按确认过的接口白名单转发，不能开放携带认证的任意URL代理。
+以下Host类仅说明宿主适配位置，不是宿主 App 现有实现。不得向JS返回主App Token；网络能力必须按确认过的接口白名单转发，不能开放携带认证的任意URL代理。
 
 ```dart
 import "package:flutter_lynx/flutter_lynx.dart";
@@ -130,7 +130,7 @@ import "package:flutter_lynx/flutter_lynx.dart";
 
 void openDemoMiniProgram(BuildContext context) {
   final manifest = MiniProgramManifest(
-    appId: "kmanager_desk_manage",
+    appId: "host_desk_manage",
     name: "桌台管理小程序",
     version: "1.0.0",
     bundleUrl: "https://cdn.example.com/miniapp/desk_manage/1.0.0/main.lynx.bundle",

@@ -52,7 +52,7 @@ void _initLynxHostCapabilities() {
       "phone": "13812345678",
       "token": "bearer_jwt_token_demo_2026",
       "roles": ["store_manager", "cashier"],
-      "merchantName": "Koklam 旗舰店",
+      "merchantName": "示例旗舰店",
     };
   }, module: "user");
 
@@ -60,7 +60,7 @@ void _initLynxHostCapabilities() {
   bridge.register("scanQRCode", (params) async {
     _addLog("JSB >> scanQRCode invoked by Lynx mini program");
     return {
-      "code": "https://kmanager.example.com/desk/A08?shop=SHOP_01",
+      "code": "https://host.example.com/desk/A08?shop=SHOP_01",
       "format": "QR_CODE",
     };
   }, module: "scanner");
@@ -101,12 +101,12 @@ void _initLynxHostCapabilities() {
     await Future.delayed(const Duration(milliseconds: 300));
     return {
       "fileName":
-          "KManager_经营日报_${DateTime.now().millisecondsSinceEpoch}.$format",
+          "经营日报_${DateTime.now().millisecondsSinceEpoch}.$format",
       "fileSize": "142.8 KB",
       "recordsCount": 328,
       "totalRevenue": 28450.00,
       "downloadUrl":
-          "https://kmanager.example.com/reports/download/rep_889901.xlsx",
+          "https://host.example.com/reports/download/rep_889901.xlsx",
       "exportedAt": DateTime.now().toIso8601String(),
     };
   }, module: "report");
@@ -413,7 +413,7 @@ class _DemoHomePageState extends State<DemoHomePage>
 
   final List<MiniProgramManifest> _presetMiniPrograms = [
     const MiniProgramManifest(
-      appId: "kmanager_report_miniapp",
+      appId: "demo_report_miniapp",
       name: "📊 门店经营分析与多维报表",
       version: "3.0.0",
       bundleUrl:
@@ -422,7 +422,7 @@ class _DemoHomePageState extends State<DemoHomePage>
       initialData: {"storeId": "STORE_001", "period": "today"},
     ),
     const MiniProgramManifest(
-      appId: "kmanager_local_demo",
+      appId: "demo_local",
       name: "📦 本地内置小程序 (离线秒开)",
       version: "1.0.0",
       bundleUrl: "assets/miniapp/main.lynx.bundle",
@@ -430,7 +430,7 @@ class _DemoHomePageState extends State<DemoHomePage>
       initialData: {"theme": "light", "user": "管理员", "role": "admin"},
     ),
     const MiniProgramManifest(
-      appId: "kmanager_desk_miniapp",
+      appId: "demo_desk_miniapp",
       name: "桌台管理与巡检小程序",
       version: "1.0.2",
       bundleUrl: "https://cdn.example.com/miniapp/desk/1.0.2/main.lynx.bundle",
@@ -438,7 +438,7 @@ class _DemoHomePageState extends State<DemoHomePage>
       initialData: {"theme": "light", "shopId": "SHOP_001"},
     ),
     const MiniProgramManifest(
-      appId: "kmanager_order_miniapp",
+      appId: "demo_order_miniapp",
       name: "扫码动态点餐小程序",
       version: "2.1.0",
       bundleUrl: "https://cdn.example.com/miniapp/order/2.1.0/main.lynx.bundle",
@@ -446,7 +446,7 @@ class _DemoHomePageState extends State<DemoHomePage>
       initialData: {"deskNo": "A08", "currency": "CNY"},
     ),
     const MiniProgramManifest(
-      appId: "kmanager_member_miniapp",
+      appId: "demo_member_miniapp",
       name: "会员卡包与积分商城",
       version: "1.5.0",
       bundleUrl:
@@ -1203,7 +1203,7 @@ class _DemoHomePageState extends State<DemoHomePage>
           if (!_a2uiDisplayMode) ...{
             "confirmationId": "cf_demo_20260928_001",
             "title": "A2UI 确认卡",
-            // 契约命名空间（koklam-docs f42edc0）：宿主播种进渲染器数据模型，
+            // 契约命名空间（契约文档 f42edc0）：宿主播种进渲染器数据模型，
             // 模板文案/字段全部经 {"path": ...} 绑定，模板本体零硬编码文案。
             "statusText": "待确认",
             "label": {

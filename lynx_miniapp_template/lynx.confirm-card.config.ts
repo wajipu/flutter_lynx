@@ -9,7 +9,7 @@ if (!outputDirectory || !path.isAbsolute(outputDirectory)) {
   );
 }
 
-// 确认卡片独立构建：产物随 App 版本内置（kmanager assets/miniapp/），
+// 确认卡片独立构建：产物随 App 版本内置（宿主 App assets/miniapp/），
 // 运行时由宿主 templateBytes 直喂，不走云端下发链。复用正常构建配置，
 // 仅替换入口并隔离输出目录，不触碰用户自有的 dist/。
 export default defineConfig({

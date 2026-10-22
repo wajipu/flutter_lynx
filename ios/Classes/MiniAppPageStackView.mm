@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
   NSData *data = [NSData dataWithContentsOfFile:_path];
   if (data.length == 0) {
     callback(nil,
-             [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+             [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                                  code:404
                              userInfo:@{NSLocalizedDescriptionKey :
                                             @"page stack bundle missing"}]);
@@ -132,12 +132,12 @@ NS_ASSUME_NONNULL_END
     // native → Flutter 的单向通知通道：栈底 goBack 时请求关闭容器页。
     _stackChannel = [FlutterMethodChannel
         methodChannelWithName:
-            [NSString stringWithFormat:@"com.kmanager.flutter_lynx/page_stack_%lld",
+            [NSString stringWithFormat:@"io.github.wajipu.flutter_lynx/page_stack_%lld",
                                        viewId]
               binaryMessenger:messenger];
     // 后台引擎也会注册插件，页面调用必须绑定当前视图所属引擎。
     _bridgeChannel = [FlutterMethodChannel
-        methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
+        methodChannelWithName:@"io.github.wajipu.flutter_lynx/bridge"
               binaryMessenger:messenger];
     _holder.allowedModules = _allowedModules;
     _holder.sourceContextId = _sourceContextId;

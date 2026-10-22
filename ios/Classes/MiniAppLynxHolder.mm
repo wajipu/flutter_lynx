@@ -32,7 +32,7 @@ NSString* const MiniAppLynxHolderCurrentBundlePathDidChange =
   NSData *data = [NSData dataWithContentsOfFile:_path];
   if (data.length == 0) {
     callback(nil,
-             [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+             [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                                  code:404
                              userInfo:@{NSLocalizedDescriptionKey :
                                             @"mini app holder bundle missing"}]);

@@ -1,7 +1,7 @@
 name: flutter_lynx
 description: "Lynx dynamic mini-program engine and container for Flutter applications."
 version: 0.1.0
-homepage: https://github.com/kmanager/flutter_lynx
+homepage: https://github.com/wajipu/flutter_lynx
 
 environment:
   sdk: ^3.6.2
@@ -40,7 +40,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.kmanager.flutter_lynx
+        package: io.github.wajipu.flutter_lynx
         pluginClass: FlutterLynxPlugin
       ios:
         pluginClass: FlutterLynxPlugin

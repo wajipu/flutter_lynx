@@ -1,4 +1,4 @@
-package com.kmanager.flutter_lynx
+package io.github.wajipu.flutter_lynx
 
 import android.app.Application
 import android.content.Context
@@ -69,11 +69,11 @@ class LynxPlatformView(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val fileExecutor = Executors.newSingleThreadExecutor()
     private val methodChannel =
-        MethodChannel(messenger, "com.kmanager.flutter_lynx/lynx_view_$viewId")
+        MethodChannel(messenger, "io.github.wajipu.flutter_lynx/lynx_view_$viewId")
     private val eventChannel =
-        MethodChannel(messenger, "com.kmanager.flutter_lynx/lynx_view_" + viewId + "_events")
+        MethodChannel(messenger, "io.github.wajipu.flutter_lynx/lynx_view_" + viewId + "_events")
     // Each view must deliver to its own Flutter engine, including with headless engines present.
-    private val bridgeChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/bridge")
+    private val bridgeChannel = MethodChannel(messenger, "io.github.wajipu.flutter_lynx/bridge")
     private val sourceContextId = creationParams["sourceContextId"] as? String
     private var url = creationParams["url"] as? String ?: ""
     // 源码直喂模式：内容不经文件，渲染入口与文件链路相同（官方 bytes 直喂 API）。

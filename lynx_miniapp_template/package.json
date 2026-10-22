@@ -1,8 +1,8 @@
 {
-  "name": "kmanager-lynx-miniapp-template",
+  "name": "lynx-miniapp-template",
   "version": "1.0.0",
   "private": true,
-  "description": "Dynamic Mini Program template for KManager powered by Lynx (https://lynxjs.org/)",
+  "description": "Dynamic Mini Program template for Flutter host apps powered by Lynx (https://lynxjs.org/)",
   "scripts": {
     "dev": "rspeedy dev",
     "build": "rspeedy build",

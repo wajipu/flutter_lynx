@@ -95,7 +95,7 @@ void main() {
         "callId": "set_1",
         "module": "storage",
         "method": "setStorage",
-        "params": {"key": "name", "data": "KManager"},
+        "params": {"key": "name", "data": "HostApp"},
       });
       expect(setRes["code"], 0);
 
@@ -107,7 +107,7 @@ void main() {
         "params": {"key": "name"},
       });
       expect(getRes["code"], 0);
-      expect(getRes["data"]["data"], "KManager");
+      expect(getRes["data"]["data"], "HostApp");
     });
   });
 

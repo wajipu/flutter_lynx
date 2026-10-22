@@ -3,7 +3,7 @@
 # 本仓库此前没有构建脚本，A2UI 预览链路的 dart-define 由这里统一注入，
 # 避免每次手工敲一长串 --dart-define（漏一个就表现为「扫了没反应」，难排查）。
 #
-# 契约见 koklam-docs features/a2ui-card-qr-open/03_contract.md。
+# 契约见契约文档 features/a2ui-card-qr-open/03_contract.md。
 
 .PHONY: help preview-run preview-run-local preview-build preview-publish
 

@@ -44,7 +44,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
     fileURL = [NSURL URLWithString:url];
     if (fileURL.scheme.length == 0 || ![fileURL.scheme isEqualToString:@"file"] || fileURL.host.length > 0 ||
         fileURL.query.length > 0 || fileURL.fragment.length > 0) {
-      callback(nil, [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+      callback(nil, [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                                         code:400
                                     userInfo:@{NSLocalizedDescriptionKey : @"Lynx only accepts a prepared local file URL"}]);
       return;
@@ -52,7 +52,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
   } else if (url.length > 0 && [url hasPrefix:@"/"]) {
     fileURL = [NSURL fileURLWithPath:url];
   } else {
-    callback(nil, [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+    callback(nil, [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                                       code:400
                                   userInfo:@{NSLocalizedDescriptionKey : @"Lynx only accepts an absolute prepared local file path"}]);
     return;
@@ -67,7 +67,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
     NSLog(@"[MiniAppLynxHolder] skip nil path from url=%@", url);
   }
   if (error || data.length == 0 || data.length > kMaxBundleBytes) {
-    callback(nil, error ?: [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+    callback(nil, error ?: [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                                                code:400
                                            userInfo:@{NSLocalizedDescriptionKey : @"Prepared Lynx bundle is missing, empty or larger than 10 MiB"}]);
     return;
@@ -301,14 +301,14 @@ static NSData *DecodeTemplateBytesParam(id value) {
     }
     _rootView.userInteractionEnabled = YES;
     _methodChannel = [FlutterMethodChannel
-        methodChannelWithName:[NSString stringWithFormat:@"com.kmanager.flutter_lynx/lynx_view_%lld", viewId]
+        methodChannelWithName:[NSString stringWithFormat:@"io.github.wajipu.flutter_lynx/lynx_view_%lld", viewId]
               binaryMessenger:messenger];
     _eventChannel = [FlutterMethodChannel
-        methodChannelWithName:[NSString stringWithFormat:@"com.kmanager.flutter_lynx/lynx_view_%lld_events", viewId]
+        methodChannelWithName:[NSString stringWithFormat:@"io.github.wajipu.flutter_lynx/lynx_view_%lld_events", viewId]
               binaryMessenger:messenger];
     // 后台 Flutter 引擎也会注册插件；回调始终走当前视图所属引擎的 messenger。
     _bridgeChannel = [FlutterMethodChannel
-        methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
+        methodChannelWithName:@"io.github.wajipu.flutter_lynx/bridge"
               binaryMessenger:messenger];
     __weak typeof(self) weakSelf = self;
     [_methodChannel setMethodCallHandler:^(FlutterMethodCall *call, FlutterResult result) {
@@ -474,7 +474,7 @@ static NSData *DecodeTemplateBytesParam(id value) {
 }
 
 - (NSError *)error:(NSString *)message {
-  return [NSError errorWithDomain:@"com.kmanager.flutter_lynx"
+  return [NSError errorWithDomain:@"io.github.wajipu.flutter_lynx"
                              code:400
                          userInfo:@{NSLocalizedDescriptionKey : message}];
 }

@@ -1,5 +1,5 @@
 /**
- * Type-safe JSBridge client SDK for Lynx Mini Programs communicating with Flutter host (KManager).
+ * Type-safe JSBridge client SDK for Lynx Mini Programs communicating with the Flutter host.
  */
 
 interface GlobalEventEmitter {
@@ -70,7 +70,7 @@ export interface SystemInfo {
   menuButton: HostMenuButton;
 }
 
-// --- data 模块（koklam-docs features/merchant-mobile-app/13）---
+// --- data 模块（契约文档 features/merchant-mobile-app/13）---
 //
 // 宿主代调 Cloud 并把 `R` 解包为 `{code, msg, data}` 信封交给 JS；
 // 码表沿用 Cloud R：200 成功、401 会话失效（宿主引导重登）、其余非 200 一律失败态。

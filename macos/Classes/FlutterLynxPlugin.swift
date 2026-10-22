@@ -4,14 +4,14 @@ import FlutterMacOS
 public class FlutterLynxPlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
     let pluginChannel = FlutterMethodChannel(
-      name: "com.kmanager.flutter_lynx/plugin",
+      name: "io.github.wajipu.flutter_lynx/plugin",
       binaryMessenger: registrar.messenger
     )
     let instance = FlutterLynxPlugin()
     registrar.addMethodCallDelegate(instance, channel: pluginChannel)
 
     let bridgeChannel = FlutterMethodChannel(
-      name: "com.kmanager.flutter_lynx/bridge",
+      name: "io.github.wajipu.flutter_lynx/bridge",
       binaryMessenger: registrar.messenger
     )
     registrar.addMethodCallDelegate(instance, channel: bridgeChannel)

@@ -20,7 +20,6 @@ void main() {
   var servedManifest = <String, dynamic>{};
   var serveManifestOk = true;
   var serveBundleOk = true;
-  var manifestRequests = 0;
   var bundleRequests = 0;
 
   setUpAll(() async {
@@ -28,7 +27,6 @@ void main() {
     server.listen((request) async {
       final path = request.uri.path;
       if (path.endsWith("manifest.json")) {
-        manifestRequests += 1;
         if (!serveManifestOk) {
           request.response.statusCode = 500;
           await request.response.close();
@@ -72,7 +70,6 @@ void main() {
     };
     serveManifestOk = true;
     serveBundleOk = true;
-    manifestRequests = 0;
     bundleRequests = 0;
   });
 

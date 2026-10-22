@@ -121,7 +121,7 @@ class LynxView extends StatefulWidget {
 }
 
 class _LynxViewState extends State<LynxView> {
-  static const String _viewType = "com.kmanager.flutter_lynx/lynx_view";
+  static const String _viewType = "io.github.wajipu.flutter_lynx/lynx_view";
   LynxController? _controller;
   MethodChannel? _eventChannel;
   late Set<String> _allowedModules;
@@ -160,7 +160,7 @@ class _LynxViewState extends State<LynxView> {
 
     // 先安装监听再通知原生开始加载，避免快速首屏回调丢失。
     final eventChannel =
-        MethodChannel("com.kmanager.flutter_lynx/lynx_view_${id}_events");
+        MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_${id}_events");
     _eventChannel = eventChannel;
     eventChannel.setMethodCallHandler((call) async {
       if (!mounted || !identical(_controller, controller)) return;

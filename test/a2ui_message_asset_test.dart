@@ -204,7 +204,7 @@ void main() {
       expect(rawText.contains("{call"), isFalse);
 
       // 所有 {"path": ...} 绑定必须落在宿主播种的契约命名空间内
-      // （koklam-docs f42edc0）：/label/*（三语文案）、/payload/*（候选
+      // （契约文档 f42edc0）：/label/*（三语文案）、/payload/*（候选
       // 字段）、/confirmationId、/statusText。
       final bindings = collectMaps(messages, (node) => node.containsKey("path"))
           .map((node) => node["path"] as String)

@@ -61,7 +61,7 @@ LynxBridge.invoke(
 
 **主题注入契约（initData.theme）**：目录组件已做实现层美化（`src/a2ui-card-catalog.tsx`，
 语义逐字复刻官方实现、仅呈现层换内联样式），颜色全部走 `A2UICardTheme` 默认亮色板；
-宿主可在 initData 增加可选 `theme` 命名空间覆写任意键（如 kmanager 明暗主题切换时注入
+宿主可在 initData 增加可选 `theme` 命名空间覆写任意键（如宿主明暗主题切换时注入
 `{"theme": {"background": "#111318", "surface": "#1b1d22", ...}}`）。键白名单收敛：非主题键、
 非字符串值一律忽略。`theme` 不播种进渲染器数据模型（模板不允许 path 绑定主题键）。
 主题键含行为项 `exitAnimation`：`"fade-up"`（默认，提交后 320ms 上滑淡出）或 `"none"`
@@ -78,7 +78,7 @@ LynxBridge.invoke(
 
 Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲染器 fail-soft（告警一次、渲染 null），不崩宿主。
 当前白名单（以 `src/a2ui-card.tsx` 实际注册为准，共 29 组件）：`basicFunctions`（官方基础函数集，数据绑定/校验求值所需）+ 官方移植 `Text / Row / Column / Card / Divider / Button / Icon / Image / List / Loading / Tabs` + 图表 `LineChart / BarChart / PieChart / ScatterChart / RadarChart / FunnelChart / AreaChart / StackedBar / Gauge` + KPI 与流程 `StatCard / RankList / ProgressRing / ComparisonRow / Timeline / BadgeGroup / Accordion / DataTable / CountUp`（确认卡与展示卡所需子集）。
-十三个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单语义边界不变**。视觉规范对齐宿主 Koklam 设计系统（kmanager `lib/theme/app_theme.dart`：Spring Green `#126652` 品牌主色、Paper `#FAFAFA`、Ink `#171D1F`、Apple HIG 字阶、卡片圆角 14、图标尺寸 16/20/24），并以 `A2UICardTheme` 键暴露；宿主明暗切换时经 `initData.theme` 注入 `darkA2UICardTheme` 同源色板即可。
+十三个组件的实现已换成 `src/a2ui-card-catalog.tsx` 的美化版（语义逐字复刻官方实现，仅呈现层内联样式 + 主题注入；displayName 仍显式钉住防压缩白屏）；**白名单语义边界不变**。视觉规范对齐宿主 App 设计系统（`lib/theme/app_theme.dart`：Spring Green `#126652` 品牌主色、Paper `#FAFAFA`、Ink `#171D1F`、Apple HIG 字阶、卡片圆角 14、图标尺寸 16/20/24），并以 `A2UICardTheme` 键暴露；宿主明暗切换时经 `initData.theme` 注入 `darkA2UICardTheme` 同源色板即可。
 
 **引擎图形能力实测（2026-09-28，iOS 模拟器）**：本引擎 `image` 不支持 SVG data URI（base64/URL 编码均空白）、`<svg>` 元素不渲染，`@font-face` base64 可用。据此：
 
@@ -109,7 +109,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 ## 6. 真机端到端验证（Android / iOS）
 
 1. 构建：`cd lynx_miniapp_template && MINIAPP_A2UI_CARD_OUTPUT_DIR="$(pwd)/dist-a2ui-card" ./node_modules/.bin/rspeedy build --config lynx.a2ui-card.config.ts --no-env`，产物复制到 `example/assets/miniapp/a2ui-card.lynx.bundle`（仓库内已内置一份，886 KB tasm 二进制）。
-2. 运行示例：`flutter run -d <Android或iOS测试设备>`（example App，包名 `com.kmanager.flutter_lynx_example`，勿覆盖业务 App）。
+2. 运行示例：`flutter run -d <Android或iOS测试设备>`（example App，包名 `io.github.wajipu.flutter_lynx_example`，勿覆盖业务 App）。
 3. 进「A2UI 确认卡」页签 → 点「装载」→ 卡片渲染（标题/字段/两按钮）→ 点「确认补货」/「再想想」→ 切「JSB 调测日志」页签核对 `ui.confirmResult 回传: {action, confirmationId, quantity, ...}`。
 4. 验收标准：消息 → 渲染 → 点击 → 回传四步全部成立；连点只回传一次；宿主 resolve 后关闭半屏即销毁 surface。
 
@@ -171,7 +171,7 @@ Catalog 即渲染端组件白名单：消息引用白名单外组件时官方渲
 
 宿主须随 initData 注入契约命名空间：`payload`（候选字段）、`confirmationId`、`statusText`、`label`（`title/description/product/stock/quantity/confirm/cancel` 等，按三语注入）。
 
-**图表颜色契约（防报错）**：所有图表的颜色三级回滚——数据项级 `color`（如 `series[].color`、`data[].color`）→ 图表级 `colors` 数组（任意图表可传，覆盖系列色板）→ Koklam 默认色板自动轮转。三级全部可省略：不传任何颜色时自动按默认色板生成，**不传不报错、非法值（非字符串/空串）忽略并回滚**，渲染永不因颜色失败。
+**图表颜色契约（防报错）**：所有图表的颜色三级回滚——数据项级 `color`（如 `series[].color`、`data[].color`）→ 图表级 `colors` 数组（任意图表可传，覆盖系列色板）→ 默认色板自动轮转。三级全部可省略：不传任何颜色时自动按默认色板生成，**不传不报错、非法值（非字符串/空串）忽略并回滚**，渲染永不因颜色失败。
 
 硬约束（写进 Skill 提示语）：`version` 恒 `v0.9`；必须含 `root` 根组件；`children`/`child` 只能 id 引用不得内联；
 只用白名单组件（§4）；只用字面量与 path 绑定（禁函数调用），绑定只落 `/payload/*`、`/label/*`、`/confirmationId`、`/statusText`；
@@ -256,7 +256,7 @@ dio 直接下载的 HTTPS 地址，不是 ossutil 的 oss:// 路径）。
 → **渲染树静默死亡，而 `onLoadSuccess` 照常回调**。
 
 最迷惑点：失败发生在**渲染期**而不是装载期——bundle 装载成功会让人往
-数据注入/消息格式方向排查，实际是 catalog 注册问题。kmanager 已在真机/
+数据注入/消息格式方向排查，实际是 catalog 注册问题。宿主 App 已在真机/
 模拟器用真实 PRODUCT_CREATE 模板复现并验证修复。
 
 **修法**：白名单组件显式钉 displayName（`src/a2ui-card.tsx` 的
@@ -272,5 +272,5 @@ dio 直接下载的 HTTPS 地址，不是 ossutil 的 oss:// 路径）。
 
 ## 8. 桌面策略（延后说明）
 
-桌面 A2UI 子集渲染器延后出本任务范围（kmanager 桌面 runtime 为纯 Flutter shim，任何格式均需自写渲染器），
+桌面 A2UI 子集渲染器延后出本任务范围（宿主 App 桌面 runtime 为纯 Flutter shim，任何格式均需自写渲染器），
 策略待定；期间桌面不承载模型生成 UI。备选实现 lynx-card/1 已保留（见文首链接），可随时回退启用。

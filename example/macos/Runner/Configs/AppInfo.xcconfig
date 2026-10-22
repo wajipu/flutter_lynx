@@ -8,7 +8,7 @@
 PRODUCT_NAME = flutter_lynx_example
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.kmanager.flutterLynxExample
+PRODUCT_BUNDLE_IDENTIFIER = io.github.wajipu.flutterLynxExample
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.kmanager. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 wajipu. All rights reserved.

@@ -2,7 +2,7 @@ import "../lynx_bridge_handler.dart";
 import "../lynx_bridge_request.dart";
 import "../lynx_bridge_response.dart";
 
-/// `data` 模块第一批白名单方法（koklam-docs merchant-mobile-app/13 §4）。
+/// `data` 模块第一批白名单方法（契约文档 merchant-mobile-app/13 §4）。
 ///
 /// 新增方法必须先补 13 号文清单，再在此扩枚举，禁止绕过文档直接加方法。
 enum DataBridgeMethod {

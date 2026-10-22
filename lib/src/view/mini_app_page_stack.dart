@@ -35,7 +35,7 @@ class MiniAppPageStack extends StatefulWidget {
 }
 
 class _MiniAppPageStackState extends State<MiniAppPageStack> {
-  static const String _viewType = "com.kmanager.flutter_lynx/mini_app_page_stack";
+  static const String _viewType = "io.github.wajipu.flutter_lynx/mini_app_page_stack";
 
   MethodChannel? _stackChannel;
 
@@ -105,7 +105,7 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
 
   void _onPlatformViewCreated(int id) {
     _stackChannel?.setMethodCallHandler(null);
-    final channel = MethodChannel("com.kmanager.flutter_lynx/page_stack_$id");
+    final channel = MethodChannel("io.github.wajipu.flutter_lynx/page_stack_$id");
     channel.setMethodCallHandler((call) async {
       if (call.method == 'dismiss') {
         widget.onStackBottomBack?.call();

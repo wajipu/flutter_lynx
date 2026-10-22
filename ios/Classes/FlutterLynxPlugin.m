@@ -24,13 +24,13 @@ static FlutterMethodChannel *kSharedBridgeChannel = nil;
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FlutterLynxPlugin *instance = [[FlutterLynxPlugin alloc] init];
   FlutterMethodChannel *pluginChannel =
-      [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/plugin"
+      [FlutterMethodChannel methodChannelWithName:@"io.github.wajipu.flutter_lynx/plugin"
                                   binaryMessenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:pluginChannel];
   instance->_pluginChannel = pluginChannel;
 
   FlutterMethodChannel *bridgeChannel =
-      [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/bridge"
+      [FlutterMethodChannel methodChannelWithName:@"io.github.wajipu.flutter_lynx/bridge"
                                   binaryMessenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:bridgeChannel];
   instance->_bridgeChannel = bridgeChannel;
@@ -38,7 +38,7 @@ static FlutterMethodChannel *kSharedBridgeChannel = nil;
   [FlutterLynxPlugin setSharedBridgeChannel:bridgeChannel];
 
   FlutterMethodChannel *hostCapsuleChannel =
-      [FlutterMethodChannel methodChannelWithName:@"com.kmanager.flutter_lynx/host_capsule"
+      [FlutterMethodChannel methodChannelWithName:@"io.github.wajipu.flutter_lynx/host_capsule"
                                   binaryMessenger:[registrar messenger]];
   [registrar addMethodCallDelegate:instance channel:hostCapsuleChannel];
   instance->_hostCapsuleChannel = hostCapsuleChannel;
@@ -46,13 +46,13 @@ static FlutterMethodChannel *kSharedBridgeChannel = nil;
 
   LynxPlatformViewFactory *factory =
       [[LynxPlatformViewFactory alloc] initWithMessenger:[registrar messenger]];
-  [registrar registerViewFactory:factory withId:@"com.kmanager.flutter_lynx/lynx_view"];
+  [registrar registerViewFactory:factory withId:@"io.github.wajipu.flutter_lynx/lynx_view"];
 
   // 工作台小程序页面栈容器：native 自治页面栈 + 背滑手势 + 栈底通知。
   MiniAppPageStackFactory *pageStackFactory =
       [[MiniAppPageStackFactory alloc] initWithMessenger:[registrar messenger]];
   [registrar registerViewFactory:pageStackFactory
-                         withId:@"com.kmanager.flutter_lynx/mini_app_page_stack"];
+                         withId:@"io.github.wajipu.flutter_lynx/mini_app_page_stack"];
 }
 
 + (void)callBridge:(NSString *)module

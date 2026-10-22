@@ -118,7 +118,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_lynx: c6e039899e8bb52cdaef570a844d9f4f68ce246a
+  flutter_lynx: 37be48f813c512a82aa6b43ab8093b2d5cf6913c
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   libwebp: af5937a13536ef73f3784d69cc342b98961acf33
   Lynx: b9a0812cb5b0f1ff6efba8cc1d1d5c094a23f632

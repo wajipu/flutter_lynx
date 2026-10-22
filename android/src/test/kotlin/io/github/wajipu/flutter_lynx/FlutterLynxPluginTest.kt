@@ -1,4 +1,4 @@
-package com.kmanager.flutter_lynx
+package io.github.wajipu.flutter_lynx
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

@@ -9,7 +9,7 @@ class LynxHostCapsule {
   LynxHostCapsule._();
 
   static const MethodChannel _channel =
-      MethodChannel("com.kmanager.flutter_lynx/host_capsule");
+      MethodChannel("io.github.wajipu.flutter_lynx/host_capsule");
 
   static VoidCallback? _onMore;
   static VoidCallback? _onClose;

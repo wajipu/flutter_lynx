@@ -7,7 +7,7 @@ class LynxController {
   bool _disposed = false;
 
   LynxController(this.viewId)
-      : _channel = MethodChannel("com.kmanager.flutter_lynx/lynx_view_$viewId");
+      : _channel = MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_$viewId");
 
   /// Update the template data dynamically.
   Future<void> updateData(Map<String, dynamic> data) async {

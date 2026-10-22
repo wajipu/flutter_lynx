@@ -17,7 +17,7 @@ void main() {
 
   void unrecordViewChannel(int viewId) {
     binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      MethodChannel("com.kmanager.flutter_lynx/lynx_view_$viewId"),
+      MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_$viewId"),
       null,
     );
   }
@@ -25,7 +25,7 @@ void main() {
   List<MethodCall> recordViewChannel(int viewId) {
     final calls = <MethodCall>[];
     binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      MethodChannel("com.kmanager.flutter_lynx/lynx_view_$viewId"),
+      MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_$viewId"),
       (call) async {
         calls.add(call);
         return true;
@@ -108,7 +108,7 @@ void main() {
           if (call.method == "create") {
             final id = (args as Map)["id"] as int;
             binding.defaultBinaryMessenger.setMockMethodCallHandler(
-              MethodChannel("com.kmanager.flutter_lynx/lynx_view_$id"),
+              MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_$id"),
               (m) async {
                 viewCalls.add(m);
                 return true;

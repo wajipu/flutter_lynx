@@ -30,7 +30,7 @@ import { ICON_CODEPOINTS, ICON_FONT_FAMILY } from "./a2ui-card-icon-font";
  * 场景调整字号层级 / 间距 / 圆角 / 配色。白名单组件集合不变。
  *
  * 颜色全部来自 A2UICardTheme：默认亮色板开箱舒适，宿主可经 initData.theme
- * 覆写任意键（kmanager 明暗主题切换时按主题注入）。
+ * 覆写任意键（宿主明暗主题切换时按主题注入）。
  */
 
 /** 主题色板。宿主经 initData.theme 注入时只需给出要覆写的键。 */
@@ -63,7 +63,7 @@ export interface A2UICardTheme {
   exitAnimation: string;
 }
 
-/** 默认亮色主题：Koklam 编辑风（kmanager AppTheme 亮色 token 同源）。 */
+/** 默认亮色主题：编辑器风格（宿主 App 主题 token 同源）。 */
 export const lightA2UICardTheme: A2UICardTheme = {
   background: "#FAFAFA", // lightPaper
   surface: "#FFFFFF", // lightSurface
@@ -79,7 +79,7 @@ export const lightA2UICardTheme: A2UICardTheme = {
   exitAnimation: "fade-up",
 };
 
-/** 暗色主题：Koklam 暗色 token 同源，宿主明暗切换时按 base 注入。 */
+/** 暗色主题：宿主暗色 token 同源，宿主明暗切换时按 base 注入。 */
 export const darkA2UICardTheme: A2UICardTheme = {
   background: "#09090B", // darkBackground
   surface: "#18181B", // darkSurface
@@ -296,7 +296,7 @@ function toAlign(
   }
 }
 
-// 字号/字重/行高层级：对齐 kmanager AppTypography（Apple HIG 刻度，全应用
+// 字号/字重/行高层级：对齐宿主 AppTypography（Apple HIG 刻度，全应用
 // 禁止低于 11pt）：h1→title2(22) h2→title3(20，弹窗主标) h3→headline(17 导航/
 // 卡片标题) h4→body-strong(15) h5→footnote-strong(13) body→body(15)
 // caption→caption1(12，字段标签/徽章)。
@@ -317,7 +317,7 @@ type TextVariant = keyof typeof TEXT_VARIANTS;
  * 组件闭包引用它，随 factory 一次性创建。
  */
 export function createCatalogComponents(theme: A2UICardTheme) {
-  // outlined 卡边框：宿主未注入可用描边（空值/transparent；kmanager 亮色
+  // outlined 卡边框：宿主未注入可用描边（空值/transparent；宿主亮色
   // border 为 transparent、经宿主 css 映射会落成 #000000）时退化为分隔线色
   // 细边——亮色容器不描边是宿主约定，卡片 hairline 观感由 divider 承担。
   const outlinedBorder = ["", "transparent", "#000000", "#00000000"].includes(
@@ -915,7 +915,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     );
   }
 
-  // --- Tabs / LineChart / PieChart：官方实现逐字移植，呈现层 Koklam 化。 ---
+  // --- Tabs / LineChart / PieChart：官方实现逐字移植，呈现层宿主主题化。 ---
 
   function Tabs(props: StyledTabsProps) {
     const { surface, tabs } = props;
@@ -1213,7 +1213,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
     const labelsValue = resolvedProps["labels"];
     const labels = Array.isArray(labelsValue) ? labelsValue : [];
     const seriesValue = resolvedProps["series"];
-    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 Koklam 色板
+    // 图表级 colors 覆写：JSON 传 colors 数组则作为系列色板，不传用 默认色板
     const chartPalette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;
@@ -1888,7 +1888,7 @@ export function createCatalogComponents(theme: A2UICardTheme) {
       props.dataContextPath,
     );
     const id = props.id;
-    // 图表级 colors 覆写（同 LineChart；不传用 Koklam 色板）
+    // 图表级 colors 覆写（同 LineChart；不传用 默认色板）
     const chartPalette = Array.isArray(resolvedProps["colors"])
       ? (resolvedProps["colors"] as string[])
       : DEFAULT_CHART_COLORS;

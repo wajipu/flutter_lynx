@@ -1,6 +1,6 @@
 # Lynx 动态小程序开发模板
 
-本模板基于 [LynxJS](https://lynxjs.org/) 构建，专为 KManager 动态小程序容器定制。
+本模板基于 [LynxJS](https://lynxjs.org/) 构建，专为宿主 App 的动态小程序容器定制。
 
 ## 目录说明
 
@@ -65,7 +65,7 @@ export MINIAPP_BUILD_OUTPUT_DIR="$(mktemp -d /tmp/lynx-template-build.XXXXXX)"
 | `minHostVersion` | `x.y.z+build`，所有整数组件不超过 `2147483647` |
 | `translations` | 非空数组，项严格为 `{locale,changelog}`；changelog 1–4000 字符，不允许重复 locale，语言有效性及完整性由后端校验 |
 
-配置拒绝未知字段。`versionName` 只读取 `package.json.version`，必须为 `x.y.z` 且各段不超过 `2147483647`。当前工作台包声明 `bridgeApiVersion: 2`（新增 `data` 业务数据模块，见 koklam-docs 13 号文）；声明 2 的包只有升级后的宿主会下载，旧宿主按清单直接过滤。配置里不存 Token、密码、Clientid、API 地址、任意 headers 或扩展字段。
+配置拒绝未知字段。`versionName` 只读取 `package.json.version`，必须为 `x.y.z` 且各段不超过 `2147483647`。当前工作台包声明 `bridgeApiVersion: 2`（新增 `data` 业务数据模块，见 契约文档 13 号文）；声明 2 的包只有升级后的宿主会下载，旧宿主按清单直接过滤。配置里不存 Token、密码、Clientid、API 地址、任意 headers 或扩展字段。
 
 ### 2. 使用现有登录会话
 

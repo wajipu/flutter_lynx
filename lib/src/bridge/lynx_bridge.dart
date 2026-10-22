@@ -22,7 +22,7 @@ class LynxBridge {
   static LynxBridge get instance => _instance;
 
   final MethodChannel _channel =
-      const MethodChannel("com.kmanager.flutter_lynx/bridge");
+      const MethodChannel("io.github.wajipu.flutter_lynx/bridge");
 
   final List<LynxBridgeHandler> _handlers = [];
   final Map<String, LynxBridgeRequestFunction> _functionHandlers = {};
@@ -32,7 +32,7 @@ class LynxBridge {
   final StorageBridgeHandler storageHandler = StorageBridgeHandler();
   final RouterBridgeHandler routerHandler = RouterBridgeHandler();
 
-  /// 业务数据模块：白名单方法 + 宿主代调（koklam-docs 13 号文）。
+  /// 业务数据模块：白名单方法 + 宿主代调（契约文档 13 号文）。
   /// 宿主需在创建数据 LynxView 前给 [dataHandler.delegate] 注入代调实现。
   final DataBridgeHandler dataHandler = DataBridgeHandler();
 
@@ -56,7 +56,7 @@ class LynxBridge {
   }
 
   /// Register a direct functional handler for a specific method.
-  /// This is how host apps (like kmanager) register custom capabilities:
+  /// This is how host apps  register custom capabilities:
   /// scanQRCode, getUserInfo, request, etc.
   void register(String method, LynxBridgeFunction function,
       {String module = "default"}) {

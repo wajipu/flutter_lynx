@@ -7,7 +7,7 @@ import 'package:dio/dio.dart';
 
 /// A2UI 卡片扫码直开（OSS 预览）的加载器。
 ///
-/// 协议与 spec 格式以 koklam-docs `features/a2ui-card-qr-open/03_contract.md` 为准。
+/// 协议与 spec 格式以契约文档 `features/a2ui-card-qr-open/03_contract.md` 为准。
 ///
 /// 与 [LynxBundleUpdater]（manifest OTA 灰度链路）的根本区别：
 /// - 本链路只服务开发与评审期的预览，**失败就失败**，不回退内置、不静默重试；
@@ -230,7 +230,7 @@ class A2uiCardSpecArtifact {
   const A2uiCardSpecArtifact({required this.url, required this.md5});
 }
 
-/// card spec。契约见 koklam-docs `features/a2ui-card-qr-open/03_contract.md` §2。
+/// card spec。契约见契约文档 `features/a2ui-card-qr-open/03_contract.md` §2。
 class A2uiCardSpec {
   final String version;
   final String? title;

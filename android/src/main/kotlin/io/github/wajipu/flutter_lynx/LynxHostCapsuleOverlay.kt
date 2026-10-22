@@ -1,4 +1,4 @@
-package com.kmanager.flutter_lynx
+package io.github.wajipu.flutter_lynx
 
 import android.app.Activity
 import android.graphics.drawable.GradientDrawable

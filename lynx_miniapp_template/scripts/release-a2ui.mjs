@@ -21,7 +21,7 @@
 // preview 模式是独立的开发/评审通道：产物落在 ${bucket}/preview/${version}/，
 // 同时上传 bundle 与 messages 并生成 card-spec.json，供 koklam://card?spec= 扫码直开。
 // 它不写 manifest.json、不写 releases/index.json，因此完全不影响线上灰度与回滚。
-// 契约见 koklam-docs features/a2ui-card-qr-open/03_contract.md。
+// 契约见契约文档 features/a2ui-card-qr-open/03_contract.md。
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -45,7 +45,7 @@ const bundlePath = path.join(distDir, "a2ui-card.lynx.bundle");
 const remoteManifest = BUCKET ? `${BUCKET}/manifest.json` : "";
 
 // 预览产物：bundle 与 messages 都必须下发——卡片内容在 messages 里，
-// 只换 bundle 等于没换卡片（契约见 koklam-docs features/a2ui-card-qr-open/03_contract.md §2）。
+// 只换 bundle 等于没换卡片（契约见契约文档 features/a2ui-card-qr-open/03_contract.md §2）。
 const PREVIEW_KINDS = {
   confirm: "../example/assets/a2ui/confirm-card-messages.json",
   display: "../example/assets/a2ui/display-card-messages.json",

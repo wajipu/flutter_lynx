@@ -234,7 +234,7 @@ items 超过 **100** 条截断（防抖）；非数组按空处理。
 **本任务决策：自研 lynx-card/1，不直接采用官方路径**，理由：
 
 1. **运行时不匹配**：官方两条路径的渲染实现都是 ReactLynx 组件，必须跑在 Lynx 真引擎内。
-   本格式的消费端是 kmanager **桌面 Flutter runtime（纯 Flutter，无引擎、无 ReactLynx）**——
+   本格式的消费端是宿主 App **桌面 Flutter runtime（纯 Flutter，无引擎、无 ReactLynx）**——
    采纳官方路径并不能"白送"渲染器，仍需在 Flutter 侧实现一个协议级渲染器
    （消息 Schema 校验、Catalog、消息队列、Action 路由），复杂度数倍于场景所需，
    且需持续跟随协议版本演进。

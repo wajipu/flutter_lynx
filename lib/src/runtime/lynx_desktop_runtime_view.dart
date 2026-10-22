@@ -311,7 +311,7 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView>
 
     _viewId = DateTime.now().millisecondsSinceEpoch % 100000;
     _controller = LynxController(_viewId);
-    _channel = MethodChannel("com.kmanager.flutter_lynx/lynx_view_$_viewId");
+    _channel = MethodChannel("io.github.wajipu.flutter_lynx/lynx_view_$_viewId");
 
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -3880,7 +3880,7 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView>
             ElevatedButton(
               onPressed: () {
                 _invokeBridge("network", "request", {
-                  "url": "https://kmanager.example.com/api/order/submit",
+                  "url": "https://host.example.com/api/order/submit",
                   "method": "POST",
                   "items": _cart,
                   "totalPrice": totalPrice,
@@ -3935,7 +3935,7 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    "KManager 黑钻尊享会员",
+                    "黑钻尊享会员",
                     style: TextStyle(
                         color: Color(0xFFFFD700),
                         fontSize: 16,
@@ -4127,7 +4127,7 @@ class _LynxDesktopRuntimeViewState extends State<LynxDesktopRuntimeView>
             }),
             _buildTunnelBtn("request (代理网络请求)", Icons.http, () {
               _invokeBridge("network", "request", {
-                "url": "https://kmanager.example.com/api/v1/store/status",
+                "url": "https://host.example.com/api/v1/store/status",
                 "method": "GET",
               });
             }),

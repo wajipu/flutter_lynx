@@ -1,4 +1,4 @@
-package com.kmanager.flutter_lynx
+package io.github.wajipu.flutter_lynx
 
 import android.app.Activity
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -60,22 +60,22 @@ class FlutterLynxPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         val messenger: BinaryMessenger = binding.binaryMessenger
 
-        pluginChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/plugin").apply {
+        pluginChannel = MethodChannel(messenger, "io.github.wajipu.flutter_lynx/plugin").apply {
             setMethodCallHandler(this@FlutterLynxPlugin)
         }
 
-        bridgeChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/bridge").apply {
+        bridgeChannel = MethodChannel(messenger, "io.github.wajipu.flutter_lynx/bridge").apply {
             setMethodCallHandler(this@FlutterLynxPlugin)
         }
 
-        hostCapsuleChannel = MethodChannel(messenger, "com.kmanager.flutter_lynx/host_capsule").apply {
+        hostCapsuleChannel = MethodChannel(messenger, "io.github.wajipu.flutter_lynx/host_capsule").apply {
             setMethodCallHandler(this@FlutterLynxPlugin)
             LynxHostCapsuleOverlay.bindChannel(this)
         }
 
         // Register Lynx Platform View Factory
         binding.platformViewRegistry.registerViewFactory(
-            "com.kmanager.flutter_lynx/lynx_view",
+            "io.github.wajipu.flutter_lynx/lynx_view",
             LynxPlatformViewFactory(binding.applicationContext, messenger)
         )
     }
