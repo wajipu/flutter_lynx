@@ -309,11 +309,12 @@ NS_ASSUME_NONNULL_END
   [self.containerView bringSubviewToFront:lynxView];
   if ([_pendingEntranceViews containsObject:lynxView]) {
     // 引擎 show = 模板已加载完成；让出一个 runloop 完成首帧布局绘制
-    // 后再滑入，滑进来的就是已渲染的页面。
+    // 后再滑入，滑进来的就是已渲染的页面。0.30s 对齐 Flutter/iOS
+    // 推页时长（Cupertino 500ms 观感拖沓）。
     [_pendingEntranceViews removeObject:lynxView];
     LynxView *entering = lynxView;
     dispatch_async(dispatch_get_main_queue(), ^{
-      [UIView animateWithDuration:0.35
+      [UIView animateWithDuration:0.30
                             delay:0
                           options:UIViewAnimationOptionCurveEaseOut |
                               UIViewAnimationOptionAllowUserInteraction

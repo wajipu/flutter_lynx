@@ -151,8 +151,9 @@ export class LynxBridge {
     return LynxBridge.invoke<SystemInfo>("getSystemInfo", {}, "system");
   }
 
-  static scanQRCode(): Promise<{ code: string }> {
-    return LynxBridge.invoke<{ code: string }>("scanQRCode", {}, "scanner");
+  /** 宿主扫码（25 号文）：取消返回 code:null，成功返回码值；不可用 reject。 */
+  static scanQRCode(): Promise<{ code: string | null }> {
+    return LynxBridge.invoke<{ code: string | null }>("scanQRCode", {}, "scanner");
   }
 
   // --- data 模块白名单方法（13 号文 §4 第一批；新增必须先补文档） ---
