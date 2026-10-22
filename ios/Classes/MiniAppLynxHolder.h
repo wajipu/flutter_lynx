@@ -59,6 +59,9 @@ extern NSString* const MiniAppLynxHolderCurrentBundlePathDidChange;
 /// 页面栈深度（含首页；观测与栈底判定用）。
 @property(nonatomic, readonly) NSUInteger pageCount;
 
+/// 真实栈顶页面视图（跳过滑出动画中的后继）；供容器做交互式返回拖拽。
+- (nullable LynxView *)topLynxView;
+
 /// 栈底 goBack 时经此回调通知 Flutter 关闭容器页（单向通知，唯一 Dart 触点）。
 @property(nonatomic, copy, nullable) void (^onStackBottomBack)(void);
 

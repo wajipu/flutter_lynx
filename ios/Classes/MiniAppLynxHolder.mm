@@ -54,6 +54,12 @@ NS_ASSUME_NONNULL_END
   NSMapTable<LynxView *, LynxBridgeBinding *> *_bindings;
   NSMapTable<LynxView *, NSDictionary *> *_appliedData;
   __weak LynxView *_visibleView;
+  // 被登记为滑出中的被 pop 视图：等动画 completion 移除，不瞬间消失。
+  NSMutableSet<LynxView *> *_exitingViews;
+  // 已真正在滑出动画中的视图；goBack 与引擎 hide 双路径幂等去重。
+  NSMutableSet<LynxView *> *_exitAnimatingViews;
+  // 推入后停在右缘外、等引擎 show（模板加载完成）再滑入的新页。
+  NSMutableSet<LynxView *> *_pendingEntranceViews;
   BOOL _invalidated;
 }
 
@@ -72,6 +78,9 @@ NS_ASSUME_NONNULL_END
     _allowedModules = [NSSet set];
     _bindings = [NSMapTable weakToStrongObjectsMapTable];
     _appliedData = [NSMapTable weakToStrongObjectsMapTable];
+    _exitingViews = [NSMutableSet set];
+    _exitAnimatingViews = [NSMutableSet set];
+    _pendingEntranceViews = [NSMutableSet set];
   }
   return self;
 }
@@ -182,15 +191,20 @@ NS_ASSUME_NONNULL_END
 }
 
 - (void)goBack {
-  if (_invalidated) {
+  if (_invalidated || _lynxViews.count < 2) {
     return;
   }
-  LynxView *previous = _lynxViews.count > 1 ? _lynxViews[_lynxViews.count - 2] : nil;
+  LynxView *top = _lynxViews.lastObject;
+  LynxView *previous = _lynxViews[_lynxViews.count - 2];
+  // 先登记滑出：activate 的后继回收不瞬间移除，返回转场由本方法拥有；
+  // 引擎 hide 迟到时经 animateExitForView 幂等去重。
+  [_exitingViews addObject:top];
   [[LynxNavigator sharedInstance] goBack];
   // Lynx 4.1 CardManager 的重复 ivar 使 pop 后的 invokeOnShow 读不到父页。
-  if (previous != nil && _visibleView != previous) {
+  if (_visibleView != previous) {
     [previous onEnterForeground];
   }
+  [self animateExitForView:top];
 }
 
 - (LynxView *)createLynxView:(LynxRoute *)route {
@@ -241,6 +255,12 @@ NS_ASSUME_NONNULL_END
     view.autoresizingMask =
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.containerView addSubview:view];
+    // 微信式推入转场：新页先停在右缘外等引擎 show（模板加载完成），
+    // 由 activateLynxView 滑入，避免把未渲染的白页滑进来。
+    // transform 仅做视觉位移，不触发 LynxView 重布局。
+    [_pendingEntranceViews addObject:view];
+    view.transform =
+        CGAffineTransformMakeTranslation(CGRectGetWidth(self.containerView.bounds), 0);
   }
   NSLog(@"[MiniAppLynxHolder] navigate route=%@ stack=%lu",
         route.routeName ?: @"", (unsigned long)self.pageCount);
@@ -266,6 +286,10 @@ NS_ASSUME_NONNULL_END
       [[_bindings objectForKey:popped] invalidate];
       [_bindings removeObjectForKey:popped];
       [_appliedData removeObjectForKey:popped];
+      if ([_exitingViews containsObject:popped]) {
+        // 滑出动画中的视图由动画 completion 移除，避免返回转场被打断闪失。
+        continue;
+      }
       [popped removeFromSuperview];
     }
     [_lynxViews removeObjectsInRange:poppedRange];
@@ -283,6 +307,22 @@ NS_ASSUME_NONNULL_END
   }
   lynxView.hidden = NO;
   [self.containerView bringSubviewToFront:lynxView];
+  if ([_pendingEntranceViews containsObject:lynxView]) {
+    // 引擎 show = 模板已加载完成；让出一个 runloop 完成首帧布局绘制
+    // 后再滑入，滑进来的就是已渲染的页面。
+    [_pendingEntranceViews removeObject:lynxView];
+    LynxView *entering = lynxView;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [UIView animateWithDuration:0.35
+                            delay:0
+                          options:UIViewAnimationOptionCurveEaseOut |
+                              UIViewAnimationOptionAllowUserInteraction
+                       animations:^{
+                         entering.transform = CGAffineTransformIdentity;
+                       }
+                       completion:nil];
+    });
+  }
   return YES;
 }
 
@@ -294,7 +334,50 @@ NS_ASSUME_NONNULL_END
     _visibleView = nil;
   }
   // 父页激活时统一回收被 pop 的后继；迟到的退出动画回调可重复调用此处。
-  [lynxView removeFromSuperview];
+  [self animateExitForView:lynxView];
+}
+
+// 微信式返回转场：被 pop 的页面滑出右缘后再移除；交互式拖拽已把视图
+// 移到中途时，本动画从当前位置继续滑出（与手势完成无缝衔接）。
+// goBack 与引擎 hide 双路径调用，以 _exitAnimatingViews 幂等去重。
+- (void)animateExitForView:(LynxView *)lynxView {
+  if ([_exitAnimatingViews containsObject:lynxView]) {
+    return;
+  }
+  if (lynxView.superview != self.containerView) {
+    [lynxView removeFromSuperview];
+    lynxView.transform = CGAffineTransformIdentity;
+    [_exitingViews removeObject:lynxView];
+    return;
+  }
+  [_exitingViews addObject:lynxView];
+  [_exitAnimatingViews addObject:lynxView];
+  [self.containerView bringSubviewToFront:lynxView];
+  CGFloat width = CGRectGetWidth(self.containerView.bounds);
+  [UIView animateWithDuration:0.3
+                        delay:0
+                      options:UIViewAnimationOptionCurveEaseOut |
+                          UIViewAnimationOptionAllowUserInteraction
+                   animations:^{
+                     lynxView.transform =
+                         CGAffineTransformMakeTranslation(width, 0);
+                   }
+                   completion:^(BOOL finished) {
+                     [lynxView removeFromSuperview];
+                     lynxView.transform = CGAffineTransformIdentity;
+                     [self->_exitingViews removeObject:lynxView];
+                     [self->_exitAnimatingViews removeObject:lynxView];
+                   }];
+}
+
+- (LynxView *)topLynxView {
+  for (NSInteger i = _lynxViews.count - 1; i >= 0; i--) {
+    LynxView *view = _lynxViews[i];
+    if (![_exitingViews containsObject:view]) {
+      return view;
+    }
+  }
+  return nil;
 }
 
 #pragma mark - 栈底通知

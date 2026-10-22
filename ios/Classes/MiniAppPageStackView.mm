@@ -95,6 +95,8 @@ NS_ASSUME_NONNULL_END
   NSString *_sourceContextId;
   LynxBridgeBinding *_bridgeBinding;
   MiniAppLynxHolder *_holder;
+  // 交互式返回拖拽中跟手的栈顶视图。
+  LynxView *_dragTopView;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -271,7 +273,7 @@ NS_ASSUME_NONNULL_END
   return _root.subviews.lastObject;
 }
 
-#pragma mark - 背滑手势（原生，直接驱动页面栈）
+#pragma mark - 背滑手势（原生，交互式驱动页面栈返回）
 
 - (void)installEdgeBackGesture {
   UIScreenEdgePanGestureRecognizer *edge =
@@ -282,16 +284,65 @@ NS_ASSUME_NONNULL_END
   [_root addGestureRecognizer:edge];
 }
 
+// 微信式交互返回：栈深>1 时栈顶视图跟手右移，越过阈值（位移 35% 或
+// 快甩）交给页面栈回退（退出动画从当前位置续滑）；不足则弹回原位。
+// 栈底滑动无动作——退出容器只走右上角胶囊 ×。
 - (void)handleEdgePan:(UIScreenEdgePanGestureRecognizer *)gesture {
-  if (gesture.state != UIGestureRecognizerStateEnded) {
+  if (_holder.pageCount <= 1) {
     return;
   }
-  if (_holder.pageCount > 1) {
-    // 有上级页面：交还页面栈回退。
-    [_holder goBack];
-  } else {
-    // 栈底：通知 Flutter 关闭整页容器。
-    [_stackChannel invokeMethod:@"dismiss" arguments:nil];
+  switch (gesture.state) {
+    case UIGestureRecognizerStateBegan: {
+      _dragTopView = [_holder topLynxView];
+      break;
+    }
+    case UIGestureRecognizerStateChanged: {
+      LynxView *top = _dragTopView;
+      if (top == nil) {
+        return;
+      }
+      CGFloat tx = MAX(0, [gesture translationInView:_root].x);
+      top.transform = CGAffineTransformMakeTranslation(tx, 0);
+      break;
+    }
+    case UIGestureRecognizerStateEnded: {
+      LynxView *top = _dragTopView;
+      _dragTopView = nil;
+      if (top == nil) {
+        return;
+      }
+      CGPoint velocity = [gesture velocityInView:_root];
+      CGFloat width = MAX(CGRectGetWidth(_root.bounds), 1);
+      CGFloat progress = top.transform.tx / width;
+      if (progress > 0.35 || velocity.x > 800) {
+        [_holder goBack];
+      } else {
+        [UIView animateWithDuration:0.25
+                              delay:0
+                            options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+                           top.transform = CGAffineTransformIdentity;
+                         }
+                         completion:nil];
+      }
+      break;
+    }
+    case UIGestureRecognizerStateCancelled:
+    case UIGestureRecognizerStateFailed:
+    default: {
+      LynxView *top = _dragTopView;
+      _dragTopView = nil;
+      if (top != nil) {
+        [UIView animateWithDuration:0.25
+                              delay:0
+                            options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+                           top.transform = CGAffineTransformIdentity;
+                         }
+                         completion:nil];
+      }
+      break;
+    }
   }
 }
 
