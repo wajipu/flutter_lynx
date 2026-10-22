@@ -56,10 +56,12 @@ android {
         implementation("org.lynxsdk.lynx:primjs:4.1.1")
         // Image only; no HTTP/Log/DevTool service.
         implementation("org.lynxsdk.lynx:lynx-service-image:4.1.0")
-        // `<svg>` XElement（小程序矢量图标）。stable 4.1.0 与内核同版；
-        // 元素经 LynxUIRegistry 自动注册，无需宿主代码。POM 传递引入
-        // servalsvg 解码依赖。
-        implementation("org.lynxsdk.lynx:xelement-svg:4.1.0")
+        // `<svg>` XElement（小程序矢量图标）。注册聚合在父件 XElementBehaviors
+        // （各元素 @LynxBehavior 生成代码），由 LynxPlatformView 建 LynxView 时
+        // 显式 addBehaviors 挂载（上游 explorer 同款）；只引 xelement-svg 不含
+        // 注册类，运行时报 9901 "svg ui not found"。POM 传递引入全部元素模块
+        // 与 servalsvg 解码依赖。
+        implementation("org.lynxsdk.lynx:xelement:4.1.0")
         implementation("com.facebook.fresco:fresco:2.3.0")
         implementation("com.facebook.fresco:animated-base:2.3.0")
         testImplementation("org.jetbrains.kotlin:kotlin-test")

@@ -17,9 +17,12 @@ Lynx dynamic mini-program engine and container for Flutter applications.
   # Official stable 4.1 stack. Host Podfile must also declare lynx-family Specs.
   # Image only; no HTTP/Log/DevTool service.
   s.dependency "Lynx/Framework", "4.1.0"
-  # `<svg>` XElement（小程序矢量图标）。stable 4.1.0 与内核同版，仅存在于
-  # lynx-family Specs；元素经 LynxUISVG 自动注册，无需宿主代码。ServalSVG
-  # 解码依赖由该 pod 声明（CocoaPods trunk）。
+  # `<svg>` XElement（小程序矢量图标）。注册文件 LynxUISVGAutoRegistry 在
+  # Behavior 子规范，该子规范依赖全部元素并携带静态二进制（ServalMarkdown/
+  # LynxTextra），只能配静态链接宿主（上游 explorer 即 use_frameworks!
+  # :linkage => :static）——Flutter 动态框架宿主装不下。故只依赖 SVG 子规范，
+  # 由 Classes/XElementSVGLazyRegister.m 按上游同款 LYNX_LAZY_REGISTER_UI
+  # 补 `svg` UI 注册。ServalSVG 解码依赖由该子规范声明（CocoaPods trunk）。
   s.dependency "XElement/SVG", "4.1.0"
   s.dependency "PrimJS/quickjs", "4.1.1"
   s.dependency "PrimJS/napi", "4.1.1"

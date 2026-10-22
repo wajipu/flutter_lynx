@@ -17,6 +17,7 @@ import com.lynx.tasm.LynxEnv
 import com.lynx.tasm.LynxError
 import com.lynx.tasm.LynxView
 import com.lynx.tasm.LynxViewBuilder
+import com.lynx.xelement.XElementBehaviors
 import com.lynx.tasm.LynxViewClient
 import com.lynx.tasm.service.ILynxImageService
 import com.lynx.tasm.service.LynxServiceCenter
@@ -127,6 +128,10 @@ class LynxPlatformView(
         val binding = LynxBridgeBinding(mainHandler, modules, bridgeChannel, sourceContextId)
         bridgeBinding = binding
         val builder = LynxViewBuilder()
+        // `<svg>` 等 XElement 元素的注册聚合在父件 XElementBehaviors（各元素
+        // @LynxBehavior 生成代码），引擎不自动发现，需逐 LynxView 显式挂载；
+        // 上游 explorer 同款用法。
+        builder.addBehaviors(XElementBehaviors().create())
         builder.registerModule("LynxBridge", LynxBridgeModule::class.java, binding)
         val nativeView = builder.build(context)
         lynxView = nativeView
