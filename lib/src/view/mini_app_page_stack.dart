@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +15,9 @@ class MiniAppPageStack extends StatefulWidget {
   final List<String> allowedModules;
   /// 宿主关联当前原生视图的来源，独立于模板初始数据和 JS 参数。
   final String? sourceContextId;
+  /// 宿主路由（如扫码页）覆盖期间隐藏原生容器：全屏平台视图不受 Flutter
+  /// 绘制顺序约束，覆盖路由会被其遮挡，须显式 hidden 让位（LynxView 状态保留）。
+  final bool hidden;
   final VoidCallback? onStackBottomBack;
 
   const MiniAppPageStack({
@@ -24,6 +26,7 @@ class MiniAppPageStack extends StatefulWidget {
     required this.initialData,
     required this.allowedModules,
     this.sourceContextId,
+    this.hidden = false,
     this.onStackBottomBack,
   });
 
@@ -44,6 +47,9 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
       _stackChannel = null;
       return;
     }
+    if (oldWidget.hidden != widget.hidden) {
+      _syncHidden();
+    }
     if (!mapEquals(oldWidget.initialData, widget.initialData)) {
       _updateNativeData();
     }
@@ -53,6 +59,13 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
     final channel = _stackChannel;
     if (channel != null) {
       unawaited(channel.invokeMethod<bool>('updateData', widget.initialData));
+    }
+  }
+
+  void _syncHidden() {
+    final channel = _stackChannel;
+    if (channel != null) {
+      unawaited(channel.invokeMethod<void>('setHidden', widget.hidden));
     }
   }
 
@@ -101,5 +114,7 @@ class _MiniAppPageStackState extends State<MiniAppPageStack> {
     });
     _stackChannel = channel;
     _updateNativeData();
+    // 覆盖创建前 hidden 已翻转的场景（如扫码页早于视图就绪）。
+    _syncHidden();
   }
 }

@@ -163,6 +163,15 @@ NS_ASSUME_NONNULL_END
         [strongSelf->_holder updateTemplateData:data];
         strongSelf->_initialData = strongSelf->_holder.initialTemplateData;
         result(@YES);
+      } else if ([call.method isEqualToString:@"setHidden"]) {
+        // 宿主路由（如扫码页）覆盖期间隐藏整个原生容器：全屏平台视图不受
+        // Flutter 绘制顺序约束，被覆盖路由仍会浮在其上，必须显式 hidden。
+        if (![call.arguments isKindOfClass:[NSNumber class]]) {
+          result([FlutterError errorWithCode:@"lynx_invalid_data" message:@"setHidden requires a bool" details:nil]);
+          return;
+        }
+        strongSelf->_root.hidden = [(NSNumber *)call.arguments boolValue];
+        result(@YES);
       } else {
         result(FlutterMethodNotImplemented);
       }
