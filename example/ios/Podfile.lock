@@ -8,6 +8,7 @@ PODS:
     - PrimJS/quickjs (= 4.1.1)
     - SDWebImage (= 5.15.5)
     - SDWebImageWebPCoder (= 0.11.0)
+    - XElement/SVG (= 4.1.0)
   - integration_test (0.0.1):
     - Flutter
   - libwebp (1.6.0):
@@ -80,6 +81,10 @@ PODS:
   - SDWebImageWebPCoder (0.11.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.15)
+  - ServalSVG (0.2.4)
+  - XElement/SVG (4.1.0):
+    - Lynx (= 4.1.0)
+    - ServalSVG (>= 0.0.17)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
@@ -93,11 +98,13 @@ SPEC REPOS:
     - LynxBase
     - LynxService
     - LynxServiceAPI
+    - XElement
   trunk:
     - libwebp
     - PrimJS
     - SDWebImage
     - SDWebImageWebPCoder
+    - ServalSVG
 
 EXTERNAL SOURCES:
   Flutter:
@@ -111,7 +118,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_lynx: c9b86b01f5c2f4df225938e4208b67e26612e761
+  flutter_lynx: c6e039899e8bb52cdaef570a844d9f4f68ce246a
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   libwebp: af5937a13536ef73f3784d69cc342b98961acf33
   Lynx: b9a0812cb5b0f1ff6efba8cc1d1d5c094a23f632
@@ -122,6 +129,8 @@ SPEC CHECKSUMS:
   PrimJS: 2bb7f0e0c314cc81f6dc53aa814082b66f149e7c
   SDWebImage: fd7e1a22f00303e058058278639bf6196ee431fe
   SDWebImageWebPCoder: 295a6573c512f54ad2dd58098e64e17dcf008499
+  ServalSVG: 19bf88f72dae928c28a744c9b91475a3691ded42
+  XElement: 81b11cf09c9b2c773bfc3b9b631811502328016b
 
 PODFILE CHECKSUM: e26caddb51eb844495db8becf3976a20d4416768
 

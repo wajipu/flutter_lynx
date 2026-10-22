@@ -56,6 +56,10 @@ android {
         implementation("org.lynxsdk.lynx:primjs:4.1.1")
         // Image only; no HTTP/Log/DevTool service.
         implementation("org.lynxsdk.lynx:lynx-service-image:4.1.0")
+        // `<svg>` XElement（小程序矢量图标）。stable 4.1.0 与内核同版；
+        // 元素经 LynxUIRegistry 自动注册，无需宿主代码。POM 传递引入
+        // servalsvg 解码依赖。
+        implementation("org.lynxsdk.lynx:xelement-svg:4.1.0")
         implementation("com.facebook.fresco:fresco:2.3.0")
         implementation("com.facebook.fresco:animated-base:2.3.0")
         testImplementation("org.jetbrains.kotlin:kotlin-test")
