@@ -255,13 +255,15 @@ LynxView(
    ```
 
 3. **打包生成 Bundle**：
+
    ```bash
    npm run build
    ```
-   编译产物 `main.lynx.bundle` 将生成在 `dist/` 目录下。直接上传至 CDN 或复制到宿主 assets 即可动态加载！
+
+   编译产物 `main.lynx.bundle` 将生成在 `dist/` 目录下，可上传 CDN 或复制到宿主 assets 动态加载。
 
 ---
 
-## 📄 License
+## License
 
-Apache 2.0
+[MIT](LICENSE)
