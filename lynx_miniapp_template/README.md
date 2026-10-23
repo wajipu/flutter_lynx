@@ -35,7 +35,13 @@ npm run build
 
 构建插件固定为官方 `@lynx-js/react-rsbuild-plugin@0.20.2`，不再引用不存在的 `@lynx-js/react/rspeedy`。`0.20.2` 仍传递依赖 `@lynx-js/tasm@0.0.49`，该编码器只接受 `engineVersion` `[1.0, 3.9]`。官方 `@lynx-js/tasm@0.0.53`（2026-09-07，与 Lynx 4.1.0 同日发布）已把支持上限升到 4.2，因此模板用 `overrides` 钉死 `tasm@0.0.53`，才能编 `engineVersion: "4.1"`。`lynx.config.ts` 显式配置 `pluginReactLynx({ engineVersion: "4.1" })`，与宿主官方引擎 4.1.0 对齐。正常构建和上传共用 `scripts/miniapp-entry.tsx` 的 `root.render(<App />)` 挂载入口，不修改已有业务页面。该选项是最低 Lynx Engine 版本，不是 React npm 包版本。[官方兼容性](https://lynxjs.org/guide/compatibility)
 
-已有其他依赖声明范围保持不变，新 `package-lock.json` 固定安装结果；后续重现使用 `npm ci`。当前锁定 ReactLynx `0.126.1`、Rspeedy `0.17.2`、编码器 `@lynx-js/tasm@0.0.53`。没有把整个 npm 包改成 ESM，以免改变旧脚本语义；Node 可能提示 TS 配置文件未声明 module type，但不影响构建。
+已有其他依赖声明范围保持不变，新 `package-lock.json` 固定安装结果；后续重现使用 `npm ci`。
+
+**锁文件平台陷阱**：`@rspack/binding-wasm32-wasi`（optional）与 `@napi-rs/wasm-runtime`（peer）引用 `@emnapi/core`/`@emnapi/runtime`@1.11.3。macOS 上的 `npm install` 重写锁时不物化这两个条目，而 Linux 的 `npm ci` 严格校验要求它们存在——锁里必须保留这两条（registry 真实 integrity）。**在 macOS 跑过 `npm install` 后提交前必须检查**：
+```bash
+grep -c '"node_modules/@emnapi/core"' package-lock.json   # 期望 1
+grep -c '"node_modules/@emnapi/runtime"' package-lock.json # 期望 1
+```当前锁定 ReactLynx `0.126.1`、Rspeedy `0.17.2`、编码器 `@lynx-js/tasm@0.0.53`。没有把整个 npm 包改成 ESM，以免改变旧脚本语义；Node 可能提示 TS 配置文件未声明 module type，但不影响构建。
 
 保留 `dist/` 的完整模板隔离构建：
 
