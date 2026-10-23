@@ -6,16 +6,9 @@
   "scripts": {
     "dev": "rspeedy dev",
     "build": "rspeedy build",
-    "miniapp:upload": "node scripts/miniapp-upload.mjs",
-    "a2ui:release": "node scripts/release-a2ui.mjs release",
-    "a2ui:promote": "node scripts/release-a2ui.mjs promote",
-    "a2ui:rollback": "node scripts/release-a2ui.mjs rollback",
-    "a2ui:status": "node scripts/release-a2ui.mjs status",
-    "a2ui:admin": "node scripts/a2ui-admin.mjs",
-    "a2ui:preview": "node scripts/release-a2ui.mjs preview"
+    "miniapp:upload": "node scripts/miniapp-upload.mjs"
   },
   "dependencies": {
-    "@lynx-js/genui": "0.5.0",
     "@lynx-js/lynx-ui": "^3.138.0",
     "@lynx-js/react": "^0.126.0"
   },

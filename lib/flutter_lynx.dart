@@ -25,7 +25,6 @@ export "src/host/lynx_host_capsule.dart";
 export "src/manager/mini_program_manifest.dart";
 export "src/manager/bundle_downloader.dart";
 export "src/manager/lynx_mini_program_manager.dart";
-export "src/manager/lynx_bundle_updater.dart";
 
 // Views & Canvas
 export "src/view/lynx_view.dart";
