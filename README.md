@@ -1,5 +1,8 @@
 # Flutter Lynx (动态小程序插件)
 
+[![CI](https://github.com/wajipu/flutter_lynx/actions/workflows/ci.yml/badge.svg)](https://github.com/wajipu/flutter_lynx/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 基于 [Lynx](https://lynxjs.org/) 引擎构建的 Flutter 动态小程序与页面容器插件。
 
 提供 Flutter 容器、包准备和 JavaScript Bridge 入口。当前实现状态以实测为准，不把示例或占位视图当作生产能力。
