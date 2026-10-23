@@ -8,6 +8,7 @@ PODS:
     - PrimJS/quickjs (= 4.1.1)
     - SDWebImage (= 5.15.5)
     - SDWebImageWebPCoder (= 0.11.0)
+    - XElement/Refresh (= 4.1.0)
     - XElement/SVG (= 4.1.0)
   - integration_test (0.0.1):
     - Flutter
@@ -50,6 +51,7 @@ PODS:
   - LynxServiceAPI/Core (4.1.0):
     - LynxServiceAPI/Native
   - LynxServiceAPI/Native (4.1.0)
+  - MJRefresh (3.7.9)
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -82,6 +84,9 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.15)
   - ServalSVG (0.2.4)
+  - XElement/Refresh (4.1.0):
+    - Lynx (= 4.1.0)
+    - MJRefresh (>= 3.6.1)
   - XElement/SVG (4.1.0):
     - Lynx (= 4.1.0)
     - ServalSVG (>= 0.0.17)
@@ -101,6 +106,7 @@ SPEC REPOS:
     - XElement
   trunk:
     - libwebp
+    - MJRefresh
     - PrimJS
     - SDWebImage
     - SDWebImageWebPCoder
@@ -118,13 +124,14 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_lynx: 37be48f813c512a82aa6b43ab8093b2d5cf6913c
+  flutter_lynx: ae78049e77a03046cbef13162ef818982977368e
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   libwebp: af5937a13536ef73f3784d69cc342b98961acf33
   Lynx: b9a0812cb5b0f1ff6efba8cc1d1d5c094a23f632
   LynxBase: 4d2fdb403f161e8fce8af3db8bddee50c8f1fe3e
   LynxService: 4e390c8080eff4bc3d3f4e2133379c2942191c1b
   LynxServiceAPI: 79446ba6dcea4353b8e2e5b77ec9f34603c0a054
+  MJRefresh: ff9e531227924c84ce459338414550a05d2aea78
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   PrimJS: 2bb7f0e0c314cc81f6dc53aa814082b66f149e7c
   SDWebImage: fd7e1a22f00303e058058278639bf6196ee431fe
